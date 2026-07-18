@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Back Youcus (Express, TypeScript, Prisma).",
-  "prisma": { "seed": "tsx prisma/seed.ts" },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup src/index.ts --format esm --clean --sourcemap",
@@ -25,7 +27,8 @@
     "helmet": "^8.0.0",
     "pino": "^9.4.0",
     "pino-http": "^10.3.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",
