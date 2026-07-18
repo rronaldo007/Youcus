@@ -1,0 +1,5 @@
+// Client Prisma. Schema multi-fichiers via le dossier prisma/schema/.
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["prismaSchemaFolder"]
+}

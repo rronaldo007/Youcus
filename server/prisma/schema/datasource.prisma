@@ -1,0 +1,5 @@
+// Source de donnees : MySQL 8 (dev) / MariaDB (prod Sevalla), provider mysql.
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
