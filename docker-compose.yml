@@ -1,0 +1,22 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: youcus-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-youcus}
+      MYSQL_USER: ${MYSQL_USER:-youcus}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-youcus}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - youcus-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  youcus-db-data:
