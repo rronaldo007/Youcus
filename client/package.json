@@ -1,0 +1,9 @@
+{
+  "name": "@youcus/client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Front Youcus (Vite, React, TypeScript, Tailwind). A echafauder dans CS-31.",
+  "scripts": {
+    "dev": "echo \"client: a echafauder (CS-31)\" && exit 0"
+  }
+}

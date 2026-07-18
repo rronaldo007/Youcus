@@ -1,0 +1,9 @@
+{
+  "name": "@youcus/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Back Youcus (Express, TypeScript, Prisma). A echafauder dans CS-32.",
+  "scripts": {
+    "dev": "echo \"server: a echafauder (CS-32)\" && exit 0"
+  }
+}
