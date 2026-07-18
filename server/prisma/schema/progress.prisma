@@ -1,0 +1,15 @@
+model Progress {
+  id             String   @id @default(cuid())
+  watchedSeconds Int      @default(0)
+  completed      Boolean  @default(false)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  video          Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId        String
+  playlist       Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlistId     String
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, videoId])
+  @@index([userId, playlistId])
+}
