@@ -2,8 +2,48 @@
   "name": "@youcus/server",
   "version": "0.1.0",
   "private": true,
-  "description": "Back Youcus (Express, TypeScript, Prisma). A echafauder dans CS-32.",
+  "type": "module",
+  "description": "Back Youcus (Express, TypeScript, Prisma).",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
-    "dev": "echo \"server: a echafauder (CS-32)\" && exit 0"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --clean --sourcemap",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "helmet": "^8.0.0",
+    "pino": "^9.4.0",
+    "pino-http": "^10.3.0",
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.12.0",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.16.11",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.12.0",
+    "prisma": "^5.20.0",
+    "supertest": "^7.0.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.8.0",
+    "vitest": "^2.1.2"
   }
 }
