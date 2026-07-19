@@ -1,10 +1,11 @@
 import { Link, useParams } from 'react-router-dom'
-import { usePlaylist } from '@/features/playlists/usePlaylists'
+import { usePlaylist, useRefreshPlaylist } from '@/features/playlists/usePlaylists'
 
 /** Détail d'une playlist : liste ordonnée de ses vidéos. */
 export function PlaylistDetailPage() {
   const { id } = useParams()
   const { data, isLoading, isError } = usePlaylist(id as string)
+  const refresh = useRefreshPlaylist(id as string)
 
   if (isLoading) return <p className="p-6 text-content-muted">Chargement…</p>
   if (isError || !data) {
@@ -25,10 +26,25 @@ export function PlaylistDetailPage() {
       <Link to="/" className="text-sm text-brand-purple hover:underline">
         ← Bibliothèque
       </Link>
-      <h1 className="mt-4 text-2xl font-bold text-content">{data.title}</h1>
+      <div className="mt-4 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-content">{data.title}</h1>
+        <button
+          type="button"
+          onClick={() => refresh.mutate()}
+          disabled={refresh.isPending}
+          className="shrink-0 rounded-card border border-line px-3 py-1.5 text-sm font-medium text-content transition hover:bg-surface-2 disabled:opacity-60"
+        >
+          {refresh.isPending ? 'Rafraîchissement…' : 'Rafraîchir'}
+        </button>
+      </div>
       <p className="text-content-muted">
         {data.videoCount} vidéo{data.videoCount > 1 ? 's' : ''}
       </p>
+      {refresh.isError && (
+        <p role="alert" className="mt-1 text-sm text-accent-red">
+          {(refresh.error as Error).message}
+        </p>
+      )}
 
       <ol className="mt-6 flex flex-col gap-2">
         {data.videos.map((v) => (

@@ -2,6 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import type { Playlist, PlaylistDetail } from '@/types'
 
+/** Rafraîchit une playlist depuis YouTube (ajouts / retraits de vidéos). */
+export function useRefreshPlaylist(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch<Playlist>(`/playlists/${id}/refresh`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists', id] })
+      queryClient.invalidateQueries({ queryKey: ['playlists'] })
+    },
+  })
+}
+
 /** Liste des playlists importées de l'utilisateur. */
 export function usePlaylists() {
   return useQuery({
