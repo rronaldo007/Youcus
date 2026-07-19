@@ -11,16 +11,18 @@ function renderWithClient(ui: ReactElement) {
 
 describe('HomePage', () => {
   beforeEach(() => {
-    // Session absente → /auth/me renvoie 401 → utilisateur déconnecté.
+    // Session absente → 401 → visiteur non connecté → landing.
     vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })))
   })
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('affiche le titre et le bouton de connexion quand on est déconnecté', async () => {
+  it('affiche la landing (hero + CTA Google) quand on est déconnecté', async () => {
     renderWithClient(<HomePage />)
-    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
-    expect(await screen.findByText(/Se connecter avec Google/i)).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /sans les distractions/i }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/Continuer avec Google/i).length).toBeGreaterThan(0)
   })
 })
