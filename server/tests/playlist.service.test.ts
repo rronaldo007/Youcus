@@ -9,6 +9,7 @@ vi.mock('@/lib/prisma', () => ({
       findFirst: vi.fn(),
       deleteMany: vi.fn(),
     },
+    progress: { groupBy: vi.fn() },
   },
 }))
 
@@ -19,13 +20,18 @@ describe('playlist.service (lecture / suppression)', () => {
     vi.mocked(prisma.playlist.findMany).mockResolvedValue([
       { id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, _count: { videos: 3 } },
     ] as never)
+    vi.mocked(prisma.progress.groupBy).mockResolvedValue([
+      { playlistId: 'p1', _count: { _all: 2 } },
+    ] as never)
 
     const res = await listPlaylists('u1')
 
     expect(prisma.playlist.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { ownerId: 'u1' } }),
     )
-    expect(res).toEqual([{ id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, videoCount: 3 }])
+    expect(res).toEqual([
+      { id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, videoCount: 3, completedCount: 2 },
+    ])
   })
 
   it('getPlaylist renvoie 404 quand la playlist n\'appartient pas à l\'utilisateur', async () => {

@@ -11,6 +11,7 @@ export interface Playlist {
   title: string
   thumbnailUrl: string | null
   videoCount: number
+  completedCount?: number
 }
 
 export interface Video {
