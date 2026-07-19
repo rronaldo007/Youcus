@@ -57,6 +57,12 @@ authRouter.get(
   }),
 )
 
+// Déconnexion : invalide la session en supprimant le cookie.
+authRouter.post('/auth/logout', (_req, res) => {
+  clearSession(res)
+  res.json({ ok: true })
+})
+
 // Profil de l'utilisateur connecté (protégé par requireAuth).
 authRouter.get(
   '/auth/me',
