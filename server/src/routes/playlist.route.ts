@@ -12,6 +12,7 @@ import {
   refreshPlaylist,
 } from '@/services/playlist.service'
 import { importSelectedPlaylists, listMyPlaylists } from '@/services/youtubeAccount.service'
+import { setProgress } from '@/services/progress.service'
 
 export const playlistRouter = Router()
 
@@ -35,6 +36,26 @@ const mergeSchema = z.object({
 const batchSchema = z.object({
   playlistIds: z.array(z.string()).min(1, 'Sélectionnez au moins une playlist'),
 })
+
+const progressSchema = z.object({
+  videoId: z.string().min(1),
+  playlistId: z.string().min(1),
+  completed: z.boolean().optional(),
+  watchedSeconds: z.number().int().nonnegative().optional(),
+})
+
+// Enregistre la progression d'une vidéo (vu / position de lecture).
+playlistRouter.post(
+  '/progress',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = progressSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Requête invalide')
+    }
+    res.json(await setProgress(req.userId as string, parsed.data))
+  }),
+)
 
 // Playlists du compte YouTube de l'utilisateur (via son jeton OAuth).
 playlistRouter.get(

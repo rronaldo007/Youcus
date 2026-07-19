@@ -20,6 +20,8 @@ export interface Video {
   thumbnailUrl: string | null
   position: number
   durationSeconds: number
+  completed?: boolean
+  watchedSeconds?: number
 }
 
 export interface PlaylistDetail extends Playlist {

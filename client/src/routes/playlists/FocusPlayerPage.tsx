@@ -1,12 +1,13 @@
 import { Link, useParams } from 'react-router-dom'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
 import { VideoSidebar } from '@/features/player/VideoSidebar'
-import { usePlaylist } from '@/features/playlists/usePlaylists'
+import { usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
 
 /** Page lecteur focus : lit une vidéo, avec navigation entre les vidéos de la playlist (CS-15). */
 export function FocusPlayerPage() {
   const { id, videoId } = useParams()
   const { data, isLoading, isError } = usePlaylist(id as string)
+  const setProgress = useSetProgress(id as string)
 
   if (isLoading) return <p className="p-6 text-content-muted">Chargement…</p>
   if (isError || !data) {
@@ -52,9 +53,23 @@ export function FocusPlayerPage() {
       <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div>
           <FocusPlayer youtubeId={video.youtubeId} title={video.title} />
-          <h1 className="mt-4 text-xl font-semibold text-content">
-            {video.position + 1}. {video.title}
-          </h1>
+          <div className="mt-4 flex items-start justify-between gap-4">
+            <h1 className="text-xl font-semibold text-content">
+              {video.position + 1}. {video.title}
+            </h1>
+            <button
+              type="button"
+              onClick={() => setProgress.mutate({ videoId: video.id, completed: !video.completed })}
+              disabled={setProgress.isPending}
+              className={`shrink-0 rounded-card border px-3 py-1.5 text-sm font-medium transition disabled:opacity-60 ${
+                video.completed
+                  ? 'border-success/40 bg-success/10 text-success'
+                  : 'border-line text-content hover:bg-surface-2'
+              }`}
+            >
+              {video.completed ? '✓ Vue' : 'Marquer comme vue'}
+            </button>
+          </div>
           <div className="mt-3 flex items-center justify-between">
             {prev ? (
               <Link to={`/playlists/${id}/watch/${prev.youtubeId}`} className={navBtn}>

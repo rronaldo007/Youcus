@@ -36,6 +36,22 @@ export function useImportBatch() {
   })
 }
 
+/** Enregistre la progression d'une vidéo (vu / position). Rafraîchit le détail de la playlist. */
+export function useSetProgress(playlistId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { videoId: string; completed?: boolean; watchedSeconds?: number }) =>
+      apiFetch<{ videoId: string; completed: boolean; watchedSeconds: number }>('/progress', {
+        method: 'POST',
+        body: JSON.stringify({ ...input, playlistId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists', playlistId] })
+      queryClient.invalidateQueries({ queryKey: ['playlists'] })
+    },
+  })
+}
+
 /** Fusionne plusieurs playlists en une nouvelle. */
 export function useMergePlaylists() {
   const queryClient = useQueryClient()
