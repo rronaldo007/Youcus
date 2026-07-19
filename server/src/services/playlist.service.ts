@@ -39,6 +39,8 @@ export interface PlaylistVideo {
   thumbnailUrl: string | null
   position: number
   durationSeconds: number
+  completed: boolean
+  watchedSeconds: number
 }
 
 export interface PlaylistDetail extends ImportedPlaylist {
@@ -72,7 +74,12 @@ export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]>
 export async function getPlaylist(userId: string, id: string): Promise<PlaylistDetail> {
   const pl = await prisma.playlist.findFirst({
     where: { id, ownerId: userId },
-    include: { videos: { orderBy: { position: 'asc' } } },
+    include: {
+      videos: {
+        orderBy: { position: 'asc' },
+        include: { progress: { where: { userId } } },
+      },
+    },
   })
   if (!pl) throw new HttpError(404, 'Playlist introuvable')
   return {
@@ -89,6 +96,8 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
       thumbnailUrl: v.thumbnailUrl,
       position: v.position,
       durationSeconds: v.durationSeconds,
+      completed: v.progress[0]?.completed ?? false,
+      watchedSeconds: v.progress[0]?.watchedSeconds ?? 0,
     })),
   }
 }

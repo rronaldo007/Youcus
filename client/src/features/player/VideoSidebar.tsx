@@ -35,6 +35,11 @@ export function VideoSidebar({
                   <img src={v.thumbnailUrl} alt="" className="h-9 w-16 shrink-0 rounded object-cover" />
                 )}
                 <span className="line-clamp-2">{v.title}</span>
+                {v.completed && (
+                  <span className="ml-auto shrink-0 text-success" aria-label="Vue" title="Vue">
+                    ✓
+                  </span>
+                )}
               </Link>
             </li>
           )
