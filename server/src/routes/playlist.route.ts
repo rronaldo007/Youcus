@@ -8,6 +8,7 @@ import {
   getPlaylist,
   importPlaylist,
   listPlaylists,
+  mergePlaylists,
   refreshPlaylist,
 } from '@/services/playlist.service'
 
@@ -25,6 +26,11 @@ const importSchema = z.object({
   url: z.string().min(1, 'URL ou identifiant de playlist requis'),
 })
 
+const mergeSchema = z.object({
+  sourceIds: z.array(z.string()).min(2, 'Sélectionnez au moins 2 playlists à fusionner'),
+  title: z.string().min(1, 'Nom de la playlist fusionnée requis'),
+})
+
 // Importe une playlist YouTube pour l'utilisateur connecté.
 playlistRouter.post(
   '/playlists/import',
@@ -38,6 +44,20 @@ playlistRouter.post(
       throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Requête invalide')
     }
     const playlist = await importPlaylist(req.userId as string, parsed.data.url)
+    res.status(201).json(playlist)
+  }),
+)
+
+// Fusionne plusieurs playlists en une nouvelle.
+playlistRouter.post(
+  '/playlists/merge',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = mergeSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Requête invalide')
+    }
+    const playlist = await mergePlaylists(req.userId as string, parsed.data.sourceIds, parsed.data.title)
     res.status(201).json(playlist)
   }),
 )
