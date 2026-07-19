@@ -7,6 +7,7 @@ function mockRes(): Response {
   const res = {} as Response
   res.status = vi.fn().mockReturnValue(res)
   res.json = vi.fn().mockReturnValue(res)
+  res.cookie = vi.fn().mockReturnValue(res)
   return res
 }
 
@@ -32,5 +33,7 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalledOnce()
     expect(req.userId).toBe('user-42')
     expect(res.status).not.toHaveBeenCalled()
+    // Session glissante : le cookie est réémis pour repousser l'expiration.
+    expect(res.cookie).toHaveBeenCalledWith(SESSION_COOKIE, 'user-42', expect.objectContaining({ maxAge: expect.any(Number) }))
   })
 })
