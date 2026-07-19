@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { env, isGoogleOAuthConfigured } from '@/config/env'
-import { buildGoogleAuthUrl, exchangeCodeForProfile } from '@/lib/googleOAuth'
+import { buildGoogleAuthUrl, exchangeCodeForTokens } from '@/lib/googleOAuth'
 import { prisma } from '@/lib/prisma'
 import {
   clearSession,
@@ -50,8 +50,8 @@ authRouter.get(
       throw new HttpError(400, 'Requête OAuth invalide (code ou state manquant)')
     }
 
-    const profile = await exchangeCodeForProfile(code)
-    const user = await upsertGoogleUser(profile)
+    const { profile, tokens } = await exchangeCodeForTokens(code)
+    const user = await upsertGoogleUser(profile, tokens)
     setSession(res, user.id)
     return res.redirect(env.CLIENT_ORIGIN)
   }),

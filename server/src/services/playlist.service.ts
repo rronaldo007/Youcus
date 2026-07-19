@@ -103,9 +103,13 @@ export async function deletePlaylist(userId: string, id: string): Promise<void> 
  * Importe (ou ré-importe) une playlist YouTube pour un utilisateur.
  * Upsert de la Playlist sur (ownerId, youtubeId) puis remplacement de ses vidéos.
  */
-export async function importPlaylist(userId: string, input: string): Promise<ImportedPlaylist> {
+export async function importPlaylist(
+  userId: string,
+  input: string,
+  accessToken?: string,
+): Promise<ImportedPlaylist> {
   const playlistId = extractPlaylistId(input)
-  const data = await fetchPlaylist(playlistId)
+  const data = await fetchPlaylist(playlistId, accessToken)
 
   const playlist = await prisma.$transaction(async (tx) => {
     const pl = await tx.playlist.upsert({

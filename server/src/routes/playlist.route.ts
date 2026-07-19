@@ -11,6 +11,7 @@ import {
   mergePlaylists,
   refreshPlaylist,
 } from '@/services/playlist.service'
+import { importSelectedPlaylists, listMyPlaylists } from '@/services/youtubeAccount.service'
 
 export const playlistRouter = Router()
 
@@ -30,6 +31,32 @@ const mergeSchema = z.object({
   sourceIds: z.array(z.string()).min(2, 'Sélectionnez au moins 2 playlists à fusionner'),
   title: z.string().min(1, 'Nom de la playlist fusionnée requis'),
 })
+
+const batchSchema = z.object({
+  playlistIds: z.array(z.string()).min(1, 'Sélectionnez au moins une playlist'),
+})
+
+// Playlists du compte YouTube de l'utilisateur (via son jeton OAuth).
+playlistRouter.get(
+  '/youtube/my-playlists',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await listMyPlaylists(req.userId as string))
+  }),
+)
+
+// Import en lot des playlists sélectionnées depuis le compte.
+playlistRouter.post(
+  '/playlists/import-batch',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = batchSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Requête invalide')
+    }
+    res.status(201).json(await importSelectedPlaylists(req.userId as string, parsed.data.playlistIds))
+  }),
+)
 
 // Importe une playlist YouTube pour l'utilisateur connecté.
 playlistRouter.post(
