@@ -1,5 +1,6 @@
 import { googleLoginUrl } from '@/lib/api'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
+import { ImportPlaylistForm } from '@/features/playlists/ImportPlaylistForm'
 
 export function HomePage() {
   const { data: user, isLoading } = useCurrentUser()
@@ -15,9 +16,13 @@ export function HomePage() {
       </p>
 
       {isLoading ? null : user ? (
-        <p className="text-lg font-medium">
-          Connecté en tant que <span className="text-brand-purple">{user.displayName}</span>
-        </p>
+        <div className="flex w-full flex-col items-center gap-4">
+          <p className="text-lg font-medium">
+            Bonjour <span className="text-brand-purple">{user.displayName}</span> — importez une
+            playlist pour commencer.
+          </p>
+          <ImportPlaylistForm />
+        </div>
       ) : (
         <a
           href={googleLoginUrl}
