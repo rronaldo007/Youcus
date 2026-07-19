@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { extractPlaylistId, fetchPlaylist } from '@/lib/youtube'
+
+// Rend le test indépendant de l'environnement (pas de .env en CI).
+vi.mock('@/config/env', () => ({
+  env: { YOUTUBE_API_KEY: 'test-key', NODE_ENV: 'test' },
+  isYouTubeConfigured: () => true,
+}))
+
+const { extractPlaylistId, fetchPlaylist } = await import('@/lib/youtube')
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
