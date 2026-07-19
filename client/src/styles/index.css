@@ -2,11 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tokens semantiques du theme Youcus (cf. collection Figma "Youcus Theme"). */
 :root {
   color-scheme: light dark;
+  --yc-canvas: #ffffff;
+  --yc-surface: #f7f9fa;
+  --yc-surface-2: #f1f3f4;
+  --yc-line: #e5e5e5;
+  --yc-content: #0f0f0f;
+  --yc-content-muted: #606060;
+}
+
+.dark {
+  color-scheme: dark;
+  --yc-canvas: #0f0f0f;
+  --yc-surface: #181818;
+  --yc-surface-2: #272727;
+  --yc-line: #303030;
+  --yc-content: #f1f1f1;
+  --yc-content-muted: #aaaaaa;
 }
 
 body {
-  @apply bg-white text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100;
+  background-color: var(--yc-canvas);
+  color: var(--yc-content);
   font-family: theme('fontFamily.sans');
+  -webkit-font-smoothing: antialiased;
 }

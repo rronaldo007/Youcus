@@ -15,6 +15,17 @@ export default {
           red: '#FF0033',
         },
         success: '#16A34A',
+        // Tokens semantiques pilotes par variables CSS (light/dark), cf. styles/index.css.
+        canvas: 'var(--yc-canvas)',
+        surface: {
+          DEFAULT: 'var(--yc-surface)',
+          2: 'var(--yc-surface-2)',
+        },
+        line: 'var(--yc-line)',
+        content: {
+          DEFAULT: 'var(--yc-content)',
+          muted: 'var(--yc-content-muted)',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
