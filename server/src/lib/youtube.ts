@@ -51,11 +51,21 @@ function mapYouTubeError(status: number, body: unknown): HttpError {
   return new HttpError(502, `Erreur de l'API YouTube : ${message}`)
 }
 
-async function youtubeGet(path: string): Promise<Record<string, unknown>> {
-  const key = env.YOUTUBE_API_KEY
-  if (!key) throw new HttpError(503, 'Import YouTube non configuré sur le serveur')
-  const sep = path.includes('?') ? '&' : '?'
-  const res = await fetch(`${API_BASE}/${path}${sep}key=${key}`)
+/**
+ * Appelle l'API YouTube. Avec `accessToken` (OAuth utilisateur) → accès aux playlists privées ;
+ * sinon utilise la clé API serveur (public / non répertorié uniquement).
+ */
+async function youtubeGet(path: string, accessToken?: string): Promise<Record<string, unknown>> {
+  let url = `${API_BASE}/${path}`
+  const init: RequestInit = {}
+  if (accessToken) {
+    init.headers = { Authorization: `Bearer ${accessToken}` }
+  } else {
+    const key = env.YOUTUBE_API_KEY
+    if (!key) throw new HttpError(503, 'Import YouTube non configuré sur le serveur')
+    url += (path.includes('?') ? '&' : '?') + `key=${key}`
+  }
+  const res = await fetch(url, init)
   const body = (await res.json()) as Record<string, unknown>
   if (!res.ok) throw mapYouTubeError(res.status, body)
   return body
@@ -69,8 +79,8 @@ interface PlaylistItemSnippet {
 }
 
 /** Récupère une playlist et toutes ses vidéos via la YouTube Data API v3 (avec pagination). */
-export async function fetchPlaylist(playlistId: string): Promise<YouTubePlaylist> {
-  const meta = await youtubeGet(`playlists?part=snippet&id=${playlistId}`)
+export async function fetchPlaylist(playlistId: string, accessToken?: string): Promise<YouTubePlaylist> {
+  const meta = await youtubeGet(`playlists?part=snippet&id=${playlistId}`, accessToken)
   const playlistItem = (meta.items as { snippet?: Record<string, unknown> }[] | undefined)?.[0]
   if (!playlistItem?.snippet) {
     throw new HttpError(404, 'Playlist introuvable ou privée')
@@ -87,6 +97,7 @@ export async function fetchPlaylist(playlistId: string): Promise<YouTubePlaylist
     const page = await youtubeGet(
       `playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}` +
         (pageToken ? `&pageToken=${pageToken}` : ''),
+      accessToken,
     )
     const items = (page.items as { snippet?: PlaylistItemSnippet }[] | undefined) ?? []
     for (const item of items) {
@@ -111,4 +122,38 @@ export async function fetchPlaylist(playlistId: string): Promise<YouTubePlaylist
     thumbnailUrl: pickThumbnail(snippet.thumbnails),
     videos,
   }
+}
+
+export interface MyPlaylist {
+  youtubeId: string
+  title: string
+  thumbnailUrl: string | null
+  videoCount: number
+}
+
+/** Liste les playlists du compte de l'utilisateur (mine=true), avec le jeton OAuth. */
+export async function listMyPlaylists(accessToken: string): Promise<MyPlaylist[]> {
+  const out: MyPlaylist[] = []
+  let pageToken: string | undefined
+  do {
+    const page = await youtubeGet(
+      `playlists?part=snippet,contentDetails&mine=true&maxResults=50` +
+        (pageToken ? `&pageToken=${pageToken}` : ''),
+      accessToken,
+    )
+    const items =
+      (page.items as
+        | { id: string; snippet?: { title?: string; thumbnails?: YouTubeThumbnails }; contentDetails?: { itemCount?: number } }[]
+        | undefined) ?? []
+    for (const it of items) {
+      out.push({
+        youtubeId: it.id,
+        title: it.snippet?.title ?? '(sans titre)',
+        thumbnailUrl: pickThumbnail(it.snippet?.thumbnails),
+        videoCount: it.contentDetails?.itemCount ?? 0,
+      })
+    }
+    pageToken = page.nextPageToken as string | undefined
+  } while (pageToken)
+  return out
 }
