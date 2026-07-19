@@ -2,41 +2,40 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Header } from './Header'
+import { TopNav } from './TopNav'
 import type { User } from '@/types'
 
 const user: User = { id: 'u1', email: 'a@b.fr', displayName: 'Alice', avatarUrl: null }
 
-function renderHeader() {
+function renderTopNav() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  // Session connue : on préremplit le cache pour que useCurrentUser renvoie l'utilisateur.
-  client.setQueryData(['auth', 'me'], user)
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <Header />
+        <TopNav user={user} />
       </MemoryRouter>
     </QueryClientProvider>,
   )
 }
 
-describe('Header', () => {
+describe('TopNav', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })))
   })
-  afterEach(() => {
-    vi.unstubAllGlobals()
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('affiche le logo, les liens et le bouton Importer', () => {
+    renderTopNav()
+    expect(screen.getByText('Youcus')).toBeInTheDocument()
+    expect(screen.getByText('Tableau de bord')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /\+ Importer/i })).toBeInTheDocument()
   })
 
-  it('affiche le nom et le bouton de déconnexion quand on est connecté', () => {
-    renderHeader()
-    expect(screen.getByText('Alice')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Se déconnecter/i })).toBeInTheDocument()
-  })
-
-  it('appelle /auth/logout au clic sur Se déconnecter', async () => {
-    renderHeader()
-    fireEvent.click(screen.getByRole('button', { name: /Se déconnecter/i }))
+  it('ouvre le menu utilisateur et déconnecte via /auth/logout', async () => {
+    renderTopNav()
+    fireEvent.click(screen.getByRole('button', { name: /Menu utilisateur/i }))
+    const logoutBtn = screen.getByRole('menuitem', { name: /Se déconnecter/i })
+    fireEvent.click(logoutBtn)
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/auth/logout'),

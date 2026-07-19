@@ -1,10 +1,10 @@
 import { Outlet } from 'react-router-dom'
-import { Header } from '@/components/layout/Header'
+import { AppNav } from '@/components/layout/AppNav'
 
 export function RootLayout() {
   return (
     <div className="min-h-screen">
-      <Header />
+      <AppNav />
       <Outlet />
     </div>
   )
