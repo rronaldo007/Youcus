@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -13,3 +14,8 @@ const schema = z.object({
 
 export const env = schema.parse(process.env)
 export type Env = z.infer<typeof schema>
+
+/** Vrai si les trois variables Google OAuth sont renseignées. */
+export function isGoogleOAuthConfigured(): boolean {
+  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_CALLBACK_URL)
+}

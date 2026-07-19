@@ -14,7 +14,7 @@ export function createApp() {
   app.use(helmet())
   app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }))
   app.use(express.json())
-  app.use(cookieParser())
+  app.use(cookieParser(env.SESSION_SECRET))
   app.use(pinoHttp({ logger }))
 
   app.use('/api', apiRouter)

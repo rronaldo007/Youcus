@@ -1,4 +1,9 @@
+import { googleLoginUrl } from '@/lib/api'
+import { useCurrentUser } from '@/features/auth/useCurrentUser'
+
 export function HomePage() {
+  const { data: user, isLoading } = useCurrentUser()
+
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 px-6 text-center">
       <h1 className="text-4xl font-bold tracking-tight">
@@ -8,12 +13,19 @@ export function HomePage() {
         Une couche d'étude sans distraction par-dessus YouTube : playlists, lecteur
         focus, notes Markdown et suivi de progression.
       </p>
-      <a
-        href="/api/auth/google"
-        className="rounded-card bg-brand-purple px-6 py-3 font-semibold text-white transition hover:bg-brand-purple-dark"
-      >
-        Se connecter avec Google
-      </a>
+
+      {isLoading ? null : user ? (
+        <p className="text-lg font-medium">
+          Connecté en tant que <span className="text-brand-purple">{user.displayName}</span>
+        </p>
+      ) : (
+        <a
+          href={googleLoginUrl}
+          className="rounded-card bg-brand-purple px-6 py-3 font-semibold text-white transition hover:bg-brand-purple-dark"
+        >
+          Se connecter avec Google
+        </a>
+      )}
     </main>
   )
 }
