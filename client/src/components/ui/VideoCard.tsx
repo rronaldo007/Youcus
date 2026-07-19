@@ -24,6 +24,11 @@ export function VideoCard({ video }: { video: Video }) {
             {formatDuration(video.durationSeconds)}
           </span>
         )}
+        {video.completed && (
+          <span className="absolute left-2 top-2 rounded bg-success px-1.5 py-0.5 text-[11px] font-medium text-white">
+            ✓ Vue
+          </span>
+        )}
       </div>
       <p className="line-clamp-2 text-[15px] font-semibold leading-tight text-content">
         {video.position + 1}. {video.title}
