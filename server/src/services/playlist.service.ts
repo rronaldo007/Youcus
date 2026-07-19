@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { HttpError } from '@/middleware/errorHandler'
 import { extractPlaylistId, fetchPlaylist } from '@/lib/youtube'
 
 export interface ImportedPlaylist {
@@ -7,6 +8,73 @@ export interface ImportedPlaylist {
   title: string
   thumbnailUrl: string | null
   videoCount: number
+}
+
+export interface PlaylistVideo {
+  id: string
+  youtubeId: string
+  title: string
+  thumbnailUrl: string | null
+  position: number
+  durationSeconds: number
+}
+
+export interface PlaylistDetail extends ImportedPlaylist {
+  description: string | null
+  videos: PlaylistVideo[]
+}
+
+/** Liste les playlists de l'utilisateur (résumé + nombre de vidéos), plus récentes d'abord. */
+export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]> {
+  const rows = await prisma.playlist.findMany({
+    where: { ownerId: userId },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      youtubeId: true,
+      title: true,
+      thumbnailUrl: true,
+      _count: { select: { videos: true } },
+    },
+  })
+  return rows.map((r) => ({
+    id: r.id,
+    youtubeId: r.youtubeId,
+    title: r.title,
+    thumbnailUrl: r.thumbnailUrl,
+    videoCount: r._count.videos,
+  }))
+}
+
+/** Détail d'une playlist de l'utilisateur avec ses vidéos ordonnées. */
+export async function getPlaylist(userId: string, id: string): Promise<PlaylistDetail> {
+  const pl = await prisma.playlist.findFirst({
+    where: { id, ownerId: userId },
+    include: { videos: { orderBy: { position: 'asc' } } },
+  })
+  if (!pl) throw new HttpError(404, 'Playlist introuvable')
+  return {
+    id: pl.id,
+    youtubeId: pl.youtubeId,
+    title: pl.title,
+    thumbnailUrl: pl.thumbnailUrl,
+    description: pl.description,
+    videoCount: pl.videos.length,
+    videos: pl.videos.map((v) => ({
+      id: v.id,
+      youtubeId: v.youtubeId,
+      title: v.title,
+      thumbnailUrl: v.thumbnailUrl,
+      position: v.position,
+      durationSeconds: v.durationSeconds,
+    })),
+  }
+}
+
+/** Supprime une playlist de l'utilisateur (scoping par ownerId). */
+export async function deletePlaylist(userId: string, id: string): Promise<void> {
+  const result = await prisma.playlist.deleteMany({ where: { id, ownerId: userId } })
+  if (result.count === 0) throw new HttpError(404, 'Playlist introuvable')
 }
 
 /**

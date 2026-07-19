@@ -3,7 +3,12 @@ import { z } from 'zod'
 import { isYouTubeConfigured } from '@/config/env'
 import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
-import { importPlaylist } from '@/services/playlist.service'
+import {
+  deletePlaylist,
+  getPlaylist,
+  importPlaylist,
+  listPlaylists,
+} from '@/services/playlist.service'
 
 export const playlistRouter = Router()
 
@@ -33,5 +38,33 @@ playlistRouter.post(
     }
     const playlist = await importPlaylist(req.userId as string, parsed.data.url)
     res.status(201).json(playlist)
+  }),
+)
+
+// Liste des playlists de l'utilisateur connecté.
+playlistRouter.get(
+  '/playlists',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await listPlaylists(req.userId as string))
+  }),
+)
+
+// Détail d'une playlist (avec ses vidéos).
+playlistRouter.get(
+  '/playlists/:id',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await getPlaylist(req.userId as string, req.params.id))
+  }),
+)
+
+// Suppression d'une playlist.
+playlistRouter.delete(
+  '/playlists/:id',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await deletePlaylist(req.userId as string, req.params.id)
+    res.json({ ok: true })
   }),
 )
