@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
@@ -168,5 +169,62 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
     title: updated.title,
     thumbnailUrl: updated.thumbnailUrl,
     videoCount: data.videos.length,
+  }
+}
+
+/**
+ * Fusionne plusieurs playlists de l'utilisateur en une nouvelle playlist.
+ * Vidéos dédupliquées par `youtubeId` (1re occurrence gardée), positions recalculées.
+ * Les playlists sources sont conservées. La fusion reçoit un `youtubeId` synthétique.
+ */
+export async function mergePlaylists(
+  userId: string,
+  sourceIds: string[],
+  title: string,
+): Promise<ImportedPlaylist> {
+  const uniqueIds = [...new Set(sourceIds)]
+  if (uniqueIds.length < 2) {
+    throw new HttpError(400, 'Sélectionnez au moins 2 playlists à fusionner')
+  }
+
+  const sources = await prisma.playlist.findMany({
+    where: { id: { in: uniqueIds }, ownerId: userId },
+    include: { videos: { orderBy: { position: 'asc' } } },
+  })
+  if (sources.length !== uniqueIds.length) {
+    throw new HttpError(404, 'Une ou plusieurs playlists sont introuvables')
+  }
+
+  const seen = new Set<string>()
+  const mergedVideos: YouTubeVideo[] = []
+  for (const src of sources) {
+    for (const v of src.videos) {
+      if (seen.has(v.youtubeId)) continue
+      seen.add(v.youtubeId)
+      mergedVideos.push({
+        youtubeId: v.youtubeId,
+        title: v.title,
+        thumbnailUrl: v.thumbnailUrl,
+        position: mergedVideos.length,
+      })
+    }
+  }
+
+  const thumbnailUrl = sources.find((s) => s.thumbnailUrl)?.thumbnailUrl ?? null
+
+  const created = await prisma.$transaction(async (tx) => {
+    const pl = await tx.playlist.create({
+      data: { ownerId: userId, youtubeId: `merge:${randomUUID()}`, title, thumbnailUrl },
+    })
+    await replaceVideos(tx, pl.id, mergedVideos)
+    return pl
+  })
+
+  return {
+    id: created.id,
+    youtubeId: created.youtubeId,
+    title: created.title,
+    thumbnailUrl: created.thumbnailUrl,
+    videoCount: mergedVideos.length,
   }
 }

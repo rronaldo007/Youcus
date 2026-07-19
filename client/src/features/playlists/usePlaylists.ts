@@ -2,6 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import type { Playlist, PlaylistDetail } from '@/types'
 
+/** Fusionne plusieurs playlists en une nouvelle. */
+export function useMergePlaylists() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { sourceIds: string[]; title: string }) =>
+      apiFetch<Playlist>('/playlists/merge', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] })
+    },
+  })
+}
+
 /** Rafraîchit une playlist depuis YouTube (ajouts / retraits de vidéos). */
 export function useRefreshPlaylist(id: string) {
   const queryClient = useQueryClient()
