@@ -1,6 +1,7 @@
 import { googleLoginUrl } from '@/lib/api'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { ImportPlaylistForm } from '@/features/playlists/ImportPlaylistForm'
+import { PlaylistLibrary } from '@/features/playlists/PlaylistLibrary'
 
 export function HomePage() {
   const { data: user, isLoading } = useCurrentUser()
@@ -22,6 +23,10 @@ export function HomePage() {
             playlist pour commencer.
           </p>
           <ImportPlaylistForm />
+          <section className="mt-6 w-full">
+            <h2 className="mb-4 text-left text-lg font-semibold text-content">Mes playlists</h2>
+            <PlaylistLibrary />
+          </section>
         </div>
       ) : (
         <a
