@@ -1,6 +1,27 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
-import { extractPlaylistId, fetchPlaylist } from '@/lib/youtube'
+import { extractPlaylistId, fetchPlaylist, type YouTubeVideo } from '@/lib/youtube'
+
+/** Remplace le contenu vidéo d'une playlist par la liste fraîchement récupérée. */
+async function replaceVideos(
+  tx: Prisma.TransactionClient,
+  playlistId: string,
+  videos: YouTubeVideo[],
+): Promise<void> {
+  await tx.video.deleteMany({ where: { playlistId } })
+  if (videos.length > 0) {
+    await tx.video.createMany({
+      data: videos.map((v) => ({
+        playlistId,
+        youtubeId: v.youtubeId,
+        title: v.title,
+        thumbnailUrl: v.thumbnailUrl,
+        position: v.position,
+      })),
+    })
+  }
+}
 
 export interface ImportedPlaylist {
   id: string
@@ -102,19 +123,7 @@ export async function importPlaylist(userId: string, input: string): Promise<Imp
       },
     })
 
-    // Remplace le contenu par les vidéos fraîchement récupérées.
-    await tx.video.deleteMany({ where: { playlistId: pl.id } })
-    if (data.videos.length > 0) {
-      await tx.video.createMany({
-        data: data.videos.map((v) => ({
-          playlistId: pl.id,
-          youtubeId: v.youtubeId,
-          title: v.title,
-          thumbnailUrl: v.thumbnailUrl,
-          position: v.position,
-        })),
-      })
-    }
+    await replaceVideos(tx, pl.id, data.videos)
     return pl
   })
 
@@ -123,6 +132,41 @@ export async function importPlaylist(userId: string, input: string): Promise<Imp
     youtubeId: playlist.youtubeId,
     title: playlist.title,
     thumbnailUrl: playlist.thumbnailUrl,
+    videoCount: data.videos.length,
+  }
+}
+
+/**
+ * Rafraîchit une playlist déjà importée : re-fetch YouTube par son `youtubeId`
+ * puis remplace ses vidéos (ajouts / retraits pris en compte).
+ */
+export async function refreshPlaylist(userId: string, id: string): Promise<ImportedPlaylist> {
+  const existing = await prisma.playlist.findFirst({ where: { id, ownerId: userId } })
+  if (!existing) throw new HttpError(404, 'Playlist introuvable')
+  if (existing.youtubeId.startsWith('merge:')) {
+    throw new HttpError(400, 'Une playlist fusionnée ne peut pas être rafraîchie')
+  }
+
+  const data = await fetchPlaylist(existing.youtubeId)
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const pl = await tx.playlist.update({
+      where: { id: existing.id },
+      data: {
+        title: data.title,
+        description: data.description,
+        thumbnailUrl: data.thumbnailUrl,
+      },
+    })
+    await replaceVideos(tx, pl.id, data.videos)
+    return pl
+  })
+
+  return {
+    id: updated.id,
+    youtubeId: updated.youtubeId,
+    title: updated.title,
+    thumbnailUrl: updated.thumbnailUrl,
     videoCount: data.videos.length,
   }
 }
