@@ -17,5 +17,12 @@ export interface Video {
   id: string
   youtubeId: string
   title: string
+  thumbnailUrl: string | null
+  position: number
   durationSeconds: number
+}
+
+export interface PlaylistDetail extends Playlist {
+  description: string | null
+  videos: Video[]
 }
