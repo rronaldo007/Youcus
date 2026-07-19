@@ -8,6 +8,7 @@ import {
   getPlaylist,
   importPlaylist,
   listPlaylists,
+  refreshPlaylist,
 } from '@/services/playlist.service'
 
 export const playlistRouter = Router()
@@ -47,6 +48,18 @@ playlistRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.json(await listPlaylists(req.userId as string))
+  }),
+)
+
+// Rafraîchit le contenu d'une playlist depuis YouTube.
+playlistRouter.post(
+  '/playlists/:id/refresh',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!isYouTubeConfigured()) {
+      throw new HttpError(503, 'Import YouTube non configuré sur le serveur')
+    }
+    res.json(await refreshPlaylist(req.userId as string, req.params.id))
   }),
 )
 
