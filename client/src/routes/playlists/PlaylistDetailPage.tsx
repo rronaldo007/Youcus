@@ -48,13 +48,18 @@ export function PlaylistDetailPage() {
 
       <ol className="mt-6 flex flex-col gap-2">
         {data.videos.map((v) => (
-          <li key={v.id} className="flex items-center gap-3 rounded-card border border-line bg-surface p-2">
-            {v.thumbnailUrl && (
-              <img src={v.thumbnailUrl} alt="" className="h-12 w-20 shrink-0 rounded object-cover" />
-            )}
-            <span className="text-sm text-content">
-              {v.position + 1}. {v.title}
-            </span>
+          <li key={v.id}>
+            <Link
+              to={`/playlists/${id}/watch/${v.youtubeId}`}
+              className="flex items-center gap-3 rounded-card border border-line bg-surface p-2 transition hover:bg-surface-2"
+            >
+              {v.thumbnailUrl && (
+                <img src={v.thumbnailUrl} alt="" className="h-12 w-20 shrink-0 rounded object-cover" />
+              )}
+              <span className="text-sm text-content">
+                {v.position + 1}. {v.title}
+              </span>
+            </Link>
           </li>
         ))}
       </ol>
