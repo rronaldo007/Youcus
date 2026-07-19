@@ -11,7 +11,7 @@ export function PlaylistDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="px-6 py-8 sm:px-10 lg:px-16">
         <SkeletonGrid variant="video" />
       </main>
     )
@@ -30,7 +30,7 @@ export function PlaylistDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-8">
+    <main className="px-6 py-8 sm:px-10 lg:px-16">
       <Link to="/" className="text-sm text-brand-purple hover:underline">
         ← Bibliothèque
       </Link>
