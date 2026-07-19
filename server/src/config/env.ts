@@ -10,6 +10,7 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().optional(),
+  YOUTUBE_API_KEY: z.string().optional(),
 })
 
 export const env = schema.parse(process.env)
@@ -18,4 +19,9 @@ export type Env = z.infer<typeof schema>
 /** Vrai si les trois variables Google OAuth sont renseignées. */
 export function isGoogleOAuthConfigured(): boolean {
   return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_CALLBACK_URL)
+}
+
+/** Vrai si la clé YouTube Data API v3 est renseignée. */
+export function isYouTubeConfigured(): boolean {
+  return Boolean(env.YOUTUBE_API_KEY)
 }
