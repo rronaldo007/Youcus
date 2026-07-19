@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL ?? '/api'
+export const API_URL = import.meta.env.VITE_API_URL ?? '/api'
+
+/** URL de démarrage du flux de connexion Google (navigation du navigateur). */
+export const googleLoginUrl = `${API_URL}/auth/google`
 
 export class ApiError extends Error {
   constructor(
