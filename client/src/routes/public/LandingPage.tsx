@@ -1,4 +1,4 @@
-import { googleLoginUrl } from '@/lib/api'
+import { Link } from 'react-router-dom'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
@@ -17,12 +17,12 @@ export function LandingPage() {
         <Logo />
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <a
-            href={googleLoginUrl}
+          <Link
+            to="/login"
             className="rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-purple-dark"
           >
             Continuer avec Google
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -39,12 +39,12 @@ export function LandingPage() {
               progression — le meilleur de YouTube et d’Udemy.
             </p>
             <div className="mt-8">
-              <a
-                href={googleLoginUrl}
+              <Link
+                to="/login"
                 className="inline-block rounded-lg bg-brand-purple px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-purple-dark"
               >
                 Continuer avec Google
-              </a>
+              </Link>
             </div>
           </div>
 

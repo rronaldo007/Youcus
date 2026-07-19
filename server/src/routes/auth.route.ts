@@ -44,7 +44,7 @@ authRouter.get(
 
     const { code, state, error } = req.query
     if (error) {
-      return res.redirect(`${env.CLIENT_ORIGIN}/?auth=denied`)
+      return res.redirect(`${env.CLIENT_ORIGIN}/login?auth=denied`)
     }
     if (typeof code !== 'string' || !verifyAndClearOAuthState(req, res, state as string | undefined)) {
       throw new HttpError(400, 'Requête OAuth invalide (code ou state manquant)')
