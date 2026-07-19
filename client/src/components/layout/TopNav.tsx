@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/ui/Logo'
 import { Button } from '@/components/ui/Button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -13,6 +14,7 @@ const NAV_LINKS = [
 
 /** Barre de navigation desktop (cf. Figma TopNav 32:6). */
 export function TopNav({ user }: { user: User }) {
+  const navigate = useNavigate()
   return (
     <header className="flex h-16 items-center justify-between gap-6 border-b border-line bg-surface px-7">
       <Logo />
@@ -36,7 +38,9 @@ export function TopNav({ user }: { user: User }) {
       />
 
       <div className="flex shrink-0 items-center gap-3.5">
-        <Button variant="primary">+ Importer</Button>
+        <Button variant="primary" onClick={() => navigate('/import')}>
+          + Importer
+        </Button>
         <ThemeToggle />
         <UserMenu user={user} />
       </div>

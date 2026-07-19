@@ -2,6 +2,40 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import type { Playlist, PlaylistDetail } from '@/types'
 
+export interface MyPlaylistItem {
+  youtubeId: string
+  title: string
+  thumbnailUrl: string | null
+  videoCount: number
+  alreadyImported: boolean
+}
+
+/** Playlists du compte YouTube de l'utilisateur (nécessite le scope youtube.readonly). */
+export function useMyPlaylists() {
+  return useQuery({
+    queryKey: ['youtube', 'my-playlists'],
+    queryFn: () => apiFetch<MyPlaylistItem[]>('/youtube/my-playlists'),
+    retry: false,
+    staleTime: 60_000,
+  })
+}
+
+/** Importe en lot les playlists sélectionnées depuis le compte. */
+export function useImportBatch() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (playlistIds: string[]) =>
+      apiFetch<{ imported: number }>('/playlists/import-batch', {
+        method: 'POST',
+        body: JSON.stringify({ playlistIds }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] })
+      queryClient.invalidateQueries({ queryKey: ['youtube', 'my-playlists'] })
+    },
+  })
+}
+
 /** Fusionne plusieurs playlists en une nouvelle. */
 export function useMergePlaylists() {
   const queryClient = useQueryClient()
