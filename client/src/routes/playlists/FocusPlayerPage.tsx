@@ -54,7 +54,7 @@ export function FocusPlayerPage() {
     'rounded-card border border-line px-3 py-1.5 text-sm font-medium text-content transition hover:bg-surface-2'
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
+    <main className="px-6 py-8 sm:px-10 lg:px-16">
       <Link to={`/playlists/${id}`} className="text-sm text-brand-purple hover:underline">
         ← {data.title}
       </Link>
