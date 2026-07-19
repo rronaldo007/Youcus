@@ -30,6 +30,7 @@ export interface ImportedPlaylist {
   title: string
   thumbnailUrl: string | null
   videoCount: number
+  completedCount?: number
 }
 
 export interface PlaylistVideo {
@@ -61,12 +62,22 @@ export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]>
       _count: { select: { videos: true } },
     },
   })
+
+  // Nombre de vidéos vues (completed) par playlist, pour l'avancement.
+  const completed = await prisma.progress.groupBy({
+    by: ['playlistId'],
+    where: { userId, completed: true, playlistId: { in: rows.map((r) => r.id) } },
+    _count: { _all: true },
+  })
+  const completedByPlaylist = new Map(completed.map((c) => [c.playlistId, c._count._all]))
+
   return rows.map((r) => ({
     id: r.id,
     youtubeId: r.youtubeId,
     title: r.title,
     thumbnailUrl: r.thumbnailUrl,
     videoCount: r._count.videos,
+    completedCount: completedByPlaylist.get(r.id) ?? 0,
   }))
 }
 

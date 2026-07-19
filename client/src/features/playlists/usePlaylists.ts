@@ -36,6 +36,19 @@ export function useImportBatch() {
   })
 }
 
+/**
+ * Sauvegarde silencieuse de la position de lecture (sans invalider le cache),
+ * pour les remontées périodiques pendant la lecture (évite de recharger / relancer le player).
+ */
+export function reportWatchedSeconds(playlistId: string, videoId: string, watchedSeconds: number): void {
+  apiFetch('/progress', {
+    method: 'POST',
+    body: JSON.stringify({ playlistId, videoId, watchedSeconds }),
+  }).catch(() => {
+    /* fire-and-forget */
+  })
+}
+
 /** Enregistre la progression d'une vidéo (vu / position). Rafraîchit le détail de la playlist. */
 export function useSetProgress(playlistId: string) {
   const queryClient = useQueryClient()

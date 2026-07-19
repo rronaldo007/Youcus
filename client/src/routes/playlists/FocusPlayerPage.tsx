@@ -1,13 +1,16 @@
+import { useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
 import { VideoSidebar } from '@/features/player/VideoSidebar'
-import { usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
+import { reportWatchedSeconds, usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
 
-/** Page lecteur focus : lit une vidéo, avec navigation entre les vidéos de la playlist (CS-15). */
+/** Page lecteur focus : lecture, navigation, reprise à la dernière position (CS-19). */
 export function FocusPlayerPage() {
   const { id, videoId } = useParams()
   const { data, isLoading, isError } = usePlaylist(id as string)
   const setProgress = useSetProgress(id as string)
+  // Fige la position de reprise à la 1re ouverture de chaque vidéo (stable malgré les refetch).
+  const resumeRef = useRef<{ key: string; seconds: number } | null>(null)
 
   if (isLoading) return <p className="p-6 text-content-muted">Chargement…</p>
   if (isError || !data) {
@@ -39,6 +42,12 @@ export function FocusPlayerPage() {
     )
   }
 
+  const resumeKey = `${id}:${video.youtubeId}`
+  if (resumeRef.current?.key !== resumeKey) {
+    resumeRef.current = { key: resumeKey, seconds: video.watchedSeconds ?? 0 }
+  }
+  const startSeconds = resumeRef.current.seconds
+
   const prev = index > 0 ? videos[index - 1] : null
   const next = index < videos.length - 1 ? videos[index + 1] : null
   const navBtn =
@@ -52,7 +61,13 @@ export function FocusPlayerPage() {
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div>
-          <FocusPlayer youtubeId={video.youtubeId} title={video.title} />
+          <FocusPlayer
+            youtubeId={video.youtubeId}
+            title={video.title}
+            startSeconds={startSeconds}
+            onProgress={(s) => reportWatchedSeconds(id as string, video.id, s)}
+            onEnded={() => setProgress.mutate({ videoId: video.id, completed: true })}
+          />
           <div className="mt-4 flex items-start justify-between gap-4">
             <h1 className="text-xl font-semibold text-content">
               {video.position + 1}. {video.title}
