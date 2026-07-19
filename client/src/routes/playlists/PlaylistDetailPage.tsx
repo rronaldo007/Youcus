@@ -1,13 +1,21 @@
 import { Link, useParams } from 'react-router-dom'
+import { VideoCard } from '@/components/ui/VideoCard'
+import { SkeletonGrid } from '@/components/ui/Skeletons'
 import { usePlaylist, useRefreshPlaylist } from '@/features/playlists/usePlaylists'
 
-/** Détail d'une playlist : liste ordonnée de ses vidéos. */
+/** Détail d'une playlist : grille de vidéos (design system), lien vers le lecteur focus. */
 export function PlaylistDetailPage() {
   const { id } = useParams()
   const { data, isLoading, isError } = usePlaylist(id as string)
   const refresh = useRefreshPlaylist(id as string)
 
-  if (isLoading) return <p className="p-6 text-content-muted">Chargement…</p>
+  if (isLoading) {
+    return (
+      <main className="mx-auto max-w-5xl px-6 py-8">
+        <SkeletonGrid variant="video" />
+      </main>
+    )
+  }
   if (isError || !data) {
     return (
       <div className="p-6">
@@ -22,10 +30,11 @@ export function PlaylistDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-8">
+    <main className="mx-auto max-w-5xl px-6 py-8">
       <Link to="/" className="text-sm text-brand-purple hover:underline">
         ← Bibliothèque
       </Link>
+
       <div className="mt-4 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-content">{data.title}</h1>
         <button
@@ -46,23 +55,15 @@ export function PlaylistDetailPage() {
         </p>
       )}
 
-      <ol className="mt-6 flex flex-col gap-2">
+      <ul className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
         {data.videos.map((v) => (
           <li key={v.id}>
-            <Link
-              to={`/playlists/${id}/watch/${v.youtubeId}`}
-              className="flex items-center gap-3 rounded-card border border-line bg-surface p-2 transition hover:bg-surface-2"
-            >
-              {v.thumbnailUrl && (
-                <img src={v.thumbnailUrl} alt="" className="h-12 w-20 shrink-0 rounded object-cover" />
-              )}
-              <span className="text-sm text-content">
-                {v.position + 1}. {v.title}
-              </span>
+            <Link to={`/playlists/${id}/watch/${v.youtubeId}`} className="block transition hover:opacity-95">
+              <VideoCard video={v} />
             </Link>
           </li>
         ))}
-      </ol>
+      </ul>
     </main>
   )
 }
