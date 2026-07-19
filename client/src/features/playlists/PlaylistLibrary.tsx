@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { PlaylistCard } from '@/components/ui/PlaylistCard'
+import { SkeletonGrid } from '@/components/ui/Skeletons'
 import { MergePlaylistsModal } from '@/features/playlists/MergePlaylistsModal'
 import { useDeletePlaylist, usePlaylists } from '@/features/playlists/usePlaylists'
 
-/** Bibliothèque des playlists importées (grille de cartes). Habillage design system : CS-53. */
+/** Bibliothèque des playlists importées (grille de cartes design system, cf. CS-53). */
 export function PlaylistLibrary() {
   const { data: playlists, isLoading, isError } = usePlaylists()
   const del = useDeletePlaylist()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [merging, setMerging] = useState(false)
 
-  if (isLoading) return <p className="text-content-muted">Chargement de vos playlists…</p>
+  if (isLoading) return <SkeletonGrid variant="playlist" />
   if (isError) {
     return (
       <p role="alert" className="text-accent-red">
@@ -20,7 +22,14 @@ export function PlaylistLibrary() {
     )
   }
   if (!playlists || playlists.length === 0) {
-    return <p className="text-content-muted">Aucune playlist importée pour le moment.</p>
+    return (
+      <div className="rounded-card border border-dashed border-line px-6 py-12 text-center">
+        <p className="font-medium text-content">Aucune playlist pour le moment</p>
+        <p className="mt-1 text-sm text-content-muted">
+          Importez une playlist YouTube ci-dessus pour commencer.
+        </p>
+      </div>
+    )
   }
 
   function toggle(id: string) {
@@ -57,20 +66,10 @@ export function PlaylistLibrary() {
       <ul className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {playlists.map((pl) => (
           <li key={pl.id} className="overflow-hidden rounded-card border border-line bg-surface text-left">
-            <Link to={`/playlists/${pl.id}`} className="block">
-              {pl.thumbnailUrl ? (
-                <img src={pl.thumbnailUrl} alt="" className="aspect-video w-full object-cover" />
-              ) : (
-                <div className="aspect-video w-full bg-surface-2" />
-              )}
-              <div className="p-3">
-                <p className="line-clamp-2 font-medium text-content">{pl.title}</p>
-                <p className="text-sm text-content-muted">
-                  {pl.videoCount} vidéo{pl.videoCount > 1 ? 's' : ''}
-                </p>
-              </div>
+            <Link to={`/playlists/${pl.id}`} className="block transition hover:opacity-95">
+              <PlaylistCard playlist={pl} />
             </Link>
-            <div className="flex items-center justify-between px-3 pb-3">
+            <div className="flex items-center justify-between border-t border-line px-3.5 py-2">
               <label className="flex items-center gap-2 text-sm text-content-muted">
                 <input
                   type="checkbox"
