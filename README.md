@@ -19,7 +19,7 @@ Youcus/
 ├── server/            # back Express + TS + Prisma
 ├── docs/              # design, contrats d'API
 ├── .github/workflows/ # CI (ci.yml) et CD (cd.yml)
-├── docker-compose.yml # db + api + web
+├── docker-compose.yml # db + api/web (profils dev & prod)
 └── package.json       # workspaces (client, server)
 ```
 
@@ -38,11 +38,21 @@ npm run dev                 # client  -> http://localhost:5173
 npm run dev:server          # serveur -> http://localhost:4000
 ```
 
-Tout le stack en conteneurs :
+Toute la stack en conteneurs (dev **ou** prod, un seul `docker-compose.yml`) :
+
+Le mode est choisi via **`COMPOSE_PROFILES`** dans `.env` (lu automatiquement par
+Docker Compose) — c'est le toggle dev <-> prod, sans flag `-f` :
 
 ```bash
-docker compose up --build   # web:8080, api:4000, db:3306
+# .env : COMPOSE_PROFILES=dev   -> db + api-dev + web-dev  (hot-reload, source montee)
+# .env : COMPOSE_PROFILES=prod  -> db + api     + web      (images buildees)
+docker compose up            # lance le profil actif ; la db tourne dans les deux
+
+# ponctuel, sans editer .env :
+COMPOSE_PROFILES=prod docker compose up --build
 ```
+
+Dev : client -> http://localhost:5173, api -> http://localhost:4000 (ou `API_PORT`).
 
 ## Scripts racine
 
@@ -52,4 +62,6 @@ docker compose up --build   # web:8080, api:4000, db:3306
 | `npm run build` | Build client puis serveur |
 | `npm run lint` / `typecheck` / `test` | Qualite sur tous les workspaces |
 | `npm run prisma:generate` | Genere le client Prisma |
-| `npm run db:up` / `db:down` | Demarre / arrete MySQL via Docker |
+| `npm run db:up` / `db:down` | Demarre / arrete MySQL via Docker (workflow natif) |
+| `npm run stack` | Lance toute la stack Docker selon `COMPOSE_PROFILES` (.env) |
+| `npm run stack:build` | Idem en forcant le rebuild des images (profil prod) |
