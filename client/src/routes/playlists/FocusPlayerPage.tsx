@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
 import { VideoSidebar } from '@/features/player/VideoSidebar'
+import { VideoNotes } from '@/features/notes/VideoNotes'
 import { reportWatchedSeconds, usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
 
 /** Page lecteur focus : lecture, navigation, reprise à la dernière position (CS-19). */
@@ -101,6 +102,8 @@ export function FocusPlayerPage() {
               <span />
             )}
           </div>
+
+          <VideoNotes videoId={video.id} />
         </div>
 
         <VideoSidebar playlistId={id as string} videos={videos} currentVideoId={video.youtubeId} />
