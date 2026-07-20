@@ -29,3 +29,27 @@ body {
   font-family: theme('fontFamily.sans');
   -webkit-font-smoothing: antialiased;
 }
+
+/* Rendu Markdown des notes (CS-17) : restaure les styles annules par le reset Tailwind. */
+.yc-md {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--yc-content);
+  overflow-wrap: anywhere;
+}
+.yc-md > :first-child { margin-top: 0; }
+.yc-md h1, .yc-md h2, .yc-md h3, .yc-md h4 { font-weight: 600; line-height: 1.3; margin: 1em 0 0.4em; }
+.yc-md h1 { font-size: 1.35em; }
+.yc-md h2 { font-size: 1.2em; }
+.yc-md h3 { font-size: 1.05em; }
+.yc-md p { margin: 0.5em 0; }
+.yc-md ul, .yc-md ol { margin: 0.5em 0; padding-left: 1.4em; }
+.yc-md ul { list-style: disc; }
+.yc-md ol { list-style: decimal; }
+.yc-md li { margin: 0.2em 0; }
+.yc-md a { color: #a435f0; text-decoration: underline; }
+.yc-md code { font-family: theme('fontFamily.mono'); font-size: 0.85em; background: var(--yc-surface-2); padding: 0.1em 0.35em; border-radius: 4px; }
+.yc-md pre { background: var(--yc-surface-2); padding: 0.75em; border-radius: 8px; overflow-x: auto; margin: 0.6em 0; }
+.yc-md pre code { background: none; padding: 0; }
+.yc-md blockquote { border-left: 3px solid var(--yc-line); padding-left: 0.8em; color: var(--yc-content-muted); margin: 0.6em 0; }
+.yc-md hr { border: none; border-top: 1px solid var(--yc-line); margin: 1em 0; }
