@@ -37,6 +37,9 @@ CLAUDE.md
 STATUS.md
 **/STATUS.md
 
+# Documentation locale : hors depot (contient des infos sensibles, cf CS-65)
+docs/
+
 # Editeurs et OS
 .DS_Store
 Thumbs.db
