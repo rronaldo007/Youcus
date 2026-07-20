@@ -1,4 +1,12 @@
+# Stack Youcus : dev (hot-reload) OU prod, selon le profil actif.
+# Le profil est choisi via COMPOSE_PROFILES (lu automatiquement depuis .env) :
+#   COMPOSE_PROFILES=dev   -> db + api-dev + web-dev (hot-reload)
+#   COMPOSE_PROFILES=prod  -> db + api + web         (images buildees)
+# Lancement : docker compose up      (db tourne dans les deux profils)
 services:
+  # ---------------------------------------------------------------------------
+  # Base de donnees : sans profil -> presente en dev ET en prod.
+  # ---------------------------------------------------------------------------
   db:
     image: mysql:8.0
     container_name: youcus-db
@@ -18,7 +26,64 @@ services:
       timeout: 5s
       retries: 5
 
+  # ---------------------------------------------------------------------------
+  # DEV : code source monte, hot-reload (nodemon / Vite). Profil "dev".
+  # ---------------------------------------------------------------------------
+  api-dev:
+    profiles: ["dev"]
+    # Image complete (pas -slim) : inclut OpenSSL/libssl requis par Prisma.
+    image: node:20-bookworm
+    container_name: youcus-api-dev
+    working_dir: /app
+    command: >
+      sh -c "npm install &&
+      npm run prisma:generate &&
+      (cd server && npx prisma migrate deploy) &&
+      npm run dev:server"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Secrets (Google OAuth, YouTube) repris du server/.env existant s'il est present.
+    env_file:
+      - path: server/.env
+        required: false
+    # Ces valeurs ecrasent celles du env_file (specifiques au reseau Docker).
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: "mysql://${MYSQL_USER:-youcus}:${MYSQL_PASSWORD:-youcus}@db:3306/${MYSQL_DATABASE:-youcus}"
+      CLIENT_ORIGIN: http://localhost:5173
+      SESSION_SECRET: ${SESSION_SECRET:-dev-secret-change-me}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - ./:/app
+      - api-dev-node-modules:/app/node_modules
+
+  web-dev:
+    profiles: ["dev"]
+    image: node:20-bookworm-slim
+    container_name: youcus-web-dev
+    working_dir: /app
+    command: >
+      sh -c "npm install &&
+      npm run dev --workspace client -- --host 0.0.0.0 --port 5173"
+    depends_on:
+      - api-dev
+    environment:
+      # Le navigateur tourne sur l'hote : il joint l'API via le port publie (API_PORT).
+      VITE_API_URL: http://localhost:${API_PORT:-4000}/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - web-dev-node-modules:/app/node_modules
+
+  # ---------------------------------------------------------------------------
+  # PROD : images buildees (comme sur un serveur). Profil "prod".
+  # ---------------------------------------------------------------------------
   api:
+    profiles: ["prod"]
     build: ./server
     container_name: youcus-api
     restart: unless-stopped
@@ -35,6 +100,7 @@ services:
       - "${API_PORT:-4000}:4000"
 
   web:
+    profiles: ["prod"]
     build: ./client
     container_name: youcus-web
     restart: unless-stopped
@@ -45,3 +111,5 @@ services:
 
 volumes:
   youcus-db-data:
+  api-dev-node-modules:
+  web-dev-node-modules:
