@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { useLogout } from '@/features/auth/useLogout'
 import type { User } from '@/types'
@@ -27,6 +28,14 @@ export function UserMenu({ user }: { user: User }) {
           className="absolute right-0 z-10 mt-2 w-52 rounded-card border border-line bg-surface p-1 shadow-lg"
         >
           <p className="truncate px-3 py-2 text-sm text-content-muted">{user.displayName}</p>
+          <Link
+            to="/settings"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block w-full rounded-md px-3 py-2 text-left text-sm text-content transition hover:bg-surface-2"
+          >
+            Réglages
+          </Link>
           <button
             type="button"
             role="menuitem"
