@@ -7,7 +7,7 @@ import { SettingsPage } from './SettingsPage'
 const USER = { id: 'u1', email: 'jane@example.com', displayName: 'Jane Doe', avatarUrl: null }
 
 function renderSettings() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/settings']}>
@@ -21,7 +21,6 @@ describe('SettingsPage', () => {
   beforeEach(() => {
     localStorage.setItem('youcus-theme', 'light')
     document.documentElement.classList.remove('dark')
-    // Session présente → /auth/me renvoie l'utilisateur.
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify(USER), { status: 200 })),
@@ -29,6 +28,7 @@ describe('SettingsPage', () => {
   })
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
     localStorage.clear()
     document.documentElement.classList.remove('dark')
   })
@@ -51,12 +51,35 @@ describe('SettingsPage', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 
-  it('héberge la zone RGPD (export + suppression) désactivée en attente de CS-22', async () => {
+  it('exporte les données : le clic déclenche un GET /account/export', async () => {
+    // La voie de téléchargement utilise des API absentes de jsdom : on les neutralise.
+    ;(URL as unknown as { createObjectURL: () => string }).createObjectURL = vi.fn(() => 'blob:x')
+    ;(URL as unknown as { revokeObjectURL: () => void }).revokeObjectURL = vi.fn()
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
     renderSettings()
-    expect(await screen.findByText(/Exporter mes données/i)).toBeInTheDocument()
-    expect(screen.getByText(/Supprimer mon compte/i)).toBeInTheDocument()
-    const actions = screen.getAllByRole('button', { name: /Bientôt/i })
-    expect(actions).toHaveLength(2)
-    actions.forEach((b) => expect(b).toBeDisabled())
+    fireEvent.click(await screen.findByRole('button', { name: /^Exporter$/i }))
+
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        expect.stringContaining('/account/export'),
+        expect.objectContaining({ credentials: 'include' }),
+      ),
+    )
+  })
+
+  it('supprime le compte après confirmation : DELETE /account', async () => {
+    renderSettings()
+    // Étape 1 : révéler la confirmation.
+    fireEvent.click(await screen.findByRole('button', { name: /^Supprimer$/i }))
+    // Étape 2 : confirmer.
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer la suppression/i }))
+
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        expect.stringContaining('/account'),
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
+    )
   })
 })

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
+import { useDeleteAccount, useExportData } from '@/features/account/useAccount'
 import { useTheme } from '@/features/theme/useTheme'
 
 type Theme = 'light' | 'dark'
@@ -17,6 +19,9 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
 export function SettingsPage() {
   const { data: user, isLoading } = useCurrentUser()
   const { theme, toggle } = useTheme()
+  const exportData = useExportData()
+  const deleteAccount = useDeleteAccount()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   if (isLoading) return null
   if (!user) return <Navigate to="/login" replace />
@@ -92,13 +97,18 @@ export function SettingsPage() {
           </div>
           <button
             type="button"
-            disabled
-            title="Bientôt disponible"
-            className="shrink-0 cursor-not-allowed rounded-lg border border-line px-4 py-2 text-sm font-medium text-content-muted opacity-60"
+            onClick={() => exportData.mutate()}
+            disabled={exportData.isPending}
+            className="shrink-0 rounded-lg border border-line px-4 py-2 text-sm font-medium text-content transition hover:bg-surface-2 disabled:opacity-60"
           >
-            Bientôt
+            {exportData.isPending ? 'Export…' : 'Exporter'}
           </button>
         </div>
+        {exportData.isError && (
+          <p role="alert" className="mt-2 text-sm text-accent-red">
+            L'export a échoué. Réessaie plus tard.
+          </p>
+        )}
 
         <hr className="my-5 border-line" />
 
@@ -107,15 +117,45 @@ export function SettingsPage() {
             <p className="font-medium text-accent-red">Supprimer mon compte</p>
             <p className="text-sm text-content-muted">Cette action est définitive et supprime toutes tes données.</p>
           </div>
-          <button
-            type="button"
-            disabled
-            title="Bientôt disponible"
-            className="shrink-0 cursor-not-allowed rounded-lg border border-accent-red/40 px-4 py-2 text-sm font-medium text-accent-red opacity-60"
-          >
-            Bientôt
-          </button>
+          {!confirmingDelete ? (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              className="shrink-0 rounded-lg border border-accent-red/40 px-4 py-2 text-sm font-medium text-accent-red transition hover:bg-accent-red/10"
+            >
+              Supprimer
+            </button>
+          ) : (
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleteAccount.isPending}
+                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-content transition hover:bg-surface-2 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteAccount.mutate()}
+                disabled={deleteAccount.isPending}
+                className="rounded-lg bg-accent-red px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {deleteAccount.isPending ? 'Suppression…' : 'Confirmer la suppression'}
+              </button>
+            </div>
+          )}
         </div>
+        {confirmingDelete && (
+          <p className="mt-2 text-sm text-content-muted">
+            Confirme pour supprimer définitivement ton compte et toutes tes données.
+          </p>
+        )}
+        {deleteAccount.isError && (
+          <p role="alert" className="mt-2 text-sm text-accent-red">
+            La suppression a échoué. Réessaie plus tard.
+          </p>
+        )}
       </section>
     </main>
   )
