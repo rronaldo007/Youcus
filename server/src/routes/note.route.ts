@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
-import { getVideoNote, saveVideoNote } from '@/services/note.service'
+import { getPlaylistNote, getVideoNote, savePlaylistNote, saveVideoNote } from '@/services/note.service'
 
 export const noteRouter = Router()
 
@@ -38,6 +38,33 @@ noteRouter.put(
       throw new HttpError(413, 'Note trop longue')
     }
     const note = await saveVideoNote(req.userId as string, req.params.videoId, content)
+    return res.json(note)
+  }),
+)
+
+// Récupère la note Markdown de l'utilisateur pour une playlist (null si absente).
+noteRouter.get(
+  '/playlists/:playlistId/note',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const note = await getPlaylistNote(req.userId as string, req.params.playlistId)
+    return res.json(note)
+  }),
+)
+
+// Crée ou met à jour la note Markdown de l'utilisateur pour une playlist.
+noteRouter.put(
+  '/playlists/:playlistId/note',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { content } = req.body as { content?: unknown }
+    if (typeof content !== 'string') {
+      throw new HttpError(400, 'Le contenu de la note est requis')
+    }
+    if (content.length > MAX_NOTE_LENGTH) {
+      throw new HttpError(413, 'Note trop longue')
+    }
+    const note = await savePlaylistNote(req.userId as string, req.params.playlistId, content)
     return res.json(note)
   }),
 )

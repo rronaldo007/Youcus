@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { VideoCard } from '@/components/ui/VideoCard'
 import { SkeletonGrid } from '@/components/ui/Skeletons'
+import { PlaylistNotes } from '@/features/notes/PlaylistNotes'
 import { usePlaylist, useRefreshPlaylist } from '@/features/playlists/usePlaylists'
 
 /** Détail d'une playlist : grille de vidéos (design system), lien vers le lecteur focus. */
@@ -54,6 +55,10 @@ export function PlaylistDetailPage() {
           {(refresh.error as Error).message}
         </p>
       )}
+
+      <div className="mt-6">
+        <PlaylistNotes playlistId={id as string} />
+      </div>
 
       <ul className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
         {data.videos.map((v) => (
