@@ -4,12 +4,10 @@ model Progress {
   completed      Boolean  @default(false)
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId         String
+  // Décision CS-70 (25/07) : progression GLOBALE par vidéo — vue dans une playlist = vue partout.
   video          Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
   videoId        String
-  playlist       Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  playlistId     String
   updatedAt      DateTime @updatedAt
 
   @@unique([userId, videoId])
-  @@index([userId, playlistId])
 }

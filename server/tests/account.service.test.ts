@@ -25,7 +25,13 @@ describe('exportUserData', () => {
       createdAt: new Date('2026-01-01'),
       ytAccessToken: 'SECRET-TOKEN',
       playlists: [
-        { youtubeId: 'PL1', title: 'Cours', description: null, videos: [{ youtubeId: 'v1', title: 'Intro', position: 0 }] },
+        {
+          youtubeId: 'PL1',
+          title: 'Cours',
+          description: null,
+          // Modèle N:N (CS-70) : la position vient de la jonction, la vidéo est imbriquée.
+          videos: [{ position: 0, video: { youtubeId: 'v1', title: 'Intro' } }],
+        },
       ],
       progress: [{ videoId: 'v1', completed: true, watchedSeconds: 42 }],
       notes: [{ videoId: 'v1', playlistId: null, content: '# Note', updatedAt: new Date('2026-02-02') }],

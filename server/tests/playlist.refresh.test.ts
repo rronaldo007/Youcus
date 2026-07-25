@@ -6,7 +6,8 @@ import { refreshPlaylist } from '@/services/playlist.service'
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     playlist: { findFirst: vi.fn(), update: vi.fn() },
-    video: { deleteMany: vi.fn(), createMany: vi.fn() },
+    video: { upsert: vi.fn(), deleteMany: vi.fn() },
+    playlistVideo: { deleteMany: vi.fn(), createMany: vi.fn() },
     $transaction: vi.fn(),
   },
 }))
@@ -40,7 +41,7 @@ describe('refreshPlaylist', () => {
     expect(fetchPlaylist).not.toHaveBeenCalled()
   })
 
-  it('re-fetch par youtubeId puis remplace les vidéos', async () => {
+  it('re-fetch par youtubeId puis synchronise la jonction sans toucher aux Video (CS-70)', async () => {
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
       id: 'p1',
       ownerId: 'u1',
@@ -62,13 +63,31 @@ describe('refreshPlaylist', () => {
       title: 'Titre MAJ',
       thumbnailUrl: 't',
     } as never)
-    vi.mocked(prisma.video.deleteMany).mockResolvedValue({ count: 0 } as never)
-    vi.mocked(prisma.video.createMany).mockResolvedValue({ count: 2 } as never)
+    vi.mocked(prisma.video.upsert)
+      .mockResolvedValueOnce({ id: 'vid1', youtubeId: 'v1' } as never)
+      .mockResolvedValueOnce({ id: 'vid2', youtubeId: 'v2' } as never)
+    vi.mocked(prisma.playlistVideo.deleteMany).mockResolvedValue({ count: 0 } as never)
+    vi.mocked(prisma.playlistVideo.createMany).mockResolvedValue({ count: 2 } as never)
 
     const res = await refreshPlaylist('u1', 'p1')
 
     expect(fetchPlaylist).toHaveBeenCalledWith('PL1')
-    expect(prisma.video.deleteMany).toHaveBeenCalledWith({ where: { playlistId: 'p1' } })
+    // Les vidéos sont upsertées (partagées), jamais supprimées.
+    expect(prisma.video.upsert).toHaveBeenCalledTimes(2)
+    expect(prisma.video.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { youtubeId: 'v1' } }),
+    )
+    // NON-RÉGRESSION CS-68 : aucun deleteMany sur Video au refresh —
+    // les Note et Progress qui pointent dessus survivent.
+    expect(prisma.video.deleteMany).not.toHaveBeenCalled()
+    // Seule la jonction est remplacée.
+    expect(prisma.playlistVideo.deleteMany).toHaveBeenCalledWith({ where: { playlistId: 'p1' } })
+    expect(prisma.playlistVideo.createMany).toHaveBeenCalledWith({
+      data: [
+        { playlistId: 'p1', videoId: 'vid1', position: 0 },
+        { playlistId: 'p1', videoId: 'vid2', position: 1 },
+      ],
+    })
     expect(res).toMatchObject({ id: 'p1', title: 'Titre MAJ', videoCount: 2 })
   })
 })

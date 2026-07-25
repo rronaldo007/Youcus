@@ -1,0 +1,13 @@
+// Jonction Playlist-Video (CS-70) : l'appartenance et l'ordre vivent ici.
+// Le refresh d'une playlist ne touche que cette table : les Video (et donc
+// les Note/Progress qui pointent dessus) survivent par construction.
+model PlaylistVideo {
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlistId String
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId    String
+  position   Int      @default(0)
+
+  @@id([playlistId, videoId])
+  @@index([videoId])
+}

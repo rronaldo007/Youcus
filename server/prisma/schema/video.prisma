@@ -1,14 +1,11 @@
 model Video {
-  id              String     @id @default(cuid())
-  youtubeId       String
+  id              String          @id @default(cuid())
+  // Décision CS-70 (25/07) : la vidéo est partagée entre playlists, une seule ligne par vidéo YouTube.
+  youtubeId       String          @unique
   title           String
-  durationSeconds Int        @default(0)
-  position        Int        @default(0)
+  durationSeconds Int             @default(0)
   thumbnailUrl    String?
-  playlist        Playlist   @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  playlistId      String
+  playlists       PlaylistVideo[]
   notes           Note[]
   progress        Progress[]
-
-  @@index([playlistId])
 }

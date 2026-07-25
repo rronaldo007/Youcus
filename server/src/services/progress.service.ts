@@ -3,7 +3,8 @@ import { HttpError } from '@/middleware/errorHandler'
 
 export interface SetProgressInput {
   videoId: string
-  playlistId: string
+  /** Optionnel depuis CS-70 : la progression est globale, gardé pour compatibilité client. */
+  playlistId?: string
   completed?: boolean
   watchedSeconds?: number
 }
@@ -16,11 +17,20 @@ export interface ProgressResult {
 
 /**
  * Crée/met à jour la progression d'une vidéo pour l'utilisateur (upsert sur userId+videoId).
- * Vérifie que la vidéo appartient à une playlist de l'utilisateur (scoping).
+ * La progression est GLOBALE (CS-70) : vue dans une playlist = vue partout.
+ * Scoping : la vidéo doit appartenir à au moins une playlist de l'utilisateur.
  */
 export async function setProgress(userId: string, input: SetProgressInput): Promise<ProgressResult> {
   const video = await prisma.video.findFirst({
-    where: { id: input.videoId, playlistId: input.playlistId, playlist: { ownerId: userId } },
+    where: {
+      id: input.videoId,
+      playlists: {
+        some: {
+          ...(input.playlistId ? { playlistId: input.playlistId } : {}),
+          playlist: { ownerId: userId },
+        },
+      },
+    },
     select: { id: true },
   })
   if (!video) throw new HttpError(404, 'Vidéo introuvable')
@@ -30,7 +40,6 @@ export async function setProgress(userId: string, input: SetProgressInput): Prom
     create: {
       userId,
       videoId: input.videoId,
-      playlistId: input.playlistId,
       completed: input.completed ?? false,
       watchedSeconds: input.watchedSeconds ?? 0,
     },

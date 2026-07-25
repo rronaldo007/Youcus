@@ -1,17 +1,17 @@
 model User {
-  id          String     @id @default(cuid())
-  email       String     @unique
-  displayName String
-  avatarUrl   String?
-  googleId    String     @unique
+  id             String     @id @default(cuid())
+  email          String     @unique
+  displayName    String
+  avatarUrl      String?
+  googleId       String     @unique
   // Jetons OAuth YouTube (scope youtube.readonly) pour importer les playlists du compte.
   // NB prod : à chiffrer au repos (hors périmètre école).
-  ytAccessToken  String?   @db.Text
-  ytRefreshToken String?   @db.Text
+  ytAccessToken  String?    @db.Text
+  ytRefreshToken String?    @db.Text
   ytTokenExpiry  DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  playlists   Playlist[]
-  notes       Note[]
-  progress    Progress[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  playlists      Playlist[]
+  notes          Note[]
+  progress       Progress[]
 }
