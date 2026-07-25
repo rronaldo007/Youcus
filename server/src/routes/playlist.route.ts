@@ -39,7 +39,8 @@ const batchSchema = z.object({
 
 const progressSchema = z.object({
   videoId: z.string().min(1),
-  playlistId: z.string().min(1),
+  // Optionnel depuis CS-70 (progression globale) ; sert encore au scoping si fourni.
+  playlistId: z.string().min(1).optional(),
   completed: z.boolean().optional(),
   watchedSeconds: z.number().int().nonnegative().optional(),
 })

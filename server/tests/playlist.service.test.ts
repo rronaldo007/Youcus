@@ -9,7 +9,7 @@ vi.mock('@/lib/prisma', () => ({
       findFirst: vi.fn(),
       deleteMany: vi.fn(),
     },
-    progress: { groupBy: vi.fn() },
+    playlistVideo: { findMany: vi.fn() },
   },
 }))
 
@@ -20,8 +20,10 @@ describe('playlist.service (lecture / suppression)', () => {
     vi.mocked(prisma.playlist.findMany).mockResolvedValue([
       { id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, _count: { videos: 3 } },
     ] as never)
-    vi.mocked(prisma.progress.groupBy).mockResolvedValue([
-      { playlistId: 'p1', _count: { _all: 2 } },
+    // Progression globale (CS-70) : 2 entrées de jonction dont la vidéo est vue.
+    vi.mocked(prisma.playlistVideo.findMany).mockResolvedValue([
+      { playlistId: 'p1' },
+      { playlistId: 'p1' },
     ] as never)
 
     const res = await listPlaylists('u1')

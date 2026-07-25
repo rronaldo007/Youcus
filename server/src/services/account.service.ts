@@ -30,7 +30,11 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      playlists: { include: { videos: { orderBy: { position: 'asc' } } } },
+      playlists: {
+        include: {
+          videos: { orderBy: { position: 'asc' }, include: { video: true } },
+        },
+      },
       progress: true,
       notes: true,
     },
@@ -51,7 +55,11 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       youtubeId: p.youtubeId,
       title: p.title,
       description: p.description,
-      videos: p.videos.map((v) => ({ youtubeId: v.youtubeId, title: v.title, position: v.position })),
+      videos: p.videos.map((pv) => ({
+        youtubeId: pv.video.youtubeId,
+        title: pv.video.title,
+        position: pv.position,
+      })),
     })),
     progress: user.progress.map((pr) => ({
       videoId: pr.videoId,

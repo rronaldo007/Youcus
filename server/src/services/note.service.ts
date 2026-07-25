@@ -6,10 +6,10 @@ export interface VideoNote {
   updatedAt: Date
 }
 
-/** Vérifie que la vidéo appartient à une playlist de l'utilisateur (sinon 404). */
+/** Vérifie que la vidéo appartient à au moins une playlist de l'utilisateur (sinon 404). */
 async function assertOwnsVideo(userId: string, videoId: string): Promise<void> {
   const video = await prisma.video.findFirst({
-    where: { id: videoId, playlist: { ownerId: userId } },
+    where: { id: videoId, playlists: { some: { playlist: { ownerId: userId } } } },
     select: { id: true },
   })
   if (!video) throw new HttpError(404, 'Vidéo introuvable')
