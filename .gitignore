@@ -29,6 +29,7 @@ server/prisma/*.db
 .vite/
 coverage/
 
+# Notes de travail locales : hors depot
 STATUS.md
 **/STATUS.md
 
