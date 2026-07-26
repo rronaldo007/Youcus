@@ -104,8 +104,15 @@ export function FocusPlayer({ youtubeId, title, startSeconds = 0, onProgress, on
   }, [youtubeId, startSeconds])
 
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-card bg-black">
-      <div ref={containerRef} title={title} className="h-full w-full" />
+    <div>
+      <div className="aspect-video w-full overflow-hidden rounded-card bg-black">
+        <div ref={containerRef} title={title} className="h-full w-full" />
+      </div>
+      <p className="mt-2 text-xs text-content-muted">
+        Youcus retire les recommandations et l'habillage qui font dériver. Les publicités, elles,
+        restent celles de YouTube : les conditions de son API interdisent de les bloquer, et elles
+        rémunèrent les créateurs dont vous regardez le travail.
+      </p>
     </div>
   )
 }
