@@ -11,6 +11,9 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().optional(),
   YOUTUBE_API_KEY: z.string().optional(),
+  // Cache NoSQL. Optionnel par conception : sans lui, l'API YouTube est
+  // interrogée directement (voir lib/cache.ts).
+  REDIS_URL: z.string().url().optional(),
 })
 
 export const env = schema.parse(process.env)
@@ -24,4 +27,9 @@ export function isGoogleOAuthConfigured(): boolean {
 /** Vrai si la clé YouTube Data API v3 est renseignée. */
 export function isYouTubeConfigured(): boolean {
   return Boolean(env.YOUTUBE_API_KEY)
+}
+
+/** Vrai si un cache Redis est configuré. L'application fonctionne sans. */
+export function isCacheConfigured(): boolean {
+  return Boolean(env.REDIS_URL)
 }
