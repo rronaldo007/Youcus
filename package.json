@@ -4,8 +4,13 @@
   "private": true,
   "description": "Youcus : une couche d'etude sur YouTube (lecteur sans distraction, notes Markdown synchronisees, suivi de progression).",
   "license": "UNLICENSED",
-  "engines": { "node": ">=20" },
-  "workspaces": ["client", "server"],
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace client",
     "dev:server": "npm run dev --workspace server",
@@ -17,6 +22,7 @@
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "stack": "docker compose up",
-    "stack:build": "docker compose up --build"
+    "stack:build": "docker compose up --build",
+    "test:coverage": "npm run test:coverage --workspaces --if-present"
   }
 }

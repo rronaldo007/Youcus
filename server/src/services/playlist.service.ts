@@ -2,7 +2,19 @@ import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
-import { extractPlaylistId, fetchPlaylist, type YouTubeVideo } from '@/lib/youtube'
+import { extractPlaylistId, fetchPlaylist, type YouTubePlaylist, type YouTubeVideo } from '@/lib/youtube'
+import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
+
+/**
+ * Lecture des métadonnées d'une playlist YouTube en cache-aside (CS-67).
+ * Le cache n'est consulté que pour les playlists PUBLIQUES : une lecture
+ * authentifiée (`accessToken`) peut porter sur une playlist privée, dont le
+ * contenu ne doit pas être partagé entre utilisateurs via une clé commune.
+ */
+function fetchPlaylistCached(playlistId: string, accessToken?: string): Promise<YouTubePlaylist> {
+  if (accessToken) return fetchPlaylist(playlistId, accessToken)
+  return cacheAside(playlistKey(playlistId), () => fetchPlaylist(playlistId))
+}
 
 /**
  * Synchronise le contenu d'une playlist avec la liste fraîchement récupérée (CS-70).
@@ -152,7 +164,7 @@ export async function importPlaylist(
   accessToken?: string,
 ): Promise<ImportedPlaylist> {
   const playlistId = extractPlaylistId(input)
-  const data = await fetchPlaylist(playlistId, accessToken)
+  const data = await fetchPlaylistCached(playlistId, accessToken)
 
   const { playlist, videoCount } = await prisma.$transaction(async (tx) => {
     const pl = await tx.playlist.upsert({
@@ -196,6 +208,9 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
     throw new HttpError(400, 'Une playlist fusionnée ne peut pas être rafraîchie')
   }
 
+  // Le rafraîchissement manuel est une demande explicite de fraîcheur :
+  // on purge la clé avant de relire, sinon l'utilisateur reverrait le cache.
+  await invalidate(playlistKey(existing.youtubeId))
   const data = await fetchPlaylist(existing.youtubeId)
 
   const { playlist, videoCount } = await prisma.$transaction(async (tx) => {
