@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
+import { z } from 'zod'
 import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
 import { getPlaylistNote, getVideoNote, savePlaylistNote, saveVideoNote } from '@/services/note.service'
@@ -7,6 +8,17 @@ export const noteRouter = Router()
 
 /** Limite de taille d'une note (colonne TEXT MySQL ~64 Ko). */
 const MAX_NOTE_LENGTH = 50_000
+
+/**
+ * Corps attendu pour l'ecriture d'une note.
+ * Zod plutot qu'un `typeof` a la main : le schema porte la contrainte de
+ * longueur avec le type, et renvoie un message exploitable sans lever.
+ */
+const noteSchema = z.object({
+  content: z
+    .string({ message: 'Le contenu de la note est requis' })
+    .max(MAX_NOTE_LENGTH, 'Note trop longue'),
+})
 
 /** Adapte un handler async pour propager les erreurs vers errorHandler. */
 function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) {
@@ -30,14 +42,12 @@ noteRouter.put(
   '/videos/:videoId/note',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { content } = req.body as { content?: unknown }
-    if (typeof content !== 'string') {
-      throw new HttpError(400, 'Le contenu de la note est requis')
+    const parsed = noteSchema.safeParse(req.body)
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? 'Requête invalide'
+      throw new HttpError(message === 'Note trop longue' ? 413 : 400, message)
     }
-    if (content.length > MAX_NOTE_LENGTH) {
-      throw new HttpError(413, 'Note trop longue')
-    }
-    const note = await saveVideoNote(req.userId as string, req.params.videoId, content)
+    const note = await saveVideoNote(req.userId as string, req.params.videoId, parsed.data.content)
     return res.json(note)
   }),
 )
@@ -57,14 +67,12 @@ noteRouter.put(
   '/playlists/:playlistId/note',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { content } = req.body as { content?: unknown }
-    if (typeof content !== 'string') {
-      throw new HttpError(400, 'Le contenu de la note est requis')
+    const parsed = noteSchema.safeParse(req.body)
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? 'Requête invalide'
+      throw new HttpError(message === 'Note trop longue' ? 413 : 400, message)
     }
-    if (content.length > MAX_NOTE_LENGTH) {
-      throw new HttpError(413, 'Note trop longue')
-    }
-    const note = await savePlaylistNote(req.userId as string, req.params.playlistId, content)
+    const note = await savePlaylistNote(req.userId as string, req.params.playlistId, parsed.data.content)
     return res.json(note)
   }),
 )
