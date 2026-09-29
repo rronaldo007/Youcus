@@ -23,23 +23,45 @@ export interface GoogleTokens {
 export interface GoogleAuthResult {
   profile: GoogleProfile
   tokens: GoogleTokens
+  /** Vrai si l'utilisateur a accordé le scope YouTube (lecture seule) lors de ce consentement. */
+  youtubeGranted: boolean
 }
 
-// Scope YouTube en lecture seule : lister/importer les playlists du compte (dont privées).
-const SCOPES = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/youtube.readonly']
+/**
+ * Deux flux distincts, en autorisation incrémentale :
+ * - `login` : identité seule (scopes non sensibles). Aucune vérification Google n'est
+ *   exigée pour ces scopes, donc n'importe quel compte peut se connecter.
+ * - `youtube` : ajoute `youtube.readonly` (scope sensible) au moment où l'utilisateur
+ *   veut importer les playlists de son compte, et seulement à ce moment-là.
+ */
+export type OAuthMode = 'login' | 'youtube'
+
+const LOGIN_SCOPES = ['openid', 'email', 'profile']
+export const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly'
 
 /** Construit l'URL de consentement Google (redirection du navigateur). */
-export function buildGoogleAuthUrl(state: string): string {
+export function buildGoogleAuthUrl(state: string, mode: OAuthMode = 'login'): string {
   const params = new URLSearchParams({
     client_id: env.GOOGLE_CLIENT_ID as string,
     redirect_uri: env.GOOGLE_CALLBACK_URL as string,
     response_type: 'code',
-    scope: SCOPES.join(' '),
     state,
-    access_type: 'offline',
-    // `consent` garantit un refresh_token à chaque consentement.
-    prompt: 'consent',
   })
+
+  if (mode === 'youtube') {
+    params.set('scope', [...LOGIN_SCOPES, YOUTUBE_SCOPE].join(' '))
+    // `offline` + `consent` garantissent un refresh_token, indispensable pour
+    // rafraîchir l'accès YouTube sans redemander le consentement.
+    params.set('access_type', 'offline')
+    params.set('prompt', 'consent')
+    // Conserve les scopes déjà accordés (identité) dans le nouveau jeton.
+    params.set('include_granted_scopes', 'true')
+  } else {
+    params.set('scope', LOGIN_SCOPES.join(' '))
+    // Laisse choisir le compte sans ré-afficher l'écran de consentement à chaque fois.
+    params.set('prompt', 'select_account')
+  }
+
   return `${GOOGLE_AUTH_URL}?${params.toString()}`
 }
 
@@ -47,6 +69,8 @@ interface GoogleTokenResponse {
   access_token?: string
   refresh_token?: string
   expires_in?: number
+  /** Scopes effectivement accordés, séparés par des espaces. */
+  scope?: string
   error?: string
   error_description?: string
 }
@@ -93,6 +117,8 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleAuthRes
     throw new HttpError(502, 'Profil Google incomplet (id ou email manquant)')
   }
 
+  const grantedScopes = (token.scope ?? '').split(' ').filter(Boolean)
+
   return {
     profile: {
       googleId: info.id,
@@ -105,6 +131,7 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleAuthRes
       refreshToken: token.refresh_token ?? null,
       expiresAt: toExpiry(token.expires_in),
     },
+    youtubeGranted: grantedScopes.includes(YOUTUBE_SCOPE),
   }
 }
 

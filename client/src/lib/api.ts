@@ -3,6 +3,9 @@ export const API_URL = import.meta.env.VITE_API_URL ?? '/api'
 /** URL de démarrage du flux de connexion Google (navigation du navigateur). */
 export const googleLoginUrl = `${API_URL}/auth/google`
 
+/** URL pour connecter YouTube (scope lecture seule), réservée à l'utilisateur déjà connecté. */
+export const googleYoutubeConnectUrl = `${API_URL}/auth/google/youtube`
+
 export class ApiError extends Error {
   constructor(
     public status: number,

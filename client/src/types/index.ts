@@ -3,6 +3,8 @@ export interface User {
   email: string
   displayName: string
   avatarUrl: string | null
+  /** Vrai si le compte a accordé l'accès YouTube (import des playlists du compte). */
+  youtubeConnected?: boolean
 }
 
 export interface Playlist {
