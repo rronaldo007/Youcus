@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { formatCompactCount, formatDuration, formatLongDate } from '@/lib/format'
 import { LinkifiedText } from './LinkifiedText'
+import { VideoChapters } from './VideoChapters'
 import { useVideo } from './useVideo'
 
 const pill = 'rounded-xl bg-surface-2 px-2.5 py-1 text-xs font-medium text-content'
@@ -9,7 +10,17 @@ const pill = 'rounded-xl bg-surface-2 px-2.5 py-1 text-xs font-medium text-conte
  * "À propos" card under the player (YC-5, Figma « Focus + Description », 150:1073): metadata
  * pills, a link to YouTube, and the description folded to three lines.
  */
-export function VideoAbout({ videoId }: { videoId: string }) {
+export function VideoAbout({
+  videoId,
+  currentSeconds = 0,
+  onSeek,
+}: {
+  videoId: string
+  /** Current player position, to highlight the chapter playing (YC-6). */
+  currentSeconds?: number
+  /** Moves the player; chapters and description timestamps use it (YC-6). */
+  onSeek?: (seconds: number) => void
+}) {
   const { data: video } = useVideo(videoId)
   const [expanded, setExpanded] = useState(false)
   const [overflows, setOverflows] = useState(false)
@@ -70,7 +81,7 @@ export function VideoAbout({ videoId }: { videoId: string }) {
               expanded ? '' : 'line-clamp-3'
             }`}
           >
-            <LinkifiedText text={video.description} />
+            <LinkifiedText text={video.description} onSeek={onSeek} maxSeconds={video.durationSeconds || undefined} />
           </p>
           {(overflows || expanded) && (
             <button
@@ -84,6 +95,8 @@ export function VideoAbout({ videoId }: { videoId: string }) {
           )}
         </div>
       )}
+
+      {onSeek && <VideoChapters chapters={video.chapters} currentSeconds={currentSeconds} onSeek={onSeek} />}
     </section>
   )
 }

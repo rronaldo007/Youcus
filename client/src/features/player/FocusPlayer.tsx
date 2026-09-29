@@ -1,10 +1,17 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 
 // Types minimaux de la YouTube IFrame Player API.
 interface YTPlayer {
   getCurrentTime(): number
   seekTo(seconds: number, allowSeekAhead: boolean): void
+  playVideo(): void
   destroy(): void
+}
+
+/** What the page can ask of the player (YC-6). */
+export interface FocusPlayerHandle {
+  /** Jumps to `seconds` and plays from there. */
+  seekTo(seconds: number): void
 }
 interface YTNamespace {
   Player: new (el: HTMLElement, opts: unknown) => YTPlayer
@@ -43,6 +50,8 @@ interface FocusPlayerProps {
   onProgress?: (seconds: number) => void
   /** Appelé quand la vidéo se termine. */
   onEnded?: () => void
+  /** Current position, every second while playing and right after a seek (YC-6). */
+  onTimeUpdate?: (seconds: number) => void
 }
 
 /**
@@ -50,21 +59,49 @@ interface FocusPlayerProps {
  * Reprend à `startSeconds`, remonte la position via `onProgress`, signale la fin via `onEnded`.
  * Sans distraction : rel=0, modestbranding, iv_load_policy=3.
  */
-export function FocusPlayer({ youtubeId, title, startSeconds = 0, onProgress, onEnded }: FocusPlayerProps) {
+export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(function FocusPlayer(
+  { youtubeId, title, startSeconds = 0, onProgress, onEnded, onTimeUpdate },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const playerRef = useRef<YTPlayer | null>(null)
   const onProgressRef = useRef(onProgress)
   const onEndedRef = useRef(onEnded)
+  const onTimeUpdateRef = useRef(onTimeUpdate)
   onProgressRef.current = onProgress
   onEndedRef.current = onEnded
+  onTimeUpdateRef.current = onTimeUpdate
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      seekTo(seconds: number) {
+        const player = playerRef.current
+        if (!player) return
+        player.seekTo(seconds, true)
+        player.playVideo()
+        onTimeUpdateRef.current?.(seconds)
+      },
+    }),
+    [],
+  )
 
   useEffect(() => {
     let cancelled = false
     let player: YTPlayer | null = null
     let interval: ReturnType<typeof setInterval> | undefined
 
+    let ticks = 0
+
     const report = () => {
       const t = Math.floor(player?.getCurrentTime() ?? 0)
       if (t > 0) onProgressRef.current?.(t)
+    }
+    // Every second: the current position for the chapters; every fifth: the saved progress.
+    const tick = () => {
+      onTimeUpdateRef.current?.(player?.getCurrentTime() ?? 0)
+      ticks += 1
+      if (ticks % 5 === 0) report()
     }
 
     loadYouTubeApi().then(() => {
@@ -81,13 +118,18 @@ export function FocusPlayer({ youtubeId, title, startSeconds = 0, onProgress, on
         },
         events: {
           onReady: (e: { target: YTPlayer }) => {
+            playerRef.current = e.target
             if (startSeconds > 0) e.target.seekTo(startSeconds, true)
+            onTimeUpdateRef.current?.(startSeconds)
           },
           onStateChange: (e: { data: number }) => {
             if (e.data === YT.PlayerState.PLAYING) {
-              interval = setInterval(report, 5000)
+              if (interval) clearInterval(interval)
+              interval = setInterval(tick, 1000)
             } else {
               if (interval) clearInterval(interval)
+              interval = undefined
+              onTimeUpdateRef.current?.(player?.getCurrentTime() ?? 0)
               report()
               if (e.data === YT.PlayerState.ENDED) onEndedRef.current?.()
             }
@@ -100,6 +142,7 @@ export function FocusPlayer({ youtubeId, title, startSeconds = 0, onProgress, on
       cancelled = true
       if (interval) clearInterval(interval)
       player?.destroy()
+      playerRef.current = null
     }
   }, [youtubeId, startSeconds])
 
@@ -115,4 +158,4 @@ export function FocusPlayer({ youtubeId, title, startSeconds = 0, onProgress, on
       </p>
     </div>
   )
-}
+})
