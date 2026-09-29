@@ -36,6 +36,9 @@ STATUS.md
 # Documentation locale : hors depot (contient des infos sensibles, cf CS-65)
 docs/
 
+# Diagrammes de conception v1 (livre) et v2 (cible) : hors depot
+diagrams/
+
 # Editeurs et OS
 .DS_Store
 Thumbs.db
