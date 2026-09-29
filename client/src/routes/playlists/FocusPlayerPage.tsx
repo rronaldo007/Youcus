@@ -1,6 +1,6 @@
-import { useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { FocusPlayer } from '@/features/player/FocusPlayer'
+import { FocusPlayer, type FocusPlayerHandle } from '@/features/player/FocusPlayer'
 import { VideoAbout } from '@/features/player/VideoAbout'
 import { VideoSidebar } from '@/features/player/VideoSidebar'
 import { VideoNotes } from '@/features/notes/VideoNotes'
@@ -13,6 +13,11 @@ export function FocusPlayerPage() {
   const setProgress = useSetProgress(id as string)
   // Fige la position de reprise à la 1re ouverture de chaque vidéo (stable malgré les refetch).
   const resumeRef = useRef<{ key: string; seconds: number } | null>(null)
+  // Player position, for the chapter playing (YC-6), and a handle to move the player.
+  const playerRef = useRef<FocusPlayerHandle>(null)
+  const [currentSeconds, setCurrentSeconds] = useState(0)
+  const seek = useCallback((seconds: number) => playerRef.current?.seekTo(seconds), [])
+  useEffect(() => setCurrentSeconds(0), [videoId])
 
   if (isLoading) return <p className="p-6 text-content-muted">Chargement…</p>
   if (isError || !data) {
@@ -64,11 +69,13 @@ export function FocusPlayerPage() {
       <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div>
           <FocusPlayer
+            ref={playerRef}
             youtubeId={video.youtubeId}
             title={video.title}
             startSeconds={startSeconds}
             onProgress={(s) => reportWatchedSeconds(id as string, video.id, s)}
             onEnded={() => setProgress.mutate({ videoId: video.id, completed: true })}
+            onTimeUpdate={setCurrentSeconds}
           />
           <div className="mt-4 flex items-start justify-between gap-4">
             <h1 className="text-xl font-semibold text-content">
@@ -104,7 +111,7 @@ export function FocusPlayerPage() {
             )}
           </div>
 
-          <VideoAbout videoId={video.id} />
+          <VideoAbout videoId={video.id} currentSeconds={currentSeconds} onSeek={seek} />
 
           <VideoNotes videoId={video.id} />
         </div>
