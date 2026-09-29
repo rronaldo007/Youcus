@@ -9,11 +9,11 @@ const myPlaylists = [
   { youtubeId: 'p2', title: 'Déjà là', thumbnailUrl: null, videoCount: 3, alreadyImported: true },
 ]
 
-function renderModal() {
+function renderModal(initialEntries: string[] = ['/import']) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <ImportModal />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -49,5 +49,18 @@ describe('ImportModal', () => {
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ playlistIds: ['p1'] }) }),
       ),
     )
+  })
+
+  it('propose de connecter YouTube (vers /auth/google/youtube) quand l\'accès n\'est pas encore accordé', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })))
+    renderModal()
+
+    const cta = await screen.findByRole('link', { name: /Connecter mon compte YouTube/i })
+    expect(cta).toHaveAttribute('href', expect.stringContaining('/auth/google/youtube'))
+  })
+
+  it('affiche le message de retour du flux YouTube (?youtube=denied)', async () => {
+    renderModal(['/import?youtube=denied'])
+    expect(await screen.findByRole('alert')).toHaveTextContent(/refusé/i)
   })
 })
