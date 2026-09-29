@@ -11,16 +11,27 @@
   --yc-line: #e5e5e5;
   --yc-content: #0f0f0f;
   --yc-content-muted: #606060;
+  /* Couleurs de marque en triplets RGB, pour garder les modificateurs d'opacité Tailwind (bg-accent-red/10). */
+  --yc-purple: 164 53 240;       /* #a435f0 */
+  --yc-purple-hover: 135 16 216; /* #8710d8 */
+  --yc-on-purple: 255 255 255;
+  --yc-red: 255 0 51;            /* #ff0033 */
+  --yc-success: 31 168 85;       /* #1fa855 */
 }
 
 .dark {
   color-scheme: dark;
   --yc-canvas: #0f0f0f;
   --yc-surface: #181818;
-  --yc-surface-2: #272727;
+  --yc-surface-2: #212121;
   --yc-line: #303030;
   --yc-content: #f1f1f1;
   --yc-content-muted: #aaaaaa;
+  --yc-purple: 199 127 254;      /* #c77ffe */
+  --yc-purple-hover: 214 158 255;
+  --yc-on-purple: 22 10 34;      /* #160a22 */
+  --yc-red: 255 78 106;          /* #ff4e6a */
+  --yc-success: 60 203 90;       /* #3ccb5a */
 }
 
 body {
@@ -47,7 +58,7 @@ body {
 .yc-md ul { list-style: disc; }
 .yc-md ol { list-style: decimal; }
 .yc-md li { margin: 0.2em 0; }
-.yc-md a { color: #a435f0; text-decoration: underline; }
+.yc-md a { color: rgb(var(--yc-purple)); text-decoration: underline; }
 .yc-md code { font-family: theme('fontFamily.mono'); font-size: 0.85em; background: var(--yc-surface-2); padding: 0.1em 0.35em; border-radius: 4px; }
 .yc-md pre { background: var(--yc-surface-2); padding: 0.75em; border-radius: 8px; overflow-x: auto; margin: 0.6em 0; }
 .yc-md pre code { background: none; padding: 0; }

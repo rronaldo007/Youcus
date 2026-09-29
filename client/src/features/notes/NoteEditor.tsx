@@ -78,7 +78,7 @@ export function NoteEditor({ title, icon, textareaLabel, note, isLoading, onSave
       aria-pressed={mode === m}
       onClick={() => setMode(m)}
       className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-        mode === m ? 'bg-brand-purple text-white' : 'text-content-muted hover:bg-surface-2'
+        mode === m ? 'bg-brand-purple text-on-purple' : 'text-content-muted hover:bg-surface-2'
       }`}
     >
       {label}

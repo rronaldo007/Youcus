@@ -41,7 +41,7 @@ export function LoginPage() {
 
           <a
             href={googleLoginUrl}
-            className="mt-6 flex w-full items-center justify-center rounded-lg bg-brand-purple px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-purple-dark"
+            className="mt-6 flex w-full items-center justify-center rounded-lg bg-brand-purple px-5 py-3 text-sm font-semibold text-on-purple transition hover:bg-brand-purple-dark"
           >
             Continuer avec Google
           </a>

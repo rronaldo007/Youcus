@@ -19,7 +19,7 @@ export function LandingPage() {
           <ThemeToggle />
           <Link
             to="/login"
-            className="rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-purple-dark"
+            className="rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-on-purple transition hover:bg-brand-purple-dark"
           >
             Continuer avec Google
           </Link>
@@ -41,7 +41,7 @@ export function LandingPage() {
             <div className="mt-8">
               <Link
                 to="/login"
-                className="inline-block rounded-lg bg-brand-purple px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-purple-dark"
+                className="inline-block rounded-lg bg-brand-purple px-5 py-3 text-sm font-semibold text-on-purple transition hover:bg-brand-purple-dark"
               >
                 Continuer avec Google
               </Link>
