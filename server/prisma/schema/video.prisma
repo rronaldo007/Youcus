@@ -20,9 +20,10 @@ model Video {
   channel          Channel?        @relation(fields: [channelId], references: [id], onDelete: SetNull)
   channelId        String?
   publishedAt      DateTime?
-  viewCount        Int?
+  viewCount        BigInt?
+  // Counters are BigInt: the most viewed videos exceed the 32-bit INT ceiling.
   // Likes can be hidden by the uploader: null, never 0.
-  likeCount        Int?
+  likeCount        BigInt?
   status           VideoStatus     @default(AVAILABLE)
   embeddable       Boolean         @default(true)
   // ISO 3166-1 alpha-2 codes where the video is blocked (contentDetails.regionRestriction.blocked).
