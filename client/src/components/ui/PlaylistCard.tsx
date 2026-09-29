@@ -18,7 +18,7 @@ export function PlaylistCard({ playlist }: { playlist: Playlist }) {
           </span>
         </span>
       </div>
-      <div className="flex flex-col gap-1.5 px-3.5 pb-3.5 pt-3">
+      <div className="flex flex-col gap-[9px] px-3.5 pb-3.5 pt-3">
         <p className="line-clamp-2 text-[15px] font-semibold text-content">{playlist.title}</p>
         {playlist.videoCount > 0 && (
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
@@ -26,7 +26,7 @@ export function PlaylistCard({ playlist }: { playlist: Playlist }) {
           </div>
         )}
         <p className="text-xs text-content-muted">
-          {pct > 0 ? `${pct} % · ` : ''}
+          {playlist.videoCount > 0 ? `${pct} % · ` : ''}
           {playlist.videoCount} vidéo{playlist.videoCount > 1 ? 's' : ''}
         </p>
       </div>

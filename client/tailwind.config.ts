@@ -7,14 +7,16 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Couleurs de marque pilotées par variables CSS : elles changent en mode sombre (cf. Figma).
         brand: {
-          purple: '#A435F0',
-          'purple-dark': '#8710D8',
+          purple: 'rgb(var(--yc-purple) / <alpha-value>)',
+          'purple-dark': 'rgb(var(--yc-purple-hover) / <alpha-value>)',
         },
+        'on-purple': 'rgb(var(--yc-on-purple) / <alpha-value>)',
         accent: {
-          red: '#FF0033',
+          red: 'rgb(var(--yc-red) / <alpha-value>)',
         },
-        success: '#16A34A',
+        success: 'rgb(var(--yc-success) / <alpha-value>)',
         // Tokens semantiques pilotes par variables CSS (light/dark), cf. styles/index.css.
         canvas: 'var(--yc-canvas)',
         surface: {

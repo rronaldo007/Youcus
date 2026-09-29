@@ -19,6 +19,6 @@ describe('PlaylistCard', () => {
         playlist={{ id: 'p2', youtubeId: 'y2', title: 'Solo', thumbnailUrl: null, videoCount: 1 }}
       />,
     )
-    expect(screen.getByText('1 vidéo')).toBeInTheDocument()
+    expect(screen.getByText('0 % · 1 vidéo')).toBeInTheDocument()
   })
 })

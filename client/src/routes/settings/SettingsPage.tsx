@@ -72,7 +72,7 @@ export function SettingsPage() {
                   aria-pressed={active}
                   onClick={() => selectTheme(opt.value)}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                    active ? 'bg-brand-purple text-white' : 'text-content-muted hover:bg-surface-2'
+                    active ? 'bg-brand-purple text-on-purple' : 'text-content-muted hover:bg-surface-2'
                   }`}
                 >
                   <span aria-hidden>{opt.icon}</span>

@@ -66,7 +66,7 @@ export function ImportModal() {
               </p>
               <a
                 href={googleYoutubeConnectUrl}
-                className="mt-3 inline-block rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-purple-dark"
+                className="mt-3 inline-block rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-on-purple transition hover:bg-brand-purple-dark"
               >
                 Connecter mon compte YouTube
               </a>

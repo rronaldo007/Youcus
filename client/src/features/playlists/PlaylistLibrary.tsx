@@ -70,14 +70,14 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-[22px] flex flex-wrap gap-2.5">
         {FILTERS.map((f) => (
           <button
             key={f.key}
             type="button"
             onClick={() => setFilter(f.key)}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
-              filter === f.key ? 'bg-brand-purple text-white' : 'bg-surface-2 text-content hover:opacity-90'
+            className={`rounded-full px-3.5 py-[7px] text-[13px] font-medium transition ${
+              filter === f.key ? 'bg-brand-purple text-on-purple' : 'bg-surface-2 text-content hover:opacity-90'
             }`}
           >
             {f.label}
@@ -99,7 +99,7 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
         </div>
       )}
 
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {visible.map((pl) => (
           <li key={pl.id} className="overflow-hidden rounded-card border border-line bg-surface text-left">
             <Link to={`/playlists/${pl.id}`} className="block transition hover:opacity-95">
