@@ -38,6 +38,15 @@ npm run dev                 # client  -> http://localhost:5173
 npm run dev:server          # serveur -> http://localhost:4000
 ```
 
+Ou en une commande (MySQL et Redis dans Docker, API et client sur la machine) :
+
+```bash
+npm run up      # ./scripts/start.sh : migrations, API, client ; « pret » seulement si tout repond
+npm run down    # ./scripts/stop.sh  : arrete ce que ce depot a lance, garde le volume de la base
+```
+
+Journaux et fichiers de PID : `/tmp/youcus-dev/`.
+
 Toute la stack en conteneurs (dev **ou** prod, un seul `docker-compose.yml`) :
 
 Le mode est choisi via **`COMPOSE_PROFILES`** dans `.env` (lu automatiquement par
@@ -59,6 +68,7 @@ Dev : client -> http://localhost:5173, api -> http://localhost:4000 (ou `API_POR
 | Script | Role |
 |--------|------|
 | `npm run dev` / `dev:server` | Lance le client / le serveur |
+| `npm run up` / `down` | Lance / arrete toute la stack locale (`scripts/start.sh`, `scripts/stop.sh`) |
 | `npm run build` | Build client puis serveur |
 | `npm run lint` / `typecheck` / `test` | Qualite sur tous les workspaces |
 | `npm run prisma:generate` | Genere le client Prisma |
