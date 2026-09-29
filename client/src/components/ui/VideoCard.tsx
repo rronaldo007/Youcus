@@ -1,10 +1,5 @@
+import { formatDuration } from '@/lib/format'
 import type { Video } from '@/types'
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
 
 /** Carte vidéo du design system (cf. Figma VideoCard 26:12). */
 export function VideoCard({ video }: { video: Video }) {

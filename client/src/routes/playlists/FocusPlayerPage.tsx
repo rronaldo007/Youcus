@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
+import { VideoAbout } from '@/features/player/VideoAbout'
 import { VideoSidebar } from '@/features/player/VideoSidebar'
 import { VideoNotes } from '@/features/notes/VideoNotes'
 import { reportWatchedSeconds, usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
@@ -102,6 +103,8 @@ export function FocusPlayerPage() {
               <span />
             )}
           </div>
+
+          <VideoAbout videoId={video.id} />
 
           <VideoNotes videoId={video.id} />
         </div>
