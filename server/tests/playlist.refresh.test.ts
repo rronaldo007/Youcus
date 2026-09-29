@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { fetchPlaylist } from '@/lib/youtube'
 import { refreshPlaylist } from '@/services/playlist.service'
@@ -7,6 +8,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     playlist: { findFirst: vi.fn(), update: vi.fn() },
     video: { upsert: vi.fn(), deleteMany: vi.fn() },
+    channel: { upsert: vi.fn() },
     playlistVideo: { deleteMany: vi.fn(), createMany: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -84,10 +86,82 @@ describe('refreshPlaylist', () => {
     expect(prisma.playlistVideo.deleteMany).toHaveBeenCalledWith({ where: { playlistId: 'p1' } })
     expect(prisma.playlistVideo.createMany).toHaveBeenCalledWith({
       data: [
-        { playlistId: 'p1', videoId: 'vid1', position: 0 },
-        { playlistId: 'p1', videoId: 'vid2', position: 1 },
+        { playlistId: 'p1', videoId: 'vid1', position: 0, creatorNote: null, addedAt: null },
+        { playlistId: 'p1', videoId: 'vid2', position: 1, creatorNote: null, addedAt: null },
       ],
     })
     expect(res).toMatchObject({ id: 'p1', title: 'Titre MAJ', videoCount: 2 })
+  })
+
+  it('writes the YouTube metadata: channel link, BigInt counters, null likes, sync date (YC-1)', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({ id: 'p1', ownerId: 'u1', youtubeId: 'PL1' } as never)
+    vi.mocked(fetchPlaylist).mockResolvedValue({
+      youtubeId: 'PL1',
+      title: 'React',
+      description: null,
+      thumbnailUrl: null,
+      itemCount: 5,
+      privacyStatus: 'PUBLIC',
+      channelYoutubeId: 'UC1',
+      channels: [{ youtubeId: 'UC1', title: 'Fireship', handle: '@fireship', avatarUrl: null }],
+      videos: [
+        {
+          youtubeId: 'v1',
+          title: 'V1',
+          thumbnailUrl: null,
+          position: 0,
+          creatorNote: 'Start here',
+          addedAt: '2025-01-02T00:00:00Z',
+          details: {
+            durationSeconds: 600,
+            description: 'Intro',
+            channelYoutubeId: 'UC1',
+            publishedAt: '2024-05-01T10:00:00Z',
+            viewCount: 3000000000,
+            likeCount: null,
+            status: 'AVAILABLE',
+            embeddable: true,
+            blockedRegions: null,
+            topics: ['t'],
+            hasPaidPromotion: false,
+            definition: 'hd',
+            hasCaptions: true,
+          },
+        },
+      ],
+    } as never)
+    vi.mocked(prisma.channel.upsert).mockResolvedValue({ id: 'ch1' } as never)
+    vi.mocked(prisma.playlist.update).mockResolvedValue({ id: 'p1', youtubeId: 'PL1', title: 'React', thumbnailUrl: null } as never)
+    vi.mocked(prisma.video.upsert).mockResolvedValue({ id: 'vid1' } as never)
+    vi.mocked(prisma.playlistVideo.deleteMany).mockResolvedValue({ count: 0 } as never)
+    vi.mocked(prisma.playlistVideo.createMany).mockResolvedValue({ count: 1 } as never)
+
+    await refreshPlaylist('u1', 'p1')
+
+    expect(prisma.channel.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { youtubeId: 'UC1' } }),
+    )
+    const playlistData = vi.mocked(prisma.playlist.update).mock.calls[0][0].data
+    expect(playlistData).toMatchObject({ itemCount: 5, privacyStatus: 'PUBLIC', channelId: 'ch1' })
+    expect(playlistData.syncedAt).toBeInstanceOf(Date)
+
+    const create = vi.mocked(prisma.video.upsert).mock.calls[0][0].create
+    expect(create).toMatchObject({
+      durationSeconds: 600,
+      channelId: 'ch1',
+      viewCount: 3000000000n,
+      likeCount: null,
+      status: 'AVAILABLE',
+      topics: ['t'],
+    })
+    expect(create.publishedAt).toEqual(new Date('2024-05-01T10:00:00Z'))
+    expect(create.blockedRegions).toBe(Prisma.DbNull)
+    expect(create.syncedAt).toBeInstanceOf(Date)
+
+    expect(prisma.playlistVideo.createMany).toHaveBeenCalledWith({
+      data: [
+        { playlistId: 'p1', videoId: 'vid1', position: 0, creatorNote: 'Start here', addedAt: new Date('2025-01-02T00:00:00Z') },
+      ],
+    })
   })
 })

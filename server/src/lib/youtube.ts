@@ -3,11 +3,48 @@ import { HttpError } from '@/middleware/errorHandler'
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
 
+/** Availability of a video, same values as the Prisma VideoStatus enum. */
+export type VideoAvailability = 'AVAILABLE' | 'PRIVATE' | 'DELETED' | 'BLOCKED' | 'LIVE' | 'UPCOMING'
+export type PlaylistPrivacyValue = 'PUBLIC' | 'UNLISTED' | 'PRIVATE'
+
+/**
+ * Metadata from videos.list (YC-1). Dates stay ISO strings and counters plain numbers so the
+ * whole playlist survives the JSON round trip of the Redis cache.
+ */
+export interface VideoDetails {
+  durationSeconds: number
+  description: string | null
+  channelYoutubeId: string | null
+  publishedAt: string | null
+  viewCount: number | null
+  /** null when the uploader hides likes: never a fake 0. */
+  likeCount: number | null
+  status: VideoAvailability
+  embeddable: boolean
+  blockedRegions: string[] | null
+  topics: string[] | null
+  hasPaidPromotion: boolean
+  definition: string | null
+  hasCaptions: boolean
+}
+
+export interface YouTubeChannel {
+  youtubeId: string
+  title: string
+  handle: string | null
+  avatarUrl: string | null
+}
+
 export interface YouTubeVideo {
   youtubeId: string
   title: string
   thumbnailUrl: string | null
   position: number
+  /** Uploader note on the playlist item (playlistItems.contentDetails.note). */
+  creatorNote?: string | null
+  /** Date the video was added to the playlist (ISO), distinct from its publication date. */
+  addedAt?: string | null
+  details?: VideoDetails
 }
 
 export interface YouTubePlaylist {
@@ -16,6 +53,12 @@ export interface YouTubePlaylist {
   description: string | null
   thumbnailUrl: string | null
   videos: YouTubeVideo[]
+  /** Item count declared by YouTube; more than videos.length means private or deleted ones. */
+  itemCount?: number
+  privacyStatus?: PlaylistPrivacyValue | null
+  channelYoutubeId?: string | null
+  /** Every channel referenced by the playlist or its videos. */
+  channels?: YouTubeChannel[]
 }
 
 /** Extrait l'identifiant de playlist d'une URL YouTube (paramètre `list`) ou d'un ID brut. */
@@ -74,20 +117,188 @@ async function youtubeGet(path: string, accessToken?: string): Promise<Record<st
 interface PlaylistItemSnippet {
   title: string
   position?: number
+  publishedAt?: string
   thumbnails?: YouTubeThumbnails
   resourceId?: { videoId?: string }
 }
 
-/** Récupère une playlist et toutes ses vidéos via la YouTube Data API v3 (avec pagination). */
+interface PlaylistItemResource {
+  snippet?: PlaylistItemSnippet
+  contentDetails?: { note?: string }
+}
+
+/** Largest batch the YouTube Data API accepts in an `id=` list, for 1 quota unit. */
+export const YOUTUBE_BATCH_SIZE = 50
+
+/** Splits a list into consecutive batches of at most `size` items. */
+export function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
+/** Converts an ISO 8601 duration (PT1H2M3S, P1DT2H) to seconds. Unknown formats give 0. */
+export function parseIsoDuration(iso: string | undefined | null): number {
+  const match = iso?.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/)
+  if (!match) return 0
+  const [, days, hours, minutes, seconds] = match
+  return (
+    Number(days ?? 0) * 86400 +
+    Number(hours ?? 0) * 3600 +
+    Number(minutes ?? 0) * 60 +
+    Math.floor(Number(seconds ?? 0))
+  )
+}
+
+function toCount(value: string | undefined): number | null {
+  if (value === undefined) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+interface VideoResource {
+  id: string
+  snippet?: { description?: string; channelId?: string; publishedAt?: string; liveBroadcastContent?: string }
+  contentDetails?: {
+    duration?: string
+    definition?: string
+    caption?: string
+    regionRestriction?: { blocked?: string[] }
+  }
+  statistics?: { viewCount?: string; likeCount?: string }
+  status?: { privacyStatus?: string; uploadStatus?: string; embeddable?: boolean }
+  topicDetails?: { topicCategories?: string[] }
+  paidProductPlacementDetails?: { hasPaidProductPlacement?: boolean }
+}
+
+/** Maps the YouTube status fields to a single availability value. */
+export function toAvailability(v: VideoResource): VideoAvailability {
+  const upload = v.status?.uploadStatus
+  if (upload === 'deleted' || upload === 'rejected' || upload === 'failed') return 'DELETED'
+  if (v.status?.privacyStatus === 'private') return 'PRIVATE'
+  if (v.snippet?.liveBroadcastContent === 'live') return 'LIVE'
+  if (v.snippet?.liveBroadcastContent === 'upcoming') return 'UPCOMING'
+  return 'AVAILABLE'
+}
+
+function toDetails(v: VideoResource): VideoDetails {
+  const description = v.snippet?.description?.trim() ? v.snippet.description : null
+  const blocked = v.contentDetails?.regionRestriction?.blocked
+  const topics = v.topicDetails?.topicCategories
+  return {
+    durationSeconds: parseIsoDuration(v.contentDetails?.duration),
+    description,
+    channelYoutubeId: v.snippet?.channelId ?? null,
+    publishedAt: v.snippet?.publishedAt ?? null,
+    viewCount: toCount(v.statistics?.viewCount),
+    likeCount: toCount(v.statistics?.likeCount),
+    status: toAvailability(v),
+    embeddable: v.status?.embeddable ?? true,
+    blockedRegions: blocked && blocked.length > 0 ? blocked : null,
+    topics: topics && topics.length > 0 ? topics : null,
+    hasPaidPromotion: v.paidProductPlacementDetails?.hasPaidProductPlacement ?? false,
+    definition: v.contentDetails?.definition ?? null,
+    hasCaptions: v.contentDetails?.caption === 'true',
+  }
+}
+
+/**
+ * Full metadata of videos, by batches of 50 (1 quota unit each).
+ * An id missing from the answer is a video YouTube no longer serves: it comes back DELETED.
+ */
+export async function fetchVideoDetails(
+  videoIds: string[],
+  accessToken?: string,
+): Promise<Map<string, VideoDetails>> {
+  const out = new Map<string, VideoDetails>()
+  const unique = [...new Set(videoIds)]
+  for (const batch of chunk(unique, YOUTUBE_BATCH_SIZE)) {
+    const page = await youtubeGet(
+      'videos?part=snippet,contentDetails,statistics,status,topicDetails,paidProductPlacementDetails' +
+        `&id=${batch.join(',')}`,
+      accessToken,
+    )
+    for (const item of (page.items as VideoResource[] | undefined) ?? []) {
+      out.set(item.id, toDetails(item))
+    }
+  }
+  for (const id of unique) {
+    if (!out.has(id)) {
+      out.set(id, {
+        durationSeconds: 0,
+        description: null,
+        channelYoutubeId: null,
+        publishedAt: null,
+        viewCount: null,
+        likeCount: null,
+        status: 'DELETED',
+        embeddable: false,
+        blockedRegions: null,
+        topics: null,
+        hasPaidPromotion: false,
+        definition: null,
+        hasCaptions: false,
+      })
+    }
+  }
+  return out
+}
+
+interface ChannelResource {
+  id: string
+  snippet?: { title?: string; customUrl?: string; thumbnails?: YouTubeThumbnails }
+}
+
+/** Channels (title, @handle, avatar) by batches of 50, 1 quota unit each. */
+export async function fetchChannels(channelIds: string[], accessToken?: string): Promise<YouTubeChannel[]> {
+  const out: YouTubeChannel[] = []
+  const unique = [...new Set(channelIds)]
+  for (const batch of chunk(unique, YOUTUBE_BATCH_SIZE)) {
+    const page = await youtubeGet(
+      `channels?part=snippet&id=${batch.join(',')}`,
+      accessToken,
+    )
+    for (const item of (page.items as ChannelResource[] | undefined) ?? []) {
+      out.push({
+        youtubeId: item.id,
+        title: item.snippet?.title ?? '',
+        handle: item.snippet?.customUrl ?? null,
+        avatarUrl: pickThumbnail(item.snippet?.thumbnails),
+      })
+    }
+  }
+  return out
+}
+
+function toPrivacy(value: string | undefined): PlaylistPrivacyValue | null {
+  if (value === 'public') return 'PUBLIC'
+  if (value === 'unlisted') return 'UNLISTED'
+  if (value === 'private') return 'PRIVATE'
+  return null
+}
+
+/**
+ * Fetches a playlist, all its videos (paginated) and their full metadata (YC-1).
+ * Cost for 50 videos: about 3 quota units (playlistItems, videos, channels).
+ */
 export async function fetchPlaylist(playlistId: string, accessToken?: string): Promise<YouTubePlaylist> {
-  const meta = await youtubeGet(`playlists?part=snippet&id=${playlistId}`, accessToken)
-  const playlistItem = (meta.items as { snippet?: Record<string, unknown> }[] | undefined)?.[0]
+  const meta = await youtubeGet(`playlists?part=snippet,contentDetails,status&id=${playlistId}`, accessToken)
+  const playlistItem = (
+    meta.items as
+      | {
+          snippet?: Record<string, unknown>
+          contentDetails?: { itemCount?: number }
+          status?: { privacyStatus?: string }
+        }[]
+      | undefined
+  )?.[0]
   if (!playlistItem?.snippet) {
     throw new HttpError(404, 'Playlist introuvable ou privée')
   }
   const snippet = playlistItem.snippet as {
     title: string
     description?: string
+    channelId?: string
     thumbnails?: YouTubeThumbnails
   }
 
@@ -95,25 +306,40 @@ export async function fetchPlaylist(playlistId: string, accessToken?: string): P
   let pageToken: string | undefined
   do {
     const page = await youtubeGet(
-      `playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}` +
+      `playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${playlistId}` +
         (pageToken ? `&pageToken=${pageToken}` : ''),
       accessToken,
     )
-    const items = (page.items as { snippet?: PlaylistItemSnippet }[] | undefined) ?? []
+    const items = (page.items as PlaylistItemResource[] | undefined) ?? []
     for (const item of items) {
       const s = item.snippet
       const videoId = s?.resourceId?.videoId
       // Ignore les vidéos privées / supprimées (pas de videoId exploitable).
       if (!s || !videoId || s.title === 'Private video' || s.title === 'Deleted video') continue
+      const note = item.contentDetails?.note?.trim()
       videos.push({
         youtubeId: videoId,
         title: s.title,
         thumbnailUrl: pickThumbnail(s.thumbnails),
         position: s.position ?? videos.length,
+        creatorNote: note ? note.slice(0, 280) : null,
+        addedAt: s.publishedAt ?? null,
       })
     }
     pageToken = page.nextPageToken as string | undefined
   } while (pageToken)
+
+  const details = await fetchVideoDetails(
+    videos.map((v) => v.youtubeId),
+    accessToken,
+  )
+  for (const v of videos) v.details = details.get(v.youtubeId)
+
+  const channelIds = [
+    ...(snippet.channelId ? [snippet.channelId] : []),
+    ...videos.map((v) => v.details?.channelYoutubeId).filter((id): id is string => Boolean(id)),
+  ]
+  const channels = channelIds.length > 0 ? await fetchChannels(channelIds, accessToken) : []
 
   return {
     youtubeId: playlistId,
@@ -121,6 +347,10 @@ export async function fetchPlaylist(playlistId: string, accessToken?: string): P
     description: snippet.description?.trim() ? snippet.description : null,
     thumbnailUrl: pickThumbnail(snippet.thumbnails),
     videos,
+    itemCount: playlistItem.contentDetails?.itemCount ?? videos.length,
+    privacyStatus: toPrivacy(playlistItem.status?.privacyStatus),
+    channelYoutubeId: snippet.channelId ?? null,
+    channels,
   }
 }
 

@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
-import { extractPlaylistId, fetchPlaylist, type YouTubePlaylist, type YouTubeVideo } from '@/lib/youtube'
+import {
+  extractPlaylistId,
+  fetchPlaylist,
+  type VideoDetails,
+  type YouTubeChannel,
+  type YouTubePlaylist,
+  type YouTubeVideo,
+} from '@/lib/youtube'
 import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
 
 /**
@@ -27,6 +34,7 @@ async function syncVideos(
   tx: Prisma.TransactionClient,
   playlistId: string,
   videos: YouTubeVideo[],
+  channelIds: Map<string, string> = new Map(),
 ): Promise<number> {
   // Une même vidéo peut apparaître deux fois dans une playlist YouTube :
   // on garde la première occurrence (la jonction a une PK composite).
@@ -35,14 +43,22 @@ async function syncVideos(
     if (!unique.has(v.youtubeId)) unique.set(v.youtubeId, v)
   }
 
-  const rows: { playlistId: string; videoId: string; position: number }[] = []
+  const syncedAt = new Date()
+  const rows: Prisma.PlaylistVideoCreateManyInput[] = []
   for (const v of unique.values()) {
+    const metadata = v.details ? videoMetadata(v.details, channelIds, syncedAt) : {}
     const video = await tx.video.upsert({
       where: { youtubeId: v.youtubeId },
-      create: { youtubeId: v.youtubeId, title: v.title, thumbnailUrl: v.thumbnailUrl },
-      update: { title: v.title, thumbnailUrl: v.thumbnailUrl },
+      create: { youtubeId: v.youtubeId, title: v.title, thumbnailUrl: v.thumbnailUrl, ...metadata },
+      update: { title: v.title, thumbnailUrl: v.thumbnailUrl, ...metadata },
     })
-    rows.push({ playlistId, videoId: video.id, position: v.position })
+    rows.push({
+      playlistId,
+      videoId: video.id,
+      position: v.position,
+      creatorNote: v.creatorNote ?? null,
+      addedAt: v.addedAt ? new Date(v.addedAt) : null,
+    })
   }
 
   await tx.playlistVideo.deleteMany({ where: { playlistId } })
@@ -50,6 +66,58 @@ async function syncVideos(
     await tx.playlistVideo.createMany({ data: rows })
   }
   return rows.length
+}
+
+/** Video columns filled from videos.list (YC-1). Counters become BigInt at the database edge. */
+function videoMetadata(
+  d: VideoDetails,
+  channelIds: Map<string, string>,
+  syncedAt: Date,
+): Omit<Prisma.VideoUncheckedCreateInput, 'youtubeId' | 'title'> {
+  return {
+    durationSeconds: d.durationSeconds,
+    description: d.description,
+    channelId: d.channelYoutubeId ? (channelIds.get(d.channelYoutubeId) ?? null) : null,
+    publishedAt: d.publishedAt ? new Date(d.publishedAt) : null,
+    viewCount: d.viewCount === null ? null : BigInt(d.viewCount),
+    likeCount: d.likeCount === null ? null : BigInt(d.likeCount),
+    status: d.status,
+    embeddable: d.embeddable,
+    blockedRegions: d.blockedRegions ?? Prisma.DbNull,
+    topics: d.topics ?? Prisma.DbNull,
+    hasPaidPromotion: d.hasPaidPromotion,
+    definition: d.definition,
+    hasCaptions: d.hasCaptions,
+    syncedAt,
+  }
+}
+
+/** Upserts the channels by YouTube id and returns YouTube id → Channel.id. */
+async function syncChannels(
+  tx: Prisma.TransactionClient,
+  channels: YouTubeChannel[] | undefined,
+): Promise<Map<string, string>> {
+  const ids = new Map<string, string>()
+  for (const c of channels ?? []) {
+    const data = { title: c.title, handle: c.handle, avatarUrl: c.avatarUrl }
+    const row = await tx.channel.upsert({
+      where: { youtubeId: c.youtubeId },
+      create: { youtubeId: c.youtubeId, ...data },
+      update: data,
+    })
+    ids.set(c.youtubeId, row.id)
+  }
+  return ids
+}
+
+/** Playlist columns filled from playlists.list (YC-1). */
+function playlistMetadata(data: YouTubePlaylist, channelIds: Map<string, string>) {
+  return {
+    itemCount: data.itemCount ?? data.videos.length,
+    privacyStatus: data.privacyStatus ?? null,
+    channelId: data.channelYoutubeId ? (channelIds.get(data.channelYoutubeId) ?? null) : null,
+    syncedAt: new Date(),
+  }
 }
 
 export interface ImportedPlaylist {
@@ -167,6 +235,8 @@ export async function importPlaylist(
   const data = await fetchPlaylistCached(playlistId, accessToken)
 
   const { playlist, videoCount } = await prisma.$transaction(async (tx) => {
+    const channelIds = await syncChannels(tx, data.channels)
+    const metadata = playlistMetadata(data, channelIds)
     const pl = await tx.playlist.upsert({
       where: { ownerId_youtubeId: { ownerId: userId, youtubeId: data.youtubeId } },
       create: {
@@ -175,15 +245,17 @@ export async function importPlaylist(
         title: data.title,
         description: data.description,
         thumbnailUrl: data.thumbnailUrl,
+        ...metadata,
       },
       update: {
         title: data.title,
         description: data.description,
         thumbnailUrl: data.thumbnailUrl,
+        ...metadata,
       },
     })
 
-    const count = await syncVideos(tx, pl.id, data.videos)
+    const count = await syncVideos(tx, pl.id, data.videos, channelIds)
     return { playlist: pl, videoCount: count }
   })
 
@@ -214,15 +286,17 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
   const data = await fetchPlaylist(existing.youtubeId)
 
   const { playlist, videoCount } = await prisma.$transaction(async (tx) => {
+    const channelIds = await syncChannels(tx, data.channels)
     const pl = await tx.playlist.update({
       where: { id: existing.id },
       data: {
         title: data.title,
         description: data.description,
         thumbnailUrl: data.thumbnailUrl,
+        ...playlistMetadata(data, channelIds),
       },
     })
-    const count = await syncVideos(tx, pl.id, data.videos)
+    const count = await syncVideos(tx, pl.id, data.videos, channelIds)
     return { playlist: pl, videoCount: count }
   })
 
