@@ -1,12 +1,19 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ApiError, googleLoginUrl } from '@/lib/api'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ApiError, googleYoutubeConnectUrl } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { useImportBatch, useMyPlaylists } from '@/features/playlists/usePlaylists'
+
+/** Messages de retour du flux « connecter YouTube » (paramètre `?youtube=`). */
+const YOUTUBE_FLOW_MESSAGES: Record<string, string> = {
+  denied: "L'accès à YouTube a été refusé. Accorde-le pour importer les playlists de ton compte.",
+  mismatch: 'Connecte le même compte Google que celui de ta session Youcus.',
+}
 
 /** Modal d'import : liste les playlists du compte YouTube à cocher (cf. Figma Import Modal 116:924). */
 export function ImportModal() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const { data, isLoading, error } = useMyPlaylists()
   const importBatch = useImportBatch()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -29,8 +36,9 @@ export function ImportModal() {
     importBatch.mutate([...selected], { onSuccess: () => navigate('/') })
   }
 
-  // L'utilisateur s'est connecté avant l'ajout du scope YouTube → reconsentement requis.
-  const needsReconnect = error instanceof ApiError && error.status === 403
+  // La connexion n'accorde que l'identité : l'accès YouTube se demande ici, au premier import.
+  const needsConnect = error instanceof ApiError && error.status === 403
+  const flowMessage = YOUTUBE_FLOW_MESSAGES[params.get('youtube') ?? '']
 
   return (
     <div
@@ -43,12 +51,21 @@ export function ImportModal() {
         <h2 className="text-lg font-semibold text-content">Importer des playlists YouTube</h2>
         <p className="mt-1 text-sm text-content-muted">Vos playlists YouTube — cochez celles à importer.</p>
 
+        {flowMessage && (
+          <p role="alert" className="mt-3 rounded-card bg-accent-red/10 px-3 py-2 text-sm text-accent-red">
+            {flowMessage}
+          </p>
+        )}
+
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
-          {needsReconnect ? (
+          {needsConnect ? (
             <div className="rounded-card border border-dashed border-line p-4 text-center">
               <p className="text-sm text-content">Connectez votre compte YouTube pour voir vos playlists.</p>
+              <p className="mt-1 text-xs text-content-muted">
+                Youcus demande un accès en lecture seule à vos playlists, rien d'autre.
+              </p>
               <a
-                href={googleLoginUrl}
+                href={googleYoutubeConnectUrl}
                 className="mt-3 inline-block rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-purple-dark"
               >
                 Connecter mon compte YouTube
