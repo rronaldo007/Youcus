@@ -1,0 +1,106 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { VideoAbout } from './VideoAbout'
+import type { VideoDetail } from '@/types'
+
+const base: VideoDetail = {
+  id: 'vid1',
+  youtubeId: 'g09PoiCob4Y',
+  title: 'Backend Complete Course',
+  thumbnailUrl: null,
+  durationSeconds: 10957,
+  description: 'Learn backend. Code: https://github.com/pedro/repo. Bye',
+  publishedAt: '2025-12-02T13:01:32.000Z',
+  viewCount: 319915,
+  likeCount: 6713,
+  status: 'AVAILABLE',
+  embeddable: true,
+  blockedRegions: null,
+  topics: null,
+  hasPaidPromotion: false,
+  definition: 'hd',
+  hasCaptions: false,
+  syncedAt: '2026-09-29T21:15:25.739Z',
+  channel: null,
+  chapters: [],
+}
+
+function renderWith(video: Partial<VideoDetail>) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(JSON.stringify({ ...base, ...video }), { status: 200 })),
+  )
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={client}>
+      <VideoAbout videoId="vid1" />
+    </QueryClientProvider>,
+  )
+}
+
+const text = (el: HTMLElement) => (el.textContent ?? '').replace(/[\u00a0\u202f]/g, ' ')
+
+describe('VideoAbout (YC-5)', () => {
+  beforeEach(() => vi.restoreAllMocks())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('shows the four metadata pills and a link to YouTube', async () => {
+    renderWith({})
+    const card = await screen.findByRole('region', { name: 'À propos de la vidéo' })
+    expect(text(card)).toContain('319,9 k de vues')
+    expect(text(card)).toContain('Publiée le 2 décembre 2025')
+    expect(text(card)).toContain('3:02:37')
+    expect(text(card)).toContain('6,7 k')
+    expect(screen.getByRole('link', { name: 'Ouvrir sur YouTube ↗' })).toHaveAttribute(
+      'href',
+      'https://www.youtube.com/watch?v=g09PoiCob4Y',
+    )
+  })
+
+  it('leaves out the likes pill when the uploader hides likes, instead of showing 0', async () => {
+    renderWith({ likeCount: null })
+    const card = await screen.findByRole('region', { name: 'À propos de la vidéo' })
+    expect(screen.queryByLabelText("j'aime")).toBeNull()
+    expect(text(card)).not.toMatch(/\b0 ♥/)
+  })
+
+  it('turns http(s) addresses into safe links, trailing punctuation left out', async () => {
+    renderWith({})
+    const link = await screen.findByRole('link', { name: 'https://github.com/pedro/repo' })
+    expect(link).toHaveAttribute('href', 'https://github.com/pedro/repo')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link.getAttribute('rel')).toContain('noopener')
+  })
+
+  it('never makes a link of a javascript: address or of HTML in the text', async () => {
+    renderWith({ description: 'javascript:alert(1) <img src=x onerror=alert(2)> <a href="https://evil">x</a>' })
+    const card = await screen.findByRole('region', { name: 'À propos de la vidéo' })
+    expect(card.querySelector('img')).toBeNull()
+    const hrefs = [...card.querySelectorAll('a')].map((a) => a.getAttribute('href'))
+    expect(hrefs.some((h) => h?.startsWith('javascript:'))).toBe(false)
+    // The raw HTML is shown as text, not interpreted.
+    expect(text(card)).toContain('<img src=x onerror=alert(2)>')
+  })
+
+  it('folds the description to three lines and unfolds it on "Afficher plus"', async () => {
+    // jsdom does no layout: make the clamped paragraph report hidden content.
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(200)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(60)
+    renderWith({})
+    const more = await screen.findByRole('button', { name: 'Afficher plus' })
+    const paragraph = screen.getByText(/Learn backend/)
+    expect(paragraph.className).toContain('line-clamp-3')
+    fireEvent.click(more)
+    expect(paragraph.className).not.toContain('line-clamp-3')
+    expect(screen.getByRole('button', { name: 'Afficher moins' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('shows no "Afficher plus" when the description fits', async () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(40)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(60)
+    renderWith({})
+    await screen.findByRole('region', { name: 'À propos de la vidéo' })
+    expect(screen.queryByRole('button', { name: 'Afficher plus' })).toBeNull()
+  })
+})

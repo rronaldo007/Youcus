@@ -31,3 +31,36 @@ export interface PlaylistDetail extends Playlist {
   description: string | null
   videos: Video[]
 }
+
+export type VideoStatus = 'AVAILABLE' | 'PRIVATE' | 'DELETED' | 'BLOCKED' | 'LIVE' | 'UPCOMING'
+
+export interface VideoChapter {
+  position: number
+  startSeconds: number
+  title: string
+}
+
+/** GET /api/videos/:id (YC-4): one video with its YouTube metadata and chapters. */
+export interface VideoDetail {
+  id: string
+  youtubeId: string
+  title: string
+  thumbnailUrl: string | null
+  durationSeconds: number
+  description: string | null
+  publishedAt: string | null
+  viewCount: number | null
+  /** null when the uploader hides likes. */
+  likeCount: number | null
+  status: VideoStatus
+  embeddable: boolean
+  blockedRegions: string[] | null
+  topics: string[] | null
+  hasPaidPromotion: boolean
+  definition: string | null
+  hasCaptions: boolean
+  /** When the counters were read: dated snapshots, not live values. */
+  syncedAt: string | null
+  channel: { youtubeId: string; title: string; handle: string | null; avatarUrl: string | null } | null
+  chapters: VideoChapter[]
+}
