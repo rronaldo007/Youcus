@@ -49,6 +49,32 @@ describe('getValidAccessToken', () => {
     expect(refreshAccessToken).toHaveBeenCalledWith('r')
     expect(prisma.user.update).toHaveBeenCalled()
   })
+
+  it('renvoie 403 et efface les jetons si Google refuse le rafraîchissement', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ytAccessToken: 'old',
+      ytRefreshToken: 'dead',
+      ytTokenExpiry: new Date(Date.now() - 1000),
+    } as never)
+    vi.mocked(refreshAccessToken).mockRejectedValue(new Error('invalid_grant'))
+
+    await expect(getValidAccessToken('u1')).rejects.toMatchObject({ status: 403 })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null },
+    })
+  })
+
+  it('renvoie 403 si le jeton a expiré sans refresh token', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ytAccessToken: 'old',
+      ytRefreshToken: null,
+      ytTokenExpiry: new Date(Date.now() - 1000),
+    } as never)
+
+    await expect(getValidAccessToken('u1')).rejects.toMatchObject({ status: 403 })
+    expect(refreshAccessToken).not.toHaveBeenCalled()
+  })
 })
 
 describe('listMyPlaylists', () => {
