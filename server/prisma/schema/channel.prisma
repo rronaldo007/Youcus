@@ -1,0 +1,10 @@
+// YouTube channel that publishes videos and playlists (YC-2). One row per YouTube channel, shared.
+model Channel {
+  id        String     @id @default(cuid())
+  youtubeId String     @unique
+  title     String
+  handle    String?
+  avatarUrl String?
+  videos    Video[]
+  playlists Playlist[]
+}

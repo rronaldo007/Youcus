@@ -1,0 +1,11 @@
+// Chapter parsed from a video description (YC-3). Rebuilt on every metadata sync.
+model Chapter {
+  id           String @id @default(cuid())
+  video        Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId      String
+  position     Int
+  startSeconds Int
+  title        String
+
+  @@unique([videoId, position])
+}
