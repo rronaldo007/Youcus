@@ -1,16 +1,32 @@
+// Privacy of a playlist on YouTube (YC-2).
+enum PlaylistPrivacy {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
 model Playlist {
-  id           String          @id @default(cuid())
-  youtubeId    String
-  title        String
-  description  String?         @db.Text
-  thumbnailUrl String?
-  owner        User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId      String
-  videos       PlaylistVideo[]
-  notes        Note[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id            String           @id @default(cuid())
+  youtubeId     String
+  title         String
+  description   String?          @db.Text
+  thumbnailUrl  String?
+  owner         User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId       String
+  // YouTube metadata (YC-2).
+  channel       Channel?         @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  channelId     String?
+  // Item count declared by YouTube; more than the listed videos means private or deleted ones (YC-13).
+  itemCount     Int              @default(0)
+  privacyStatus PlaylistPrivacy?
+  // Last full metadata sync (30-day policy).
+  syncedAt      DateTime?
+  videos        PlaylistVideo[]
+  notes         Note[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@unique([ownerId, youtubeId])
   @@index([ownerId])
+  @@index([channelId])
 }

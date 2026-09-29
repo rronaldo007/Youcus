@@ -1,11 +1,45 @@
+// Availability of a video as reported by the YouTube Data API (YC-2, YC-13).
+enum VideoStatus {
+  AVAILABLE
+  PRIVATE
+  DELETED
+  BLOCKED
+  LIVE
+  UPCOMING
+}
+
 model Video {
-  id              String          @id @default(cuid())
+  id               String          @id @default(cuid())
   // Décision CS-70 (25/07) : la vidéo est partagée entre playlists, une seule ligne par vidéo YouTube.
-  youtubeId       String          @unique
-  title           String
-  durationSeconds Int             @default(0)
-  thumbnailUrl    String?
-  playlists       PlaylistVideo[]
-  notes           Note[]
-  progress        Progress[]
+  youtubeId        String          @unique
+  title            String
+  durationSeconds  Int             @default(0)
+  thumbnailUrl     String?
+  // YouTube metadata (YC-2). Counters are dated snapshots, never live values.
+  description      String?         @db.Text
+  channel          Channel?        @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  channelId        String?
+  publishedAt      DateTime?
+  viewCount        Int?
+  // Likes can be hidden by the uploader: null, never 0.
+  likeCount        Int?
+  status           VideoStatus     @default(AVAILABLE)
+  embeddable       Boolean         @default(true)
+  // ISO 3166-1 alpha-2 codes where the video is blocked (contentDetails.regionRestriction.blocked).
+  blockedRegions   Json?
+  // Wikipedia URLs from topicDetails.topicCategories.
+  topics           Json?
+  hasPaidPromotion Boolean         @default(false)
+  // "hd" or "sd" (contentDetails.definition).
+  definition       String?
+  hasCaptions      Boolean         @default(false)
+  // Last full metadata sync. YouTube policy: refresh or delete API data older than 30 days.
+  syncedAt         DateTime?
+  playlists        PlaylistVideo[]
+  notes            Note[]
+  progress         Progress[]
+  chapters         Chapter[]
+
+  @@index([channelId])
+  @@index([syncedAt])
 }

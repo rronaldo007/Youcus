@@ -2,11 +2,15 @@
 // Le refresh d'une playlist ne touche que cette table : les Video (et donc
 // les Note/Progress qui pointent dessus) survivent par construction.
 model PlaylistVideo {
-  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  playlistId String
-  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  videoId    String
-  position   Int      @default(0)
+  playlist    Playlist  @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlistId  String
+  video       Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId     String
+  position    Int       @default(0)
+  // Uploader note on the playlist item (playlistItems.contentDetails.note), 280 characters max (YC-14).
+  creatorNote String?   @db.VarChar(280)
+  // Date the video was added to the playlist, distinct from Video.publishedAt.
+  addedAt     DateTime?
 
   @@id([playlistId, videoId])
   @@index([videoId])
