@@ -9,6 +9,7 @@ vi.mock('@/lib/prisma', () => ({
     playlist: { findFirst: vi.fn(), update: vi.fn() },
     video: { upsert: vi.fn(), deleteMany: vi.fn() },
     channel: { upsert: vi.fn() },
+    chapter: { deleteMany: vi.fn(), createMany: vi.fn() },
     playlistVideo: { deleteMany: vi.fn(), createMany: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -161,6 +162,57 @@ describe('refreshPlaylist', () => {
     expect(prisma.playlistVideo.createMany).toHaveBeenCalledWith({
       data: [
         { playlistId: 'p1', videoId: 'vid1', position: 0, creatorNote: 'Start here', addedAt: new Date('2025-01-02T00:00:00Z') },
+      ],
+    })
+    // No chapter list in "Intro": old chapters are cleared, none created.
+    expect(prisma.chapter.deleteMany).toHaveBeenCalledWith({ where: { videoId: 'vid1' } })
+    expect(prisma.chapter.createMany).not.toHaveBeenCalled()
+  })
+
+  it('rebuilds the chapters of a video from its description (YC-3)', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({ id: 'p1', ownerId: 'u1', youtubeId: 'PL1' } as never)
+    vi.mocked(fetchPlaylist).mockResolvedValue({
+      youtubeId: 'PL1',
+      title: 'React',
+      description: null,
+      thumbnailUrl: null,
+      videos: [
+        {
+          youtubeId: 'v1',
+          title: 'V1',
+          thumbnailUrl: null,
+          position: 0,
+          details: {
+            durationSeconds: 600,
+            description: '0:00 Intro\n1:00 Hooks\n5:00 Effects',
+            channelYoutubeId: null,
+            publishedAt: null,
+            viewCount: null,
+            likeCount: null,
+            status: 'AVAILABLE',
+            embeddable: true,
+            blockedRegions: null,
+            topics: null,
+            hasPaidPromotion: false,
+            definition: null,
+            hasCaptions: false,
+          },
+        },
+      ],
+    } as never)
+    vi.mocked(prisma.playlist.update).mockResolvedValue({ id: 'p1', youtubeId: 'PL1', title: 'React', thumbnailUrl: null } as never)
+    vi.mocked(prisma.video.upsert).mockResolvedValue({ id: 'vid1' } as never)
+    vi.mocked(prisma.playlistVideo.deleteMany).mockResolvedValue({ count: 0 } as never)
+    vi.mocked(prisma.playlistVideo.createMany).mockResolvedValue({ count: 1 } as never)
+
+    await refreshPlaylist('u1', 'p1')
+
+    expect(prisma.chapter.deleteMany).toHaveBeenCalledWith({ where: { videoId: 'vid1' } })
+    expect(prisma.chapter.createMany).toHaveBeenCalledWith({
+      data: [
+        { videoId: 'vid1', position: 0, startSeconds: 0, title: 'Intro' },
+        { videoId: 'vid1', position: 1, startSeconds: 60, title: 'Hooks' },
+        { videoId: 'vid1', position: 2, startSeconds: 300, title: 'Effects' },
       ],
     })
   })

@@ -11,6 +11,7 @@ import {
   type YouTubeVideo,
 } from '@/lib/youtube'
 import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
+import { parseChapters } from '@/lib/chapters'
 
 /**
  * Lecture des métadonnées d'une playlist YouTube en cache-aside (CS-67).
@@ -52,6 +53,7 @@ async function syncVideos(
       create: { youtubeId: v.youtubeId, title: v.title, thumbnailUrl: v.thumbnailUrl, ...metadata },
       update: { title: v.title, thumbnailUrl: v.thumbnailUrl, ...metadata },
     })
+    if (v.details) await syncChapters(tx, video.id, v.details)
     rows.push({
       playlistId,
       videoId: video.id,
@@ -66,6 +68,18 @@ async function syncVideos(
     await tx.playlistVideo.createMany({ data: rows })
   }
   return rows.length
+}
+
+/**
+ * Rebuilds the chapters of a video from its description (YC-3). Chapters are derived data:
+ * they are replaced on every sync, so an edited description never leaves stale chapters.
+ */
+async function syncChapters(tx: Prisma.TransactionClient, videoId: string, details: VideoDetails): Promise<void> {
+  const chapters = parseChapters(details.description, details.durationSeconds)
+  await tx.chapter.deleteMany({ where: { videoId } })
+  if (chapters.length > 0) {
+    await tx.chapter.createMany({ data: chapters.map((c) => ({ videoId, ...c })) })
+  }
 }
 
 /** Video columns filled from videos.list (YC-1). Counters become BigInt at the database edge. */
