@@ -14,8 +14,14 @@ export function VideoAbout({
   videoId,
   currentSeconds = 0,
   onSeek,
+  creatorNote,
+  playlistChannel,
 }: {
   videoId: string
+  /** The playlist author's note on this video (YC-14); hidden when empty. */
+  creatorNote?: string | null
+  /** Who wrote that note: the channel that owns the playlist. */
+  playlistChannel?: string | null
   /** Current player position, to highlight the chapter playing (YC-6). */
   currentSeconds?: number
   /** Moves the player; chapters and description timestamps use it (YC-6). */
@@ -72,6 +78,16 @@ export function VideoAbout({
           Ouvrir sur YouTube ↗
         </a>
       </div>
+
+      {creatorNote?.trim() && (
+        <figure className="rounded-lg border-l-2 border-brand-purple bg-surface-2 px-3.5 py-2.5">
+          <figcaption className="font-mono text-xs uppercase tracking-wide text-content-muted">
+            Note de la playlist
+            {playlistChannel && <span className="normal-case"> · {playlistChannel}</span>}
+          </figcaption>
+          <blockquote className="mt-1 whitespace-pre-line text-[15px] leading-snug text-content">{creatorNote}</blockquote>
+        </figure>
+      )}
 
       {video.description && (
         <div className="flex flex-col items-start gap-3">

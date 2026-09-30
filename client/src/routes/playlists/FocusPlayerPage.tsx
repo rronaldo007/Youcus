@@ -113,7 +113,13 @@ export function FocusPlayerPage() {
             )}
           </div>
 
-          <VideoAbout videoId={video.id} currentSeconds={currentSeconds} onSeek={seek} />
+          <VideoAbout
+            videoId={video.id}
+            currentSeconds={currentSeconds}
+            onSeek={seek}
+            creatorNote={video.creatorNote}
+            playlistChannel={data.channelTitle}
+          />
 
           <VideoNotes videoId={video.id} />
         </div>

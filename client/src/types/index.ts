@@ -41,12 +41,16 @@ export interface Video {
   watchedSeconds?: number
   /** Absent in old answers and in tests: treated as AVAILABLE. */
   availability?: Availability
+  /** The playlist author's note on this video, in THIS playlist (YC-14). */
+  creatorNote?: string | null
 }
 
 export interface PlaylistDetail extends Playlist {
   description: string | null
   videos: Video[]
   unavailable?: UnavailableSummary
+  /** Channel that owns the playlist on YouTube, author of the creator notes (YC-14). */
+  channelTitle?: string | null
 }
 
 export type VideoStatus = 'AVAILABLE' | 'PRIVATE' | 'DELETED' | 'BLOCKED' | 'LIVE' | 'UPCOMING'
