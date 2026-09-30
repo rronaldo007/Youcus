@@ -21,8 +21,11 @@ jobs:
         include:
           - service: web
             context: ./client
+            file: ./client/Dockerfile
+          # Context = repository root: the API image also builds the client it serves (YC-11).
           - service: api
-            context: ./server
+            context: .
+            file: ./server/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +42,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/youcus-${{ matrix.service }}:latest

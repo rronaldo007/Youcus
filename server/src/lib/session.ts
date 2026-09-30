@@ -11,13 +11,16 @@ const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7 // 7 jours
 
 function baseCookieOptions(): CookieOptions {
   const isProd = env.NODE_ENV === 'production'
+  // In prod the old front (sevalla.page) and the API (sevalla.app) are cross-site: the cookie
+  // must be SameSite=None; Secure to be sent. On the single origin (YC-11) None is first-party
+  // and works on mobile too, so it stays the default until the old address is retired; then
+  // SESSION_SAMESITE=lax. None is only accepted by browsers together with Secure.
+  const sameSite = env.SESSION_SAMESITE ?? (isProd ? 'none' : 'lax')
   return {
     httpOnly: true,
     signed: true,
-    secure: isProd,
-    // En prod, le front (sevalla.page) et l'API (sevalla.app) sont cross-site :
-    // le cookie de session doit être SameSite=None; Secure pour être envoyé.
-    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd || sameSite === 'none',
+    sameSite,
     path: '/',
   }
 }
