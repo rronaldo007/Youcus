@@ -30,12 +30,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 
 /**
- * The message to show for a failed call (YC-12): the server's `{ error }` for a 4xx, which is
- * written for the user. A 5xx message can be an internal detail, so it is never shown.
+ * The message to show for a failed call (YC-12): the server's `{ error }`, 5xx included (YC-36).
+ * Since YC-34 the server never sends an unexpected error's detail ("Erreur interne" only), so
+ * every message it sends is written for the user. A body that is not JSON (a proxy's error
+ * page) falls back to the status.
  */
 async function errorMessage(res: Response): Promise<string> {
   const fallback = `Requête échouée (${res.status})`
-  if (res.status >= 500) return fallback
   try {
     const body = (await res.json()) as { error?: unknown }
     return typeof body.error === 'string' && body.error.trim() !== '' ? body.error : fallback

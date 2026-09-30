@@ -28,9 +28,16 @@ describe('apiFetch errors (YC-12)', () => {
     expect(err.message).toBe('Connectez votre compte YouTube')
   })
 
-  it('never shows the message of a 5xx, which can be an internal detail', async () => {
-    mockFetch(500, JSON.stringify({ error: 'Invalid `prisma.playlist.update()` invocation' }))
-    expect((await failure()).message).toBe('Requête échouée (500)')
+  it("shows a deliberate 5xx message, like the YouTube quota (YC-36)", async () => {
+    mockFetch(503, JSON.stringify({ error: 'Quota YouTube dépassé, réessayez plus tard' }))
+    const err = await failure()
+    expect(err.status).toBe(503)
+    expect(err.message).toBe('Quota YouTube dépassé, réessayez plus tard')
+  })
+
+  it("falls back to the status on a proxy's HTML error page (YC-36)", async () => {
+    mockFetch(502, '<html>Bad gateway</html>', 'text/html')
+    expect((await failure()).message).toBe('Requête échouée (502)')
   })
 
   it('falls back to the status when the body is not JSON', async () => {
