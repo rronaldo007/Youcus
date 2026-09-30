@@ -15,7 +15,9 @@ const FILTERS: { key: Filter; label: string }[] = [
 ]
 
 function isDone(pl: Playlist): boolean {
-  return pl.videoCount > 0 && (pl.completedCount ?? 0) >= pl.videoCount
+  // Counted on playable videos (YC-13): a deleted video must not keep a playlist unfinished.
+  const base = pl.availableCount ?? pl.videoCount
+  return base > 0 && (pl.completedCount ?? 0) >= base
 }
 
 /** Bibliothèque des playlists (grille design system, chips de filtre, carte d'import — cf. CS-59). */

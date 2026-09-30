@@ -21,4 +21,13 @@ describe('PlaylistCard', () => {
     )
     expect(screen.getByText('0 % · 1 vidéo')).toBeInTheDocument()
   })
+
+  it('counts the percentage on playable videos only (YC-13)', () => {
+    render(
+      <PlaylistCard
+        playlist={{ id: 'p3', youtubeId: 'y3', title: 'Avec une supprimée', thumbnailUrl: null, videoCount: 3, availableCount: 2, completedCount: 2 }}
+      />,
+    )
+    expect(screen.getByText('100 % · 3 vidéos')).toBeInTheDocument()
+  })
 })

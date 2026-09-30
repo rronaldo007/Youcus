@@ -3,6 +3,7 @@ import { VideoCard } from '@/components/ui/VideoCard'
 import { SkeletonGrid } from '@/components/ui/Skeletons'
 import { PlaylistNotes } from '@/features/notes/PlaylistNotes'
 import { usePlaylist, useRefreshPlaylist } from '@/features/playlists/usePlaylists'
+import { isPlayable, unavailableSentence } from '@/lib/availability'
 
 /** Détail d'une playlist : grille de vidéos (design system), lien vers le lecteur focus. */
 export function PlaylistDetailPage() {
@@ -30,6 +31,8 @@ export function PlaylistDetailPage() {
     )
   }
 
+  const unavailable = unavailableSentence(data.unavailable)
+
   return (
     <main className="px-6 py-8 sm:px-10 lg:px-16">
       <Link to="/" className="text-sm text-brand-purple hover:underline">
@@ -50,6 +53,12 @@ export function PlaylistDetailPage() {
       <p className="text-content-muted">
         {data.videoCount} vidéo{data.videoCount > 1 ? 's' : ''}
       </p>
+      {unavailable && (
+        <p role="status" className="mt-2 flex items-center gap-1.5 text-sm text-accent-red">
+          <span aria-hidden>⚠</span>
+          {unavailable}
+        </p>
+      )}
       {refresh.isError && (
         <p role="alert" className="mt-1 text-sm text-accent-red">
           {(refresh.error as Error).message}
@@ -63,9 +72,14 @@ export function PlaylistDetailPage() {
       <ul className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
         {data.videos.map((v) => (
           <li key={v.id}>
-            <Link to={`/playlists/${id}/watch/${v.youtubeId}`} className="block transition hover:opacity-95">
+            {isPlayable(v) ? (
+              <Link to={`/playlists/${id}/watch/${v.youtubeId}`} className="block transition hover:opacity-95">
+                <VideoCard video={v} />
+              </Link>
+            ) : (
+              // Not a link: the player could only show an error (YC-13).
               <VideoCard video={v} />
-            </Link>
+            )}
           </li>
         ))}
       </ul>

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
 import { extractPlaylistId, fetchPlaylist, type YouTubePlaylist, type YouTubeVideo } from '@/lib/youtube'
 import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
+import { availabilityOf, type Availability } from '@/lib/availability'
 import { syncChannels, syncChapters, videoMetadata } from '@/services/videoMetadata.service'
 
 /**
@@ -44,7 +45,9 @@ async function syncVideos(
     const video = await tx.video.upsert({
       where: { youtubeId: v.youtubeId },
       create: { youtubeId: v.youtubeId, title: v.title, thumbnailUrl: v.thumbnailUrl, ...metadata },
-      update: { title: v.title, thumbnailUrl: v.thumbnailUrl, ...metadata },
+      // A video that became private or was deleted keeps the title and thumbnail we already
+      // knew: YouTube only sends "Private video" (YC-13).
+      update: v.unavailable ? metadata : { title: v.title, thumbnailUrl: v.thumbnailUrl, ...metadata },
     })
     if (v.details) await syncChapters(tx, video.id, v.details)
     rows.push({
@@ -80,6 +83,18 @@ export interface ImportedPlaylist {
   thumbnailUrl: string | null
   videoCount: number
   completedCount?: number
+  /** Videos that can be played: the progress percentage is counted on these only (YC-13). */
+  availableCount?: number
+}
+
+/** Unavailable videos of a playlist, by reason (YC-13). */
+export interface UnavailableSummary {
+  total: number
+  private: number
+  deleted: number
+  notEmbeddable: number
+  blocked: number
+  upcoming: number
 }
 
 /** Vidéo d'une playlist telle qu'exposée par l'API (position = celle de la jonction). */
@@ -92,11 +107,25 @@ export interface PlaylistVideo {
   durationSeconds: number
   completed: boolean
   watchedSeconds: number
+  availability: Availability
 }
 
 export interface PlaylistDetail extends ImportedPlaylist {
   description: string | null
   videos: PlaylistVideo[]
+  unavailable: UnavailableSummary
+}
+
+function summarize(availabilities: Availability[]): UnavailableSummary {
+  const count = (a: Availability) => availabilities.filter((x) => x === a).length
+  const summary = {
+    private: count('PRIVATE'),
+    deleted: count('DELETED'),
+    notEmbeddable: count('NOT_EMBEDDABLE'),
+    blocked: count('BLOCKED'),
+    upcoming: count('UPCOMING'),
+  }
+  return { total: availabilities.filter((a) => a !== 'AVAILABLE').length, ...summary }
 }
 
 /** Liste les playlists de l'utilisateur (résumé + nombre de vidéos), plus récentes d'abord. */
@@ -113,18 +142,30 @@ export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]>
     },
   })
 
-  // Vidéos vues par playlist : la progression est globale (CS-70), on compte
-  // les entrées de jonction dont la vidéo a un Progress completed de l'utilisateur.
-  const completedRows = await prisma.playlistVideo.findMany({
-    where: {
-      playlistId: { in: rows.map((r) => r.id) },
-      video: { progress: { some: { userId, completed: true } } },
+  // Per playlist: playable videos and, among them, those seen. Progress is global (CS-70); an
+  // unavailable video counts neither way, so a deleted video never blocks 100 % (YC-13).
+  const entries = await prisma.playlistVideo.findMany({
+    where: { playlistId: { in: rows.map((r) => r.id) } },
+    select: {
+      playlistId: true,
+      video: {
+        select: {
+          status: true,
+          embeddable: true,
+          blockedRegions: true,
+          progress: { where: { userId, completed: true }, select: { id: true } },
+        },
+      },
     },
-    select: { playlistId: true },
   })
-  const completedByPlaylist = new Map<string, number>()
-  for (const row of completedRows) {
-    completedByPlaylist.set(row.playlistId, (completedByPlaylist.get(row.playlistId) ?? 0) + 1)
+  const available = new Map<string, number>()
+  const completed = new Map<string, number>()
+  for (const entry of entries) {
+    if (availabilityOf(entry.video) !== 'AVAILABLE') continue
+    available.set(entry.playlistId, (available.get(entry.playlistId) ?? 0) + 1)
+    if (entry.video.progress.length > 0) {
+      completed.set(entry.playlistId, (completed.get(entry.playlistId) ?? 0) + 1)
+    }
   }
 
   return rows.map((r) => ({
@@ -133,7 +174,8 @@ export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]>
     title: r.title,
     thumbnailUrl: r.thumbnailUrl,
     videoCount: r._count.videos,
-    completedCount: completedByPlaylist.get(r.id) ?? 0,
+    completedCount: completed.get(r.id) ?? 0,
+    availableCount: available.get(r.id) ?? 0,
   }))
 }
 
@@ -149,23 +191,27 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
     },
   })
   if (!pl) throw new HttpError(404, 'Playlist introuvable')
+  const videos = pl.videos.map((pv) => ({
+    id: pv.video.id,
+    youtubeId: pv.video.youtubeId,
+    title: pv.video.title,
+    thumbnailUrl: pv.video.thumbnailUrl,
+    position: pv.position,
+    durationSeconds: pv.video.durationSeconds,
+    completed: pv.video.progress[0]?.completed ?? false,
+    watchedSeconds: pv.video.progress[0]?.watchedSeconds ?? 0,
+    availability: availabilityOf(pv.video),
+  }))
   return {
     id: pl.id,
     youtubeId: pl.youtubeId,
     title: pl.title,
     thumbnailUrl: pl.thumbnailUrl,
     description: pl.description,
-    videoCount: pl.videos.length,
-    videos: pl.videos.map((pv) => ({
-      id: pv.video.id,
-      youtubeId: pv.video.youtubeId,
-      title: pv.video.title,
-      thumbnailUrl: pv.video.thumbnailUrl,
-      position: pv.position,
-      durationSeconds: pv.video.durationSeconds,
-      completed: pv.video.progress[0]?.completed ?? false,
-      watchedSeconds: pv.video.progress[0]?.watchedSeconds ?? 0,
-    })),
+    videoCount: videos.length,
+    availableCount: videos.filter((v) => v.availability === 'AVAILABLE').length,
+    videos,
+    unavailable: summarize(videos.map((v) => v.availability)),
   }
 }
 

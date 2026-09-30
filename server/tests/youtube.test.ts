@@ -65,7 +65,9 @@ describe('fetchPlaylist', () => {
 
     expect(result.title).toBe('Ma playlist')
     expect(result.thumbnailUrl).toBe('thumb')
-    expect(result.videos.map((v) => v.youtubeId)).toEqual(['v1', 'v2']) // "Private video" ignorée
+    // "Private video" is kept, marked private, with no thumbnail (YC-13).
+    expect(result.videos.map((v) => v.youtubeId)).toEqual(['v1', 'vp', 'v2'])
+    expect(result.videos[1]).toMatchObject({ unavailable: 'PRIVATE', title: 'Vidéo privée', thumbnailUrl: null })
     expect(result.videos[0]).toMatchObject({ title: 'V1', thumbnailUrl: 't1', position: 0 })
   })
 
@@ -224,5 +226,37 @@ describe('fetchPlaylist with metadata (YC-1)', () => {
     expect(pl.videos[0]).toMatchObject({ creatorNote: 'Start here', addedAt: '2025-01-02T00:00:00Z' })
     expect(pl.videos[0].details).toMatchObject({ durationSeconds: 300, channelYoutubeId: 'UCvideo' })
     expect(pl.channels?.map((c) => c.youtubeId).sort()).toEqual(['UCowner', 'UCvideo'])
+  })
+})
+
+describe('fetchPlaylist with unavailable items (YC-13)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps private and deleted items, and a private video is not taken for a deleted one', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/playlists?')) return jsonResponse({ items: [{ snippet: { title: 'P' }, contentDetails: { itemCount: 3 } }] })
+        if (url.includes('/playlistItems?')) {
+          return jsonResponse({
+            items: [
+              { snippet: { title: 'Ok', position: 0, resourceId: { videoId: 'ok' } } },
+              { snippet: { title: 'Private video', position: 1, resourceId: { videoId: 'priv' } } },
+              { snippet: { title: 'Deleted video', position: 2, resourceId: { videoId: 'del' } } },
+            ],
+          })
+        }
+        // videos.list returns neither the private nor the deleted one.
+        if (url.includes('/videos?')) return jsonResponse({ items: [{ id: 'ok', contentDetails: { duration: 'PT1M' }, status: {} }] })
+        return jsonResponse({ items: [] })
+      }),
+    )
+    const pl = await fetchPlaylist('PL')
+    expect(pl.videos.map((v) => [v.youtubeId, v.unavailable, v.details?.status])).toEqual([
+      ['ok', undefined, 'AVAILABLE'],
+      ['priv', 'PRIVATE', 'PRIVATE'],
+      ['del', 'DELETED', 'DELETED'],
+    ])
+    expect(pl.videos[2].title).toBe('Vidéo supprimée')
   })
 })

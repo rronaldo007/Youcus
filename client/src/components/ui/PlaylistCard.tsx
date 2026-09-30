@@ -2,9 +2,9 @@ import type { Playlist } from '@/types'
 
 /** Carte playlist du design system (cf. Figma PlaylistCard 26:22), avec barre d'avancement. */
 export function PlaylistCard({ playlist }: { playlist: Playlist }) {
-  const pct = playlist.videoCount
-    ? Math.round(((playlist.completedCount ?? 0) / playlist.videoCount) * 100)
-    : 0
+  // Counted on playable videos only: a deleted video never blocks 100 % (YC-13).
+  const base = playlist.availableCount ?? playlist.videoCount
+  const pct = base ? Math.round(((playlist.completedCount ?? 0) / base) * 100) : 0
 
   return (
     <div className="flex flex-col">
