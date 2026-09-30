@@ -8,6 +8,10 @@ model Note {
   // The original Markdown of a note written before the rich editor, copied on its first rich
   // save and never touched again: an archive in case the conversion missed something (YC-40).
   legacyMarkdown String? @db.Text
+  // The page of this note (YC-45): paper, tint, margin column, e.g. { paper: 'seyes', tint:
+  // 'sepia', margin: false }. Null = the defaults (lined, cream, margin shown). Validated by
+  // server/src/lib/notePage.ts; later tickets add keys (timestamps, YC-56).
+  page       Json?
   author     User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId   String
   video      Video?    @relation(fields: [videoId], references: [id], onDelete: Cascade)

@@ -27,6 +27,8 @@ import codeIcon from './icons/code.svg'
 import clearFormatIcon from './icons/clear-format.svg'
 import dividerIcon from './icons/divider.svg'
 import codeBlockIcon from './icons/code-block.svg'
+import marginColumnIcon from './icons/margin-column.svg'
+import { PAPERS, TINTS, paperLabel, type NotePage } from '@/features/notes/notePage'
 import textColorIcon from './icons/text-color.svg'
 import highlighterIcon from './icons/highlighter.svg'
 import taskListIcon from './icons/task-list.svg'
@@ -171,9 +173,12 @@ interface FormattingToolbarProps {
   editor: Editor
   /** Opens the link field (also bound to Ctrl+K in the editor). */
   onLink: () => void
+  /** Paper, tint and margin of this note (YC-45), changed from « Fond » and « Colonne de marge ». */
+  page: NotePage
+  onPageChange: (page: NotePage) => void
 }
 
-export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
+export function FormattingToolbar({ editor, onLink, page, onPageChange }: FormattingToolbarProps) {
   const ref = useRef<HTMLDivElement>(null)
   // The colour tools reapply the last colour chosen in one click (Figma « Outil couleur », 31:88).
   const [lastColor, setLastColor] = useState<TextColor>('rouge')
@@ -388,6 +393,70 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
         </ToolMenu>
 
         <ToolMenu
+          buttonLabel={`Fond : ${paperLabel(page.paper)}`}
+          buttonClassName="yc-select"
+          buttonContent={
+            <>
+              <span>Fond : {paperLabel(page.paper)}</span>
+              <Icon src={chevronIcon} size={18} />
+            </>
+          }
+          menuLabel="Page"
+          menuClassName="yc-menu-page"
+        >
+          {() => (
+            <>
+              <p aria-hidden="true" className="yc-menu-label">
+                PAPIER
+              </p>
+              <div className="yc-papers">
+                {PAPERS.map((p) => (
+                  <MenuItem
+                    key={p.id}
+                    ariaLabel={`Papier ${p.label.toLowerCase()}`}
+                    checked={page.paper === p.id}
+                    className="yc-paper-choice"
+                    onSelect={() => onPageChange({ ...page, paper: p.id })}
+                  >
+                    <span className="yc-paper-preview" data-paper={p.id} data-tint={page.tint} />
+                    <span className="yc-paper-name">{p.label}</span>
+                  </MenuItem>
+                ))}
+              </div>
+              <p aria-hidden="true" className="yc-menu-label">
+                TEINTE
+              </p>
+              <div className="yc-swatches">
+                {TINTS.map((t) => (
+                  <MenuItem
+                    key={t.id}
+                    ariaLabel={`Teinte ${t.label.toLowerCase()}`}
+                    checked={page.tint === t.id}
+                    className="yc-swatch"
+                    onSelect={() => onPageChange({ ...page, tint: t.id })}
+                  >
+                    <span className="yc-swatch-dot yc-tint-dot" data-tint={t.id} />
+                  </MenuItem>
+                ))}
+              </div>
+              <div aria-hidden="true" className="yc-menu-rule" />
+              <button
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={page.margin}
+                tabIndex={-1}
+                className="yc-menu-item yc-menu-switch"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onPageChange({ ...page, margin: !page.margin })}
+              >
+                <span className="yc-menu-item-label yc-menu-item-medium">Colonne de marge (horodatages)</span>
+                <span aria-hidden="true" className="yc-switch" />
+              </button>
+            </>
+          )}
+        </ToolMenu>
+
+        <ToolMenu
           buttonLabel={`Police : ${fontLabel}`}
           buttonClassName="yc-select"
           buttonContent={
@@ -591,6 +660,12 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
         </Tool>
         <Tool label="Insérer un séparateur" onRun={run((c) => c.setHorizontalRule())}>
           <Icon src={dividerIcon} />
+        </Tool>
+      </div>
+
+      <div role="group" aria-label="Page" className="yc-tool-group">
+        <Tool label="Colonne de marge" pressed={page.margin} onRun={() => onPageChange({ ...page, margin: !page.margin })}>
+          <Icon src={marginColumnIcon} />
         </Tool>
       </div>
     </div>

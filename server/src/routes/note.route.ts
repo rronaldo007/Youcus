@@ -3,6 +3,7 @@ import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
 import { getPlaylistNote, getVideoNote, savePlaylistNote, saveVideoNote } from '@/services/note.service'
 import { parseNoteDoc } from '@/lib/noteDoc'
+import { parseNotePage } from '@/lib/notePage'
 
 export const noteRouter = Router()
 
@@ -11,6 +12,13 @@ function docFrom(body: unknown) {
   const parsed = parseNoteDoc((body as { doc?: unknown } | undefined)?.doc)
   if (!parsed.ok) throw new HttpError(parsed.status, parsed.message)
   return parsed.doc
+}
+
+/** Reads `{ page }` from the body (YC-45): absent = keep the stored page, invalid = 400. */
+function pageFrom(body: unknown) {
+  const parsed = parseNotePage((body as { page?: unknown } | undefined)?.page)
+  if (!parsed.ok) throw new HttpError(400, parsed.message)
+  return parsed.page
 }
 
 /** Adapte un handler async pour propager les erreurs vers errorHandler. */
@@ -35,7 +43,7 @@ noteRouter.put(
   '/videos/:videoId/note',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const note = await saveVideoNote(req.userId as string, req.params.videoId, docFrom(req.body))
+    const note = await saveVideoNote(req.userId as string, req.params.videoId, docFrom(req.body), pageFrom(req.body))
     return res.json(note)
   }),
 )
@@ -55,7 +63,7 @@ noteRouter.put(
   '/playlists/:playlistId/note',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const note = await savePlaylistNote(req.userId as string, req.params.playlistId, docFrom(req.body))
+    const note = await savePlaylistNote(req.userId as string, req.params.playlistId, docFrom(req.body), pageFrom(req.body))
     return res.json(note)
   }),
 )

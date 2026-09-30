@@ -6,7 +6,8 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import TextAlign from '@tiptap/extension-text-align'
 import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
 import { LinkField } from '@/features/notes/LinkField'
-import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc } from '@/features/notes/noteDoc'
+import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc, type NoteSave } from '@/features/notes/noteDoc'
+import { DEFAULT_PAGE, type NotePage } from '@/features/notes/notePage'
 import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/features/notes/noteMarks'
 import { NoteCodeBlock } from '@/features/notes/codeBlock'
 import './note-editor.css'
@@ -66,8 +67,8 @@ interface NoteEditorProps {
   /** Note chargée (null si aucune, undefined si en cours de chargement). */
   note: NoteData | null | undefined
   isLoading: boolean
-  /** Sauvegarde le document (déclenché par l'autosave). */
-  onSave: (doc: NoteDoc) => void
+  /** Sauvegarde le document, et la page quand elle a changé (déclenché par l'autosave). */
+  onSave: (payload: NoteSave) => void
   isSaving: boolean
   /** Change quand la cible change (videoId / playlistId) → ré-amorce le brouillon. */
   resetKey: string
@@ -87,6 +88,15 @@ function formatTime(iso: string | undefined): string {
  */
 export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey }: NoteEditorProps) {
   const [draft, setDraft] = useState<NoteDoc | null>(null)
+  // The page chosen here (YC-45) stays shown while it is saved; otherwise the stored one, or the
+  // defaults. `pageDirty` only says an autosave is due.
+  const [chosenPage, setChosenPage] = useState<NotePage | null>(null)
+  const [pageDirty, setPageDirty] = useState(false)
+  const page = chosenPage ?? note?.page ?? DEFAULT_PAGE
+  const choosePage = (next: NotePage) => {
+    setChosenPage(next)
+    setPageDirty(true)
+  }
   const [mode, setMode] = useState<Mode>('edit')
   // Which editor instance was seeded for which target: useEditor may destroy and recreate its
   // instance (Suspense, remounts), and a new instance must be seeded again or it stays empty.
@@ -111,6 +121,8 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
     editor.chain().setMeta('addToHistory', false).setContent(note?.doc ?? EMPTY_DOC, { emitUpdate: false }).run()
     seeded.current = { editor, key: resetKey }
     setDraft(null)
+    setChosenPage(null)
+    setPageDirty(false)
   }, [editor, note, resetKey])
 
   // setEditable emits an update by default, which would save a note merely opened (write on
@@ -119,18 +131,20 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
     if (editor && !editor.isDestroyed) editor.setEditable(mode === 'edit' && !isLoading, false)
   }, [editor, mode, isLoading])
 
-  // Sauvegarde automatique après 1 s sans frappe.
+  // Sauvegarde automatique après 1 s sans frappe ; un changement de page s'enregistre de même.
   useEffect(() => {
-    if (!draft) return
+    if (!draft && !pageDirty) return
     const timer = setTimeout(() => {
-      onSave(draft)
+      const doc = draft ?? (editor && !editor.isDestroyed ? (editor.getJSON() as NoteDoc) : null)
+      if (doc) onSave(pageDirty ? { doc, page } : { doc })
       setDraft(null)
+      setPageDirty(false)
     }, AUTOSAVE_DELAY)
     return () => clearTimeout(timer)
-  }, [draft, onSave])
+  }, [draft, pageDirty, page, onSave, editor])
 
   const savedTime = formatTime(note?.updatedAt)
-  const status = isSaving ? 'Enregistrement…' : draft ? 'Modifié' : savedTime ? `Enregistré à ${savedTime}` : ''
+  const status = isSaving ? 'Enregistrement…' : draft || pageDirty ? 'Modifié' : savedTime ? `Enregistré à ${savedTime}` : ''
 
   const tab = (m: Mode, label: string) => (
     <button
@@ -166,11 +180,11 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
       <div className="yc-note mt-3">
         {editor && mode === 'edit' && (
           <div className="yc-note-tools">
-            <FormattingToolbar editor={editor} onLink={() => setLinkOpen(true)} />
+            <FormattingToolbar editor={editor} onLink={() => setLinkOpen(true)} page={page} onPageChange={choosePage} />
             {linkOpen && <LinkField editor={editor} onClose={() => setLinkOpen(false)} />}
           </div>
         )}
-        <div className="yc-note-page">
+        <div className="yc-note-page" data-paper={page.paper} data-tint={page.tint} data-margin={page.margin ? 'true' : 'false'}>
           <EditorContent editor={editor} />
         </div>
       </div>

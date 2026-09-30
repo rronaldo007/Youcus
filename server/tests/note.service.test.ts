@@ -72,6 +72,19 @@ describe('saveVideoNote', () => {
         update: { doc: DOC, content: 'Note\nobjectifs' },
       }),
     )
+    expect(res.page).toBeNull()
+  })
+
+  it('writes the page when one is sent, and reads it back (YC-45)', async () => {
+    const page = { paper: 'points', tint: 'bleu', margin: true } as const
+    vi.mocked(prisma.video.findFirst).mockResolvedValue({ id: 'v1' } as never)
+    vi.mocked(prisma.note.findUnique).mockResolvedValue(null as never)
+    vi.mocked(prisma.note.upsert).mockResolvedValue({ content: 'Note\nobjectifs', doc: DOC, page, updatedAt: new Date() } as never)
+    const res = await saveVideoNote('u1', 'v1', DOC, page)
+    expect(res.page).toEqual(page)
+    expect(prisma.note.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ page }), update: expect.objectContaining({ page }) }),
+    )
   })
 })
 

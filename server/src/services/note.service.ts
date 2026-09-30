@@ -3,14 +3,17 @@ import { Prisma } from '@prisma/client'
 import { HttpError } from '@/middleware/errorHandler'
 import { markdownToDoc } from '@/lib/markdownToDoc'
 import { EMPTY_DOC, docToPlainText, type NoteDoc } from '@/lib/noteDoc'
+import type { NotePage } from '@/lib/notePage'
 
 export interface VideoNote {
   doc: NoteDoc
+  /** Paper, tint and margin of the note (YC-45); null = the defaults. */
+  page: NotePage | null
   updatedAt: Date
 }
 
-type StoredNote = { content: string; doc: Prisma.JsonValue; updatedAt: Date }
-const NOTE_SELECT = { content: true, doc: true, updatedAt: true } as const
+type StoredNote = { content: string; doc: Prisma.JsonValue; page: Prisma.JsonValue; updatedAt: Date }
+const NOTE_SELECT = { content: true, doc: true, page: true, updatedAt: true } as const
 
 /**
  * The rich document of a stored note (YC-40). A note written before the rich editor has no
@@ -19,7 +22,7 @@ const NOTE_SELECT = { content: true, doc: true, updatedAt: true } as const
 function toNote(note: StoredNote | null): VideoNote | null {
   if (!note) return null
   const doc = note.doc ? (note.doc as unknown as NoteDoc) : note.content ? markdownToDoc(note.content) : EMPTY_DOC
-  return { doc, updatedAt: note.updatedAt }
+  return { doc, page: (note.page as unknown as NotePage | null) ?? null, updatedAt: note.updatedAt }
 }
 
 /**
@@ -27,8 +30,13 @@ function toNote(note: StoredNote | null): VideoNote | null {
  * search. On the FIRST rich save of a legacy Markdown note, its original Markdown is copied to
  * `legacyMarkdown` and never touched again: an archive in case the conversion missed something.
  */
-function stored(doc: NoteDoc, existing: { doc: Prisma.JsonValue; content: string } | null) {
-  const written = { doc: doc as unknown as Prisma.InputJsonValue, content: docToPlainText(doc) }
+function stored(doc: NoteDoc, existing: { doc: Prisma.JsonValue; content: string } | null, page?: NotePage) {
+  const written = {
+    doc: doc as unknown as Prisma.InputJsonValue,
+    content: docToPlainText(doc),
+    // Only a page that was sent is written: a save of the text alone keeps the page.
+    ...(page ? { page: page as unknown as Prisma.InputJsonValue } : {}),
+  }
   const isLegacy = existing !== null && existing.doc === null && existing.content.trim() !== ''
   return isLegacy ? { ...written, legacyMarkdown: existing.content } : written
 }
@@ -65,14 +73,14 @@ export async function getVideoNote(userId: string, videoId: string): Promise<Vid
  * Crée ou met à jour la note de l'utilisateur pour une vidéo.
  * Une seule note par (utilisateur, vidéo) — upsert sur la contrainte unique.
  */
-export async function saveVideoNote(userId: string, videoId: string, doc: NoteDoc): Promise<VideoNote> {
+export async function saveVideoNote(userId: string, videoId: string, doc: NoteDoc, page?: NotePage): Promise<VideoNote> {
   await assertOwnsVideo(userId, videoId)
   const where = { authorId_videoId: { authorId: userId, videoId } }
   const existing = await prisma.note.findUnique({ where, select: { doc: true, content: true } })
   const note = await prisma.note.upsert({
     where,
-    create: { authorId: userId, videoId, doc: doc as unknown as Prisma.InputJsonValue, content: docToPlainText(doc) },
-    update: stored(doc, existing),
+    create: { authorId: userId, videoId, ...stored(doc, null, page) },
+    update: stored(doc, existing, page),
     select: NOTE_SELECT,
   })
   return toNote(note) as VideoNote
@@ -89,14 +97,14 @@ export async function getPlaylistNote(userId: string, playlistId: string): Promi
 }
 
 /** Crée ou met à jour la note de l'utilisateur pour une playlist (une seule par playlist). */
-export async function savePlaylistNote(userId: string, playlistId: string, doc: NoteDoc): Promise<VideoNote> {
+export async function savePlaylistNote(userId: string, playlistId: string, doc: NoteDoc, page?: NotePage): Promise<VideoNote> {
   await assertOwnsPlaylist(userId, playlistId)
   const where = { authorId_playlistId: { authorId: userId, playlistId } }
   const existing = await prisma.note.findUnique({ where, select: { doc: true, content: true } })
   const note = await prisma.note.upsert({
     where,
-    create: { authorId: userId, playlistId, doc: doc as unknown as Prisma.InputJsonValue, content: docToPlainText(doc) },
-    update: stored(doc, existing),
+    create: { authorId: userId, playlistId, ...stored(doc, null, page) },
+    update: stored(doc, existing, page),
     select: NOTE_SELECT,
   })
   return toNote(note) as VideoNote
