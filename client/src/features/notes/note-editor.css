@@ -1,0 +1,140 @@
+/*
+ * The note page (YC-40), from the Figma « Éditeur de notes » (34:995) and « Papier » (37:1447).
+ * Decision of 30/09: the new design is applied to the editor only, the rest of the app keeps
+ * its current look until the design port. Tokens are scoped to .yc-note, light and dark.
+ */
+@import '@fontsource/hanken-grotesk/400.css';
+@import '@fontsource/hanken-grotesk/400-italic.css';
+@import '@fontsource/hanken-grotesk/600.css';
+@import '@fontsource/hanken-grotesk/700.css';
+@import '@fontsource/instrument-serif/400.css';
+@import '@fontsource/instrument-serif/400-italic.css';
+@import '@fontsource/jetbrains-mono/400.css';
+
+.yc-note {
+  --note-ink: #17150f;
+  --note-ink-muted: #5a554a;
+  --note-paper: #fffdf8;
+  --note-rule: #efe8da;
+  --note-sunken: #eae4d7;
+  --note-border: #d8d0bf;
+  /* Every paper keeps the same 32 px step, so text falls on the ruling (37:1447). */
+  --note-step: 32px;
+  --note-top: 28px;
+}
+
+.dark .yc-note {
+  --note-ink: #ede8dd;
+  --note-ink-muted: #a39d90;
+  --note-paper: #1d1b18;
+  --note-rule: #262420;
+  --note-sunken: #262420;
+  --note-border: #3a3732;
+}
+
+.yc-note-page {
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background-color: var(--note-paper);
+  /* « Lignes » paper: one rule every step, drawn in CSS only (no image). */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--note-step) - 1px),
+    var(--note-rule) calc(var(--note-step) - 1px),
+    var(--note-rule) var(--note-step)
+  );
+  background-position: 0 var(--note-top);
+  color: var(--note-ink);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: var(--note-step);
+}
+
+.yc-note-page .tiptap {
+  min-height: calc(var(--note-step) * 8);
+  padding: var(--note-top) 20px var(--note-step);
+  outline: none;
+}
+
+.yc-note-page .tiptap > * + * {
+  margin-top: 0;
+}
+
+.yc-note-page p {
+  margin: 0;
+}
+
+.yc-note-page h1 {
+  margin: 0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 34px;
+  font-weight: 400;
+  /* Two rows, the baseline resting on the first rule as in the mockup (Titre 1, 34:412). */
+  line-height: 40px;
+  padding-top: 4px;
+  padding-bottom: calc(var(--note-step) * 2 - 44px);
+}
+
+.yc-note-page h2 {
+  margin: 0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: var(--note-step);
+}
+
+.yc-note-page h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: var(--note-step);
+}
+
+.yc-note-page strong {
+  font-weight: 700;
+}
+
+.yc-note-page a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.yc-note-page code {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--note-sunken);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+  font-variant-ligatures: none;
+}
+
+.yc-note-page ul,
+.yc-note-page ol {
+  margin: 0;
+  padding-left: 28px;
+}
+
+.yc-note-page ul {
+  list-style: disc;
+}
+
+.yc-note-page ol {
+  list-style: decimal;
+}
+
+.yc-note-page blockquote {
+  margin: 0;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 21px;
+  font-style: italic;
+  text-align: center;
+}
+
+.yc-note-page .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--note-ink-muted);
+  pointer-events: none;
+}

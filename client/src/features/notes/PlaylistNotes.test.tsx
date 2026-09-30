@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import type { Editor } from '@tiptap/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlaylistNotes } from './PlaylistNotes'
 
@@ -20,10 +21,11 @@ describe('PlaylistNotes', () => {
   beforeEach(() => {
     fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (init?.method === 'PUT') {
-        const body = JSON.parse(init.body as string) as { content: string }
-        return new Response(JSON.stringify({ content: body.content, updatedAt: '2026-03-03' }), { status: 200 })
+        const body = JSON.parse(init.body as string) as { doc: unknown }
+        return new Response(JSON.stringify({ doc: body.doc, updatedAt: '2026-03-03' }), { status: 200 })
       }
-      return new Response(JSON.stringify({ content: 'objectifs du parcours', updatedAt: '2026-03-03' }), { status: 200 })
+      const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'objectifs du parcours' }] }] }
+      return new Response(JSON.stringify({ doc, updatedAt: '2026-03-03' }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -31,10 +33,12 @@ describe('PlaylistNotes', () => {
 
   it('amorce et sauvegarde automatiquement la note de playlist (PUT /playlists/:id/note)', async () => {
     renderNotes()
-    const textarea = (await screen.findByLabelText('Contenu de la note de la playlist')) as HTMLTextAreaElement
-    await waitFor(() => expect(textarea.value).toBe('objectifs du parcours'))
+    const el = await screen.findByRole('textbox', { name: 'Contenu de la note de la playlist' }, { timeout: 5000 })
+    await waitFor(() => expect(el).toHaveTextContent('objectifs du parcours'))
 
-    fireEvent.change(textarea, { target: { value: 'mes prérequis' } })
+    const editor = (el as unknown as { editor: Editor }).editor
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'mes prérequis' }] }] }
+    editor.commands.setContent(doc, { emitUpdate: true })
 
     await waitFor(
       () => expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit)?.method === 'PUT')).toBe(true),
@@ -43,6 +47,6 @@ describe('PlaylistNotes', () => {
 
     const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PUT')
     expect(putCall?.[0]).toContain('/playlists/p1/note')
-    expect(JSON.parse((putCall?.[1] as RequestInit).body as string)).toEqual({ content: 'mes prérequis' })
+    expect(JSON.parse((putCall?.[1] as RequestInit).body as string)).toEqual({ doc })
   })
 })
