@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { fetchPlaylist } from '@/lib/youtube'
 import { refreshPlaylist } from '@/services/playlist.service'
+import { optionalAccessToken } from '@/services/youtubeToken.service'
+import { HttpError } from '@/middleware/errorHandler'
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
@@ -20,9 +22,12 @@ vi.mock('@/lib/youtube', () => ({
   extractPlaylistId: vi.fn(),
 }))
 
+vi.mock('@/services/youtubeToken.service', () => ({ optionalAccessToken: vi.fn() }))
+
 describe('refreshPlaylist', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(optionalAccessToken).mockResolvedValue(undefined)
     // $transaction exécute le callback avec prisma comme client transactionnel.
     vi.mocked(prisma.$transaction).mockImplementation(
       async (cb: (tx: typeof prisma) => unknown) => cb(prisma),
@@ -74,7 +79,7 @@ describe('refreshPlaylist', () => {
 
     const res = await refreshPlaylist('u1', 'p1')
 
-    expect(fetchPlaylist).toHaveBeenCalledWith('PL1')
+    expect(fetchPlaylist).toHaveBeenCalledWith('PL1', undefined)
     // Les vidéos sont upsertées (partagées), jamais supprimées.
     expect(prisma.video.upsert).toHaveBeenCalledTimes(2)
     expect(prisma.video.upsert).toHaveBeenCalledWith(
@@ -235,5 +240,54 @@ describe('refreshPlaylist', () => {
     expect(args.update).not.toHaveProperty('thumbnailUrl')
     // A first import still needs a title.
     expect(args.create).toMatchObject({ title: 'Vidéo privée' })
+  })
+
+  describe('private playlists (YC-30)', () => {
+    const emptyPlaylist = { youtubeId: 'PLpriv', title: 'Private', description: null, thumbnailUrl: null, videos: [] }
+
+    it("reads the playlist with the user's YouTube token when they have one", async () => {
+      vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+        id: 'p1',
+        ownerId: 'u1',
+        youtubeId: 'PLpriv',
+        privacyStatus: 'PRIVATE',
+      } as never)
+      vi.mocked(optionalAccessToken).mockResolvedValue('user-token')
+      vi.mocked(fetchPlaylist).mockResolvedValue(emptyPlaylist as never)
+      vi.mocked(prisma.playlist.update).mockResolvedValue({ id: 'p1', youtubeId: 'PLpriv', title: 'Private' } as never)
+      vi.mocked(prisma.playlistVideo.deleteMany).mockResolvedValue({ count: 0 } as never)
+      vi.mocked(prisma.playlistVideo.createMany).mockResolvedValue({ count: 0 } as never)
+
+      await refreshPlaylist('u1', 'p1')
+
+      expect(optionalAccessToken).toHaveBeenCalledWith('u1')
+      expect(fetchPlaylist).toHaveBeenCalledWith('PLpriv', 'user-token')
+    })
+
+    it('answers 403 on a private playlist when the account has no working YouTube token', async () => {
+      vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+        id: 'p1',
+        ownerId: 'u1',
+        youtubeId: 'PLpriv',
+        privacyStatus: 'PRIVATE',
+      } as never)
+      vi.mocked(fetchPlaylist).mockRejectedValue(new HttpError(404, 'Playlist introuvable ou privée'))
+
+      await expect(refreshPlaylist('u1', 'p1')).rejects.toMatchObject({ status: 403 })
+      expect(fetchPlaylist).toHaveBeenCalledWith('PLpriv', undefined)
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+    })
+
+    it('keeps the 404 for a public playlist that no longer exists', async () => {
+      vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+        id: 'p1',
+        ownerId: 'u1',
+        youtubeId: 'PLgone',
+        privacyStatus: 'PUBLIC',
+      } as never)
+      vi.mocked(fetchPlaylist).mockRejectedValue(new HttpError(404, 'Playlist introuvable ou privée'))
+
+      await expect(refreshPlaylist('u1', 'p1')).rejects.toMatchObject({ status: 404 })
+    })
   })
 })

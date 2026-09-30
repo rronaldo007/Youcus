@@ -6,6 +6,7 @@ import { extractPlaylistId, fetchPlaylist, type YouTubePlaylist, type YouTubeVid
 import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
 import { availabilityOf, type Availability } from '@/lib/availability'
 import { syncChannels, syncChapters, videoMetadata } from '@/services/videoMetadata.service'
+import { optionalAccessToken } from '@/services/youtubeToken.service'
 
 /**
  * Lecture des métadonnées d'une playlist YouTube en cache-aside (CS-67).
@@ -289,7 +290,17 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
   // Le rafraîchissement manuel est une demande explicite de fraîcheur :
   // on purge la clé avant de relire, sinon l'utilisateur reverrait le cache.
   await invalidate(playlistKey(existing.youtubeId))
-  const data = await fetchPlaylist(existing.youtubeId)
+  // YC-30: a private playlist was imported with the user's token, the server key cannot see it.
+  const accessToken = await optionalAccessToken(userId)
+  let data: YouTubePlaylist
+  try {
+    data = await fetchPlaylist(existing.youtubeId, accessToken)
+  } catch (err) {
+    if (!accessToken && existing.privacyStatus === 'PRIVATE' && err instanceof HttpError && err.status === 404) {
+      throw new HttpError(403, 'Connectez votre compte YouTube pour rafraîchir cette playlist privée')
+    }
+    throw err
+  }
 
   const { playlist, videoCount } = await prisma.$transaction(async (tx) => {
     const channelIds = await syncChannels(tx, data.channels)
