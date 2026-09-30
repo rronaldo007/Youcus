@@ -216,4 +216,24 @@ describe('refreshPlaylist', () => {
       ],
     })
   })
+
+  it('keeps the known title and thumbnail of a video that became private (YC-13)', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({ id: 'p1', ownerId: 'u1', youtubeId: 'PL1' } as never)
+    vi.mocked(fetchPlaylist).mockResolvedValue({
+      youtubeId: 'PL1', title: 'P', description: null, thumbnailUrl: null,
+      videos: [{ youtubeId: 'v1', title: 'Vidéo privée', thumbnailUrl: null, position: 0, unavailable: 'PRIVATE' }],
+    } as never)
+    vi.mocked(prisma.playlist.update).mockResolvedValue({ id: 'p1', youtubeId: 'PL1', title: 'P', thumbnailUrl: null } as never)
+    vi.mocked(prisma.video.upsert).mockResolvedValue({ id: 'vid1' } as never)
+    vi.mocked(prisma.playlistVideo.deleteMany).mockResolvedValue({ count: 0 } as never)
+    vi.mocked(prisma.playlistVideo.createMany).mockResolvedValue({ count: 1 } as never)
+
+    await refreshPlaylist('u1', 'p1')
+
+    const args = vi.mocked(prisma.video.upsert).mock.calls[0][0]
+    expect(args.update).not.toHaveProperty('title')
+    expect(args.update).not.toHaveProperty('thumbnailUrl')
+    // A first import still needs a title.
+    expect(args.create).toMatchObject({ title: 'Vidéo privée' })
+  })
 })

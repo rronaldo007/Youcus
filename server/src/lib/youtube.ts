@@ -45,6 +45,11 @@ export interface YouTubeVideo {
   /** Date the video was added to the playlist (ISO), distinct from its publication date. */
   addedAt?: string | null
   details?: VideoDetails
+  /**
+   * Set when playlistItems itself says the video is gone ("Private video" / "Deleted video",
+   * YC-13): YouTube hides its real title, so a title already known must not be overwritten.
+   */
+  unavailable?: 'PRIVATE' | 'DELETED'
 }
 
 export interface YouTubePlaylist {
@@ -314,16 +319,20 @@ export async function fetchPlaylist(playlistId: string, accessToken?: string): P
     for (const item of items) {
       const s = item.snippet
       const videoId = s?.resourceId?.videoId
-      // Ignore les vidéos privées / supprimées (pas de videoId exploitable).
-      if (!s || !videoId || s.title === 'Private video' || s.title === 'Deleted video') continue
+      if (!s || !videoId) continue
+      // Private and deleted videos are KEPT (YC-13): the playlist must say they exist and why
+      // they cannot be played, instead of silently shrinking.
+      const unavailable =
+        s.title === 'Private video' ? 'PRIVATE' : s.title === 'Deleted video' ? 'DELETED' : undefined
       const note = item.contentDetails?.note?.trim()
       videos.push({
         youtubeId: videoId,
-        title: s.title,
-        thumbnailUrl: pickThumbnail(s.thumbnails),
+        title: unavailable === 'PRIVATE' ? 'Vidéo privée' : unavailable === 'DELETED' ? 'Vidéo supprimée' : s.title,
+        thumbnailUrl: unavailable ? null : pickThumbnail(s.thumbnails),
         position: s.position ?? videos.length,
         creatorNote: note ? note.slice(0, 280) : null,
         addedAt: s.publishedAt ?? null,
+        ...(unavailable ? { unavailable } : {}),
       })
     }
     pageToken = page.nextPageToken as string | undefined
@@ -333,7 +342,11 @@ export async function fetchPlaylist(playlistId: string, accessToken?: string): P
     videos.map((v) => v.youtubeId),
     accessToken,
   )
-  for (const v of videos) v.details = details.get(v.youtubeId)
+  for (const v of videos) {
+    v.details = details.get(v.youtubeId)
+    // videos.list does not return private videos: without the hint they would look deleted.
+    if (v.details && v.unavailable === 'PRIVATE') v.details.status = 'PRIVATE'
+  }
 
   const channelIds = [
     ...(snippet.channelId ? [snippet.channelId] : []),

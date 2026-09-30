@@ -5,6 +5,7 @@ import { VideoAbout } from '@/features/player/VideoAbout'
 import { VideoSidebar } from '@/features/player/VideoSidebar'
 import { VideoNotes } from '@/features/notes/VideoNotes'
 import { reportWatchedSeconds, usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
+import { isPlayable } from '@/lib/availability'
 
 /** Page lecteur focus : lecture, navigation, reprise à la dernière position (CS-19). */
 export function FocusPlayerPage() {
@@ -55,8 +56,9 @@ export function FocusPlayerPage() {
   }
   const startSeconds = resumeRef.current.seconds
 
-  const prev = index > 0 ? videos[index - 1] : null
-  const next = index < videos.length - 1 ? videos[index + 1] : null
+  // Previous and next skip the videos that cannot be played (YC-13).
+  const prev = videos.slice(0, index).reverse().find(isPlayable) ?? null
+  const next = videos.slice(index + 1).find(isPlayable) ?? null
   const navBtn =
     'rounded-card border border-line px-3 py-1.5 text-sm font-medium text-content transition hover:bg-surface-2'
 

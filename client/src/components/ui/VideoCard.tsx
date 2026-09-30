@@ -1,8 +1,28 @@
+import { AVAILABILITY_LABEL } from '@/lib/availability'
 import { formatDuration } from '@/lib/format'
 import type { Video } from '@/types'
 
-/** Carte vidéo du design system (cf. Figma VideoCard 26:12). */
+/**
+ * Carte vidéo du design system (cf. Figma VideoCard 26:12). An unavailable video (YC-13) is
+ * dimmed: empty thumbnail, no play button, its reason in place of the duration, no status.
+ */
 export function VideoCard({ video }: { video: Video }) {
+  const availability = video.availability ?? 'AVAILABLE'
+  if (availability !== 'AVAILABLE') {
+    return (
+      <div className="flex flex-col gap-2.5" aria-disabled="true">
+        <div className="relative aspect-video w-full overflow-hidden rounded-card bg-surface-2">
+          <span className="absolute bottom-2 right-2 rounded bg-surface px-1.5 py-0.5 font-mono text-[11px] font-semibold text-accent-red">
+            {AVAILABILITY_LABEL[availability]}
+          </span>
+        </div>
+        <p className="line-clamp-2 text-[15px] leading-tight text-content-muted">
+          {video.position + 1}. {video.title}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-2.5">
       <div className="relative aspect-video w-full overflow-hidden rounded-card bg-surface-2">

@@ -14,6 +14,20 @@ export interface Playlist {
   thumbnailUrl: string | null
   videoCount: number
   completedCount?: number
+  /** Playable videos: the progress percentage is counted on these only (YC-13). */
+  availableCount?: number
+}
+
+/** Why a video cannot be played, or AVAILABLE (YC-13). */
+export type Availability = 'AVAILABLE' | 'PRIVATE' | 'DELETED' | 'NOT_EMBEDDABLE' | 'BLOCKED' | 'UPCOMING'
+
+export interface UnavailableSummary {
+  total: number
+  private: number
+  deleted: number
+  notEmbeddable: number
+  blocked: number
+  upcoming: number
 }
 
 export interface Video {
@@ -25,11 +39,14 @@ export interface Video {
   durationSeconds: number
   completed?: boolean
   watchedSeconds?: number
+  /** Absent in old answers and in tests: treated as AVAILABLE. */
+  availability?: Availability
 }
 
 export interface PlaylistDetail extends Playlist {
   description: string | null
   videos: Video[]
+  unavailable?: UnavailableSummary
 }
 
 export type VideoStatus = 'AVAILABLE' | 'PRIVATE' | 'DELETED' | 'BLOCKED' | 'LIVE' | 'UPCOMING'
