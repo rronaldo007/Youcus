@@ -76,22 +76,47 @@ const textNode = z.object({
 const hardBreak = z.object({ type: z.literal('hardBreak') })
 const inline = z.union([textNode, hardBreak])
 
-const paragraph = z.object({ type: z.literal('paragraph'), content: z.array(inline).optional() })
-const heading = z.object({
-  type: z.literal('heading'),
-  attrs: z.object({ level: z.union([z.literal(1), z.literal(2), z.literal(3)]) }),
-  content: z.array(inline).optional(),
-})
+/**
+ * Alignment (YC-43): the editor sends `textAlign: null` on every block; only a real choice is
+ * kept, so a plain paragraph is stored without attributes.
+ */
+const ALIGNMENTS = ['left', 'center', 'right', 'justify'] as const
+const textAlign = z.enum(ALIGNMENTS).nullable().optional()
+const withAlign = <T extends Record<string, unknown>>(attrs: T & { textAlign?: string | null }) => {
+  const { textAlign: align, ...rest } = attrs
+  return align && align !== 'left' ? { ...rest, textAlign: align } : rest
+}
+
+const paragraph = z
+  .object({ type: z.literal('paragraph'), attrs: z.object({ textAlign }).optional(), content: z.array(inline).optional() })
+  .transform(({ attrs, ...node }) => {
+    const kept = attrs ? withAlign(attrs) : {}
+    return Object.keys(kept).length ? { ...node, attrs: kept } : node
+  })
+const heading = z
+  .object({
+    type: z.literal('heading'),
+    attrs: z.object({ level: z.union([z.literal(1), z.literal(2), z.literal(3)]), textAlign }),
+    content: z.array(inline).optional(),
+  })
+  .transform((node) => ({ ...node, attrs: withAlign(node.attrs) }))
 
 const horizontalRule = z.object({ type: z.literal('horizontalRule') })
 
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
-const block: z.ZodType<NoteNode> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, horizontalRule]),
+const block: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, horizontalRule]),
 )
 const listItem = z.object({ type: z.literal('listItem'), content: z.array(block).min(1) })
 const blockquote = z.object({ type: z.literal('blockquote'), content: z.array(block).min(1) })
 const bulletList = z.object({ type: z.literal('bulletList'), content: z.array(listItem).min(1) })
+// Task lists (YC-43): a checkbox per item, nested lists allowed.
+const taskItem = z.object({
+  type: z.literal('taskItem'),
+  attrs: z.object({ checked: z.boolean() }),
+  content: z.array(block).min(1),
+})
+const taskList = z.object({ type: z.literal('taskList'), content: z.array(taskItem).min(1) })
 const orderedList = z.object({
   type: z.literal('orderedList'),
   attrs: z.object({ start: z.number().int().min(0).max(100_000) }).optional(),

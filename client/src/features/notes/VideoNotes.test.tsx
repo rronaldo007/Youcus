@@ -73,7 +73,11 @@ describe('VideoNotes (YC-40, rich editor)', () => {
     expect(body).toEqual({
       doc: {
         type: 'doc',
-        content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Mon titre' }] }, { type: 'paragraph' }],
+        // `textAlign: null` comes from the editor (YC-43); the server drops it on save.
+        content: [
+          { type: 'heading', attrs: { level: 1, textAlign: null }, content: [{ type: 'text', text: 'Mon titre' }] },
+          { type: 'paragraph', attrs: { textAlign: null } },
+        ],
       },
     })
   })

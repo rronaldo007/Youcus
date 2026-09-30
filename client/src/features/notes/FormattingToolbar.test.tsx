@@ -131,7 +131,7 @@ describe('FormattingToolbar (YC-41)', () => {
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Gras (Ctrl+B)' }))
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Effacer la mise en forme' }))
     // TipTap keeps a trailing empty paragraph: only the first block matters.
-    expect(editor.getJSON().content?.[0]).toEqual(para('bonjour'))
+    expect(editor.getJSON().content?.[0]).toEqual({ ...para('bonjour'), attrs: { textAlign: null } })
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Citation (Ctrl+Maj+B)' }))
     expect(editor.isActive('blockquote')).toBe(true)
   })
@@ -172,7 +172,7 @@ describe('FormattingToolbar (YC-41)', () => {
       expect(await screen.findByRole('button', { name: 'Style de paragraphe : Citation' })).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: /^Style de paragraphe/ }))
       fireEvent.click(screen.getByRole('menuitemradio', { name: /Titre 1/ }))
-      expect(editor.getJSON().content?.[0]).toEqual({ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'bonjour' }] })
+      expect(editor.getJSON().content?.[0]).toEqual({ type: 'heading', attrs: { level: 1, textAlign: null }, content: [{ type: 'text', text: 'bonjour' }] })
     })
 
     it('moves with the arrows, and Échap closes it with the focus back on its button', async () => {
@@ -357,6 +357,94 @@ describe('FormattingToolbar (YC-41)', () => {
       const json = JSON.stringify(editor.getJSON())
       expect(json).toContain('{"type":"textColor","attrs":{"color":"rouge"}}')
       expect(json).not.toMatch(/#|yellow|style/)
+    })
+  })
+
+  describe('task lists, indent and alignment (YC-43)', () => {
+    const three = () => ({
+      type: 'doc',
+      content: [{ type: 'bulletList', content: ['un', 'deux', 'trois'].map((x) => ({ type: 'listItem', content: [para(x)] })) }],
+    })
+    const cursorIn = (editor: Editor, word: string) => {
+      let pos = 0
+      editor.state.doc.descendants((node, p) => {
+        if (node.isText && node.text === word) pos = p + 1
+      })
+      editor.commands.setTextSelection(pos)
+    }
+    const depthOf = (editor: Editor, word: string) => {
+      let depth = 0
+      editor.state.doc.descendants((node, p) => {
+        if (node.isText && node.text === word) depth = editor.state.doc.resolve(p).depth
+      })
+      return depth
+    }
+
+    it('makes a task list (button and Ctrl+Maj+9), and a box checks the item', async () => {
+      const { el, editor, toolbar } = await readyEditor()
+      fireEvent.click(within(toolbar).getByRole('button', { name: 'Liste de cases (Ctrl+Maj+9)' }))
+      expect(editor.isActive('taskList')).toBe(true)
+      const box = await screen.findByRole('checkbox', { name: 'À faire : bonjour' })
+      fireEvent.click(box)
+      await waitFor(() => expect((editor.getJSON().content?.[0].content?.[0] as { attrs?: unknown } | undefined)?.attrs).toEqual({ checked: true }))
+      expect(await screen.findByRole('checkbox', { name: 'Fait : bonjour' })).toBeChecked()
+      key(el, '9', { ctrlKey: true, shiftKey: true })
+      expect(editor.isActive('taskList')).toBe(false)
+    })
+
+    it('indents and outdents a list item over three levels, buttons disabled outside a list', async () => {
+      const { editor, toolbar } = await readyEditor()
+      const indent = within(toolbar).getByRole('button', { name: 'Augmenter le retrait (Tab)' })
+      const outdent = within(toolbar).getByRole('button', { name: 'Diminuer le retrait (Maj+Tab)' })
+      expect(indent).toHaveAttribute('aria-disabled', 'true')
+      expect(outdent).toHaveAttribute('aria-disabled', 'true')
+      editor.commands.setContent(three())
+      cursorIn(editor, 'deux')
+      await waitFor(() => expect(indent).not.toHaveAttribute('aria-disabled'))
+      const top = depthOf(editor, 'deux')
+      fireEvent.click(indent)
+      expect(depthOf(editor, 'deux')).toBe(top + 2)
+      // The toolbar state follows the cursor a moment later: wait for the tool before each click.
+      cursorIn(editor, 'trois')
+      await waitFor(() => expect(indent).not.toHaveAttribute('aria-disabled'))
+      fireEvent.click(indent)
+      await waitFor(() => expect(indent).not.toHaveAttribute('aria-disabled'))
+      fireEvent.click(indent)
+      expect(depthOf(editor, 'trois')).toBe(top + 4)
+      await waitFor(() => expect(outdent).not.toHaveAttribute('aria-disabled'))
+      fireEvent.click(outdent)
+      expect(depthOf(editor, 'trois')).toBe(top + 2)
+    })
+
+    it('Tab and Maj+Tab indent inside a list, and Tab leaves the note when it cannot indent', async () => {
+      const { el, editor } = await readyEditor()
+      editor.commands.setContent(three())
+      cursorIn(editor, 'deux')
+      const top = depthOf(editor, 'deux')
+      key(el, 'Tab')
+      expect(depthOf(editor, 'deux')).toBe(top + 2)
+      key(el, 'Tab', { shiftKey: true })
+      expect(depthOf(editor, 'deux')).toBe(top)
+      // First item: nothing to indent under, so Tab is not swallowed (no keyboard trap).
+      cursorIn(editor, 'un')
+      expect(fireEvent.keyDown(el, { key: 'Tab' })).toBe(true)
+    })
+
+    it('aligns from the menu and with Ctrl+Maj+L/E/R/J, the button showing the current alignment', async () => {
+      const { el, editor } = await readyEditor()
+      fireEvent.click(screen.getByRole('button', { name: 'Aligner : à gauche' }))
+      const menu = screen.getByRole('menu', { name: 'Alignement' })
+      expect(within(menu).getAllByRole('menuitemradio').map((i) => i.textContent)).toEqual([
+        'À gaucheCtrl+Maj+L', 'CentréCtrl+Maj+E', 'À droiteCtrl+Maj+R', 'JustifiéCtrl+Maj+J',
+      ])
+      fireEvent.click(within(menu).getByRole('menuitemradio', { name: /Centré/ }))
+      expect(editor.getJSON().content?.[0].attrs).toEqual({ textAlign: 'center' })
+      expect(await screen.findByRole('button', { name: 'Aligner : centré' })).toBeInTheDocument()
+      for (const [k, align] of [['r', 'right'], ['j', 'justify'], ['l', 'left'], ['e', 'center']]) {
+        key(el, k, { ctrlKey: true, shiftKey: true })
+        expect(editor.getJSON().content?.[0].attrs).toEqual({ textAlign: align })
+      }
+      expect(editor.getHTML()).toContain('<p style="text-align: center;">bonjour</p>')
     })
   })
 

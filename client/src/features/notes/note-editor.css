@@ -734,3 +734,66 @@
     width: min(368px, calc(100vw - 32px));
   }
 }
+
+/* ---- Task lists and alignment (YC-43) ---- */
+
+.yc-note-page ul[data-type='taskList'] {
+  /* The task item node view sets data-checked on its li, not data-type. */
+  padding-left: 0;
+  list-style: none;
+}
+
+.yc-note-page ul[data-type='taskList'] ul[data-type='taskList'] {
+  padding-left: 28px;
+}
+
+.yc-note-page ul[data-type='taskList'] > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.yc-note-page ul[data-type='taskList'] > li > label {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  /* One ruled row high: the box sits on the line of its text. */
+  height: var(--note-step);
+  user-select: none;
+}
+
+.yc-note-page ul[data-type='taskList'] > li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.yc-note-page ul[data-type='taskList'] > li input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--note-ink);
+  cursor: pointer;
+}
+
+.yc-note-page ul[data-type='taskList'] > li input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+/* Only the item's own text: an unchecked sub-task stays as it is. */
+.yc-note-page ul[data-type='taskList'] > li[data-checked='true'] > div > p {
+  color: var(--note-ink-muted);
+  text-decoration: line-through;
+}
+
+/* « Aligner ▾ » (40:729): the icon shows the current alignment. */
+.yc-tool-menu {
+  gap: 2px;
+  padding: 0 4px 0 10px;
+  border-radius: 8px;
+}
+
+.yc-menu-item-medium {
+  font-size: 14px;
+  font-weight: 500;
+}

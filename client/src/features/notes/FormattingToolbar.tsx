@@ -28,11 +28,18 @@ import clearFormatIcon from './icons/clear-format.svg'
 import dividerIcon from './icons/divider.svg'
 import textColorIcon from './icons/text-color.svg'
 import highlighterIcon from './icons/highlighter.svg'
+import taskListIcon from './icons/task-list.svg'
+import outdentIcon from './icons/outdent.svg'
+import indentIcon from './icons/indent.svg'
+import alignLeftIcon from './icons/align-left.svg'
+import alignCenterIcon from './icons/align-center.svg'
+import alignRightIcon from './icons/align-right.svg'
+import alignJustifyIcon from './icons/align-justify.svg'
 
 /**
- * Formatting toolbar of the note editor (YC-41, YC-42), from Figma « Barre de mise en forme »
- * (32:365) and « Menu de l'éditeur » (33:2774: Styles, Polices, Couleurs). Only the tools that
- * work are shown; the others (paper, alignment, blocks, page) arrive with their own tickets.
+ * Formatting toolbar of the note editor (YC-41, YC-42, YC-43), from Figma « Barre de mise en forme »
+ * (32:365) and « Menu de l'éditeur » (33:2774: Styles, Polices, Couleurs, Alignement). Only the
+ * tools that work are shown; the others (paper, line spacing, blocks, page) arrive with their tickets.
  *
  * One tab stop: arrows, Home and End move inside the toolbar (WAI-ARIA toolbar pattern).
  */
@@ -128,6 +135,25 @@ function applyStyle(editor: Editor, style: Style) {
   else chain.setHeading({ level: Number(style[1]) as 1 | 2 | 3 }).run()
 }
 
+type Align = 'left' | 'center' | 'right' | 'justify'
+
+const ALIGNS: { id: Align; label: string; shortcut: string; icon: string }[] = [
+  { id: 'left', label: 'À gauche', shortcut: 'Ctrl+Maj+L', icon: alignLeftIcon },
+  { id: 'center', label: 'Centré', shortcut: 'Ctrl+Maj+E', icon: alignCenterIcon },
+  { id: 'right', label: 'À droite', shortcut: 'Ctrl+Maj+R', icon: alignRightIcon },
+  { id: 'justify', label: 'Justifié', shortcut: 'Ctrl+Maj+J', icon: alignJustifyIcon },
+]
+
+/** The list item the cursor is in, the nearest one: indenting acts on it (bullet, numbered or task). */
+function currentItem(editor: Editor): 'listItem' | 'taskItem' | null {
+  const { $from } = editor.state.selection
+  for (let d = $from.depth; d > 0; d--) {
+    const name = $from.node(d).type.name
+    if (name === 'listItem' || name === 'taskItem') return name
+  }
+  return null
+}
+
 /** Sets a named mark, or removes it when the value is the default (plain text stores nothing). */
 function setNamed(editor: Editor, mark: string, attrs: Record<string, unknown>, isDefault: boolean) {
   const chain = editor.chain().focus()
@@ -168,6 +194,16 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
       link: e.isActive('link'),
       bulletList: e.isActive('bulletList'),
       orderedList: e.isActive('orderedList'),
+      taskList: e.isActive('taskList'),
+      align: ((['center', 'right', 'justify'] as const).find((a) => e.isActive({ textAlign: a })) ?? 'left') as Align,
+      canSink: (() => {
+        const item = currentItem(e)
+        return !!item && e.can().sinkListItem(item)
+      })(),
+      canLift: (() => {
+        const item = currentItem(e)
+        return !!item && e.can().liftListItem(item)
+      })(),
       quote: e.isActive('blockquote'),
       color: ((e.getAttributes('textColor').color as TextColor | undefined) ?? DEFAULT_COLOR) as TextColor,
       highlight: (e.getAttributes('highlight').color as Highlight | undefined) ?? null,
@@ -477,6 +513,15 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
         <Tool label="Liste numérotée (Ctrl+Maj+7)" pressed={state.orderedList} onRun={run((c) => c.toggleOrderedList())}>
           <Icon src={orderedListIcon} />
         </Tool>
+        <Tool label="Liste de cases (Ctrl+Maj+9)" pressed={state.taskList} onRun={run((c) => c.toggleTaskList())}>
+          <Icon src={taskListIcon} />
+        </Tool>
+        <Tool label="Diminuer le retrait (Maj+Tab)" disabled={!state.canLift} onRun={() => editor.chain().focus().liftListItem(currentItem(editor) ?? 'listItem').run()}>
+          <Icon src={outdentIcon} />
+        </Tool>
+        <Tool label="Augmenter le retrait (Tab)" disabled={!state.canSink} onRun={() => editor.chain().focus().sinkListItem(currentItem(editor) ?? 'listItem').run()}>
+          <Icon src={indentIcon} />
+        </Tool>
       </div>
 
       <div role="group" aria-label="Insertion" className="yc-tool-group">
@@ -492,6 +537,43 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
         <Tool label="Effacer la mise en forme" onRun={run((c) => c.unsetAllMarks().clearNodes())}>
           <Icon src={clearFormatIcon} />
         </Tool>
+      </div>
+
+      <div role="group" aria-label="Alignement" className="yc-tool-group">
+        <ToolMenu
+          buttonLabel={`Aligner : ${ALIGNS.find((a) => a.id === state.align)?.label.toLowerCase()}`}
+          buttonClassName="yc-tool yc-tool-menu"
+          buttonContent={
+            <>
+              <Icon src={ALIGNS.find((a) => a.id === state.align)?.icon ?? alignLeftIcon} />
+              <Icon src={chevronIcon} size={16} />
+            </>
+          }
+          menuLabel="Alignement"
+        >
+          {(close) => (
+            <>
+              <p aria-hidden="true" className="yc-menu-label">
+                ALIGNEMENT
+              </p>
+              {ALIGNS.map((a) => (
+                <MenuItem
+                  key={a.id}
+                  checked={a.id === state.align}
+                  className="yc-menu-item"
+                  onSelect={() => {
+                    editor.chain().focus().setTextAlign(a.id).run()
+                    close()
+                  }}
+                >
+                  <Icon src={a.icon} />
+                  <span className="yc-menu-item-label yc-menu-item-medium">{a.label}</span>
+                  <kbd className="yc-menu-shortcut">{a.shortcut}</kbd>
+                </MenuItem>
+              ))}
+            </>
+          )}
+        </ToolMenu>
       </div>
 
       <div role="group" aria-label="Blocs" className="yc-tool-group">

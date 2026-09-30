@@ -43,6 +43,19 @@ function block(token: Token): NoteNode[] {
         return { type: 'listItem', content: inner.length ? inner : [{ type: 'paragraph' }] }
       })
       if (!items.length) return []
+      // « - [ ] » everywhere: a real task list (YC-43). A list that mixes tasks and plain items
+      // stays a bullet list, the box kept as text so nothing is lost.
+      if (!t.ordered && t.items.every((item) => item.task)) {
+        return [{ type: 'taskList', content: t.items.map((item, i) => ({ type: 'taskItem', attrs: { checked: !!item.checked }, content: items[i].content })) }]
+      }
+      if (t.items.some((item) => item.task)) {
+        t.items.forEach((item, i) => {
+          if (!item.task) return
+          const first = items[i].content[0]
+          const box = item.checked ? '[x] ' : '[ ] '
+          if (first?.type === 'paragraph') first.content = [{ type: 'text', text: box }, ...(first.content ?? [])]
+        })
+      }
       if (t.ordered) {
         const start = typeof t.start === 'number' ? t.start : 1
         return [{ type: 'orderedList', attrs: { start }, content: items }]
@@ -63,7 +76,7 @@ function block(token: Token): NoteNode[] {
     case 'hr':
       return [{ type: 'horizontalRule' }]
     default:
-      // space, def: nothing to keep.
+      // space, def, checkbox (read from the list item): nothing to keep.
       return []
   }
 }
