@@ -31,6 +31,51 @@ describe('parseNoteDoc (YC-40)', () => {
     expect(res.ok && res.doc.content[1]).toEqual({ type: 'horizontalRule' })
   })
 
+  it('accepts nested task lists with their checked state (YC-43)', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'taskList',
+          content: [
+            { type: 'taskItem', attrs: { checked: true }, content: [p(t('fait'))] },
+            {
+              type: 'taskItem',
+              attrs: { checked: false },
+              content: [p(t('à faire')), { type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: false }, content: [p(t('sous'))] }] }],
+            },
+          ],
+        },
+      ],
+    }
+    const res = parseNoteDoc(doc)
+    expect(res.ok && res.doc).toEqual(doc)
+    expect(res.ok && docToPlainText(res.doc)).toBe('fait\nà faire\nsous')
+  })
+
+  it('keeps a real alignment, stores nothing for null or left (YC-43)', () => {
+    const res = parseNoteDoc({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', attrs: { textAlign: null }, content: [t('a')] },
+        { type: 'paragraph', attrs: { textAlign: 'left' }, content: [t('b')] },
+        { type: 'paragraph', attrs: { textAlign: 'center' }, content: [t('c')] },
+        { type: 'heading', attrs: { level: 2, textAlign: 'justify' }, content: [t('d')] },
+        { type: 'heading', attrs: { level: 3, textAlign: null }, content: [t('e')] },
+      ],
+    })
+    expect(res.ok && res.doc.content.map((n) => n.attrs ?? null)).toEqual([null, null, { textAlign: 'center' }, { level: 2, textAlign: 'justify' }, { level: 3 }])
+  })
+
+  it.each([
+    ['an alignment off the list', { type: 'paragraph', attrs: { textAlign: 'start' }, content: [t('x')] }],
+    ['an alignment as CSS', { type: 'paragraph', attrs: { textAlign: 'center;color:red' }, content: [t('x')] }],
+    ['a task item without its state', { type: 'taskList', content: [{ type: 'taskItem', content: [p(t('x'))] }] }],
+    ['a task item in a bullet list', { type: 'bulletList', content: [{ type: 'taskItem', attrs: { checked: true }, content: [p(t('x'))] }] }],
+  ])('refuses %s (YC-43)', (_name, node) => {
+    expect(parseNoteDoc({ type: 'doc', content: [node] })).toMatchObject({ ok: false, status: 400 })
+  })
+
   it('accepts colours, highlight, font and size by name (YC-42)', () => {
     const marks = [
       { type: 'textColor', attrs: { color: 'rouge' } },

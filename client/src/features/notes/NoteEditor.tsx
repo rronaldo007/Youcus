@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, Extension, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extensions'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
+import TextAlign from '@tiptap/extension-text-align'
 import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
 import { LinkField } from '@/features/notes/LinkField'
 import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc } from '@/features/notes/noteDoc'
@@ -26,6 +28,14 @@ function buildExtensions(openLink: { current: () => void }) {
       link: { openOnClick: false, autolink: true, defaultProtocol: 'https', isAllowedUri: (url) => isSafeHref(url) },
     }),
     Placeholder.configure({ placeholder: 'Écris tes notes… (# titre, - liste, **gras**, `code`)' }),
+    // Task lists, nested, each box named for screen readers (YC-43).
+    TaskList,
+    TaskItem.configure({
+      nested: true,
+      a11y: { checkboxLabel: (node, checked) => `${checked ? 'Fait' : 'À faire'} : ${node.textContent || 'tâche vide'}` },
+    }),
+    // Ctrl+Maj+L/E/R/J come with the extension; the server keeps only these four values.
+    TextAlign.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center', 'right', 'justify'] }),
     // Colours, highlight, font and size store a name, never a CSS value (YC-42).
     TextColorMark,
     HighlightMark,

@@ -60,6 +60,22 @@ describe('markdownToDoc (YC-40)', () => {
     ])
   })
 
+  it('turns « - [ ] » lists into task lists, nested ones too (YC-43)', () => {
+    const doc = markdownToDoc('- [ ] à faire\n- [x] fait\n  - [ ] sous')
+    expect(parseNoteDoc(doc)).toMatchObject({ ok: true })
+    const list = doc.content[0]
+    expect(list.type).toBe('taskList')
+    expect(list.content?.map((i) => i.attrs)).toEqual([{ checked: false }, { checked: true }])
+    expect(JSON.stringify(list.content?.[1])).toContain('"type":"taskList"')
+    expect(docToPlainText(doc)).toBe('à faire\nfait\nsous')
+  })
+
+  it('keeps the boxes as text in a list that mixes tasks and plain items', () => {
+    const doc = markdownToDoc('- [x] fait\n- normal')
+    expect(doc.content[0].type).toBe('bulletList')
+    expect(docToPlainText(doc)).toBe('[x] fait\nnormal')
+  })
+
   it('never keeps an unsafe link, but keeps its text', () => {
     const json = JSON.stringify(doc)
     expect(json).not.toContain('javascript:')
