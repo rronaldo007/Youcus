@@ -108,12 +108,16 @@ export interface PlaylistVideo {
   completed: boolean
   watchedSeconds: number
   availability: Availability
+  /** The playlist author's note on this video (playlistItems.contentDetails.note, YC-14). */
+  creatorNote: string | null
 }
 
 export interface PlaylistDetail extends ImportedPlaylist {
   description: string | null
   videos: PlaylistVideo[]
   unavailable: UnavailableSummary
+  /** Channel that owns the playlist on YouTube: the author of the creator notes (YC-14). */
+  channelTitle: string | null
 }
 
 function summarize(availabilities: Availability[]): UnavailableSummary {
@@ -184,6 +188,7 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
   const pl = await prisma.playlist.findFirst({
     where: { id, ownerId: userId },
     include: {
+      channel: { select: { title: true } },
       videos: {
         orderBy: { position: 'asc' },
         include: { video: { include: { progress: { where: { userId } } } } },
@@ -201,6 +206,7 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
     completed: pv.video.progress[0]?.completed ?? false,
     watchedSeconds: pv.video.progress[0]?.watchedSeconds ?? 0,
     availability: availabilityOf(pv.video),
+    creatorNote: pv.creatorNote,
   }))
   return {
     id: pl.id,
@@ -212,6 +218,7 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
     availableCount: videos.filter((v) => v.availability === 'AVAILABLE').length,
     videos,
     unavailable: summarize(videos.map((v) => v.availability)),
+    channelTitle: pl.channel?.title ?? null,
   }
 }
 

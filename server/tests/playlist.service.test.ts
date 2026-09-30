@@ -105,4 +105,18 @@ describe('playlist.service (lecture / suppression)', () => {
     const pl = await getPlaylist('u1', 'p1')
     expect(pl.unavailable.total).toBe(0)
   })
+
+  it('getPlaylist gives each video the creator note of THIS playlist, and the playlist channel (YC-14)', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      id: 'p1', youtubeId: 'PL', title: 'T', thumbnailUrl: null, description: null,
+      channel: { title: 'JavaScript Mastery' },
+      videos: [
+        { position: 0, creatorNote: 'Revois la vidéo 3 avant celle-ci.', video: { id: 'a', youtubeId: 'ya', title: 'A', thumbnailUrl: null, durationSeconds: 1, progress: [], status: 'AVAILABLE', embeddable: true, blockedRegions: null } },
+        { position: 1, creatorNote: null, video: { id: 'b', youtubeId: 'yb', title: 'B', thumbnailUrl: null, durationSeconds: 1, progress: [], status: 'AVAILABLE', embeddable: true, blockedRegions: null } },
+      ],
+    } as never)
+    const pl = await getPlaylist('u1', 'p1')
+    expect(pl.channelTitle).toBe('JavaScript Mastery')
+    expect(pl.videos.map((v) => v.creatorNote)).toEqual(['Revois la vidéo 3 avant celle-ci.', null])
+  })
 })

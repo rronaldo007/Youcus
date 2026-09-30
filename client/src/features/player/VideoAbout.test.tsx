@@ -26,7 +26,7 @@ const base: VideoDetail = {
   chapters: [],
 }
 
-function renderWith(video: Partial<VideoDetail>) {
+function renderWith(video: Partial<VideoDetail>, props: { creatorNote?: string | null; playlistChannel?: string | null } = {}) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => new Response(JSON.stringify({ ...base, ...video }), { status: 200 })),
@@ -34,7 +34,7 @@ function renderWith(video: Partial<VideoDetail>) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <VideoAbout videoId="vid1" />
+      <VideoAbout videoId="vid1" {...props} />
     </QueryClientProvider>,
   )
 }
@@ -102,5 +102,25 @@ describe('VideoAbout (YC-5)', () => {
     renderWith({})
     await screen.findByRole('region', { name: 'À propos de la vidéo' })
     expect(screen.queryByRole('button', { name: 'Afficher plus' })).toBeNull()
+  })
+
+  it('shows the playlist author\'s note and who wrote it (YC-14)', async () => {
+    renderWith({}, { creatorNote: 'Revois la vidéo 3 avant celle-ci.', playlistChannel: 'JavaScript Mastery' })
+    const note = await screen.findByText('Revois la vidéo 3 avant celle-ci.')
+    const figure = note.closest('figure') as HTMLElement
+    expect(text(figure)).toContain('Note de la playlist · JavaScript Mastery')
+  })
+
+  it('hides the note block when the author left no note', async () => {
+    renderWith({}, { creatorNote: '   ', playlistChannel: 'JavaScript Mastery' })
+    await screen.findByRole('region', { name: 'À propos de la vidéo' })
+    expect(screen.queryByText(/Note de la playlist/)).toBeNull()
+  })
+
+  it('shows the note without a channel when the playlist channel is unknown', async () => {
+    renderWith({}, { creatorNote: 'Commence ici.', playlistChannel: null })
+    const figure = (await screen.findByText('Commence ici.')).closest('figure') as HTMLElement
+    expect(text(figure)).toContain('Note de la playlist')
+    expect(text(figure)).not.toContain('·')
   })
 })
