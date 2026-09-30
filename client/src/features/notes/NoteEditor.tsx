@@ -1,27 +1,50 @@
 import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import rehypeSanitize from 'rehype-sanitize'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import { Placeholder } from '@tiptap/extensions'
+import { EMPTY_DOC, type NoteData, type NoteDoc } from '@/features/notes/noteDoc'
+import './note-editor.css'
+
+export type { NoteData } from '@/features/notes/noteDoc'
 
 const AUTOSAVE_DELAY = 1000
 type Mode = 'edit' | 'preview'
 
-export interface NoteData {
-  content: string
-  updatedAt: string
+/** Only what opens a web page or a mail client, like the server (server/src/lib/noteDoc.ts). */
+function isSafeHref(url: string): boolean {
+  try {
+    return ['http:', 'https:', 'mailto:'].includes(new URL(url).protocol)
+  } catch {
+    return false
+  }
 }
+
+/**
+ * The editor may only produce what the server accepts, or a save would fail: code blocks and
+ * rules come with later tickets (YC-44), headings stop at level 3, links are http(s) or mailto.
+ */
+const EXTENSIONS = [
+  StarterKit.configure({
+    heading: { levels: [1, 2, 3] },
+    codeBlock: false,
+    horizontalRule: false,
+    link: { openOnClick: false, autolink: true, defaultProtocol: 'https', isAllowedUri: (url) => isSafeHref(url) },
+  }),
+  Placeholder.configure({ placeholder: 'Écris tes notes… (# titre, - liste, **gras**, `code`)' }),
+]
 
 interface NoteEditorProps {
   /** Titre du panneau (distingue note de vidéo / de playlist). */
   title: string
   /** Emoji/icône optionnelle devant le titre (distinction visuelle). */
   icon?: string
-  /** Label accessible du textarea. */
-  textareaLabel: string
+  /** Label accessible de la zone d'écriture. */
+  editorLabel: string
   /** Note chargée (null si aucune, undefined si en cours de chargement). */
   note: NoteData | null | undefined
   isLoading: boolean
-  /** Sauvegarde le contenu (déclenché par l'autosave). */
-  onSave: (content: string) => void
+  /** Sauvegarde le document (déclenché par l'autosave). */
+  onSave: (doc: NoteDoc) => void
   isSaving: boolean
   /** Change quand la cible change (videoId / playlistId) → ré-amorce le brouillon. */
   resetKey: string
@@ -35,42 +58,50 @@ function formatTime(iso: string | undefined): string {
 }
 
 /**
- * Éditeur de note Markdown réutilisable : édition + autosave (debounce) + aperçu assaini.
- * Utilisé pour les notes de vidéo (CS-16/17) et de playlist (CS-49).
+ * Éditeur de note riche (YC-40, TipTap) : écriture, autosave (debounce) et lecture seule.
+ * Utilisé pour les notes de vidéo et de playlist. La page suit la maquette « Éditeur de notes ».
  */
-export function NoteEditor({ title, icon, textareaLabel, note, isLoading, onSave, isSaving, resetKey }: NoteEditorProps) {
-  const [draft, setDraft] = useState('')
-  const [dirty, setDirty] = useState(false)
+export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey }: NoteEditorProps) {
+  const [draft, setDraft] = useState<NoteDoc | null>(null)
   const [mode, setMode] = useState<Mode>('edit')
-  const seededFor = useRef<string | null>(null)
+  // Which editor instance was seeded for which target: useEditor may destroy and recreate its
+  // instance (Suspense, remounts), and a new instance must be seeded again or it stays empty.
+  const seeded = useRef<{ editor: unknown; key: string } | null>(null)
 
-  // Amorce le brouillon quand la note de CETTE cible est chargée (une fois par cible).
+  const editor = useEditor({
+    extensions: EXTENSIONS,
+    content: EMPTY_DOC,
+    editorProps: { attributes: { 'aria-label': editorLabel, 'aria-multiline': 'true', role: 'textbox' } },
+    onUpdate: ({ editor }) => setDraft(editor.getJSON() as NoteDoc),
+  })
+
+  // Amorce l'éditeur quand la note de CETTE cible est chargée (une fois par cible et par instance).
   useEffect(() => {
-    if (note !== undefined && seededFor.current !== resetKey) {
-      setDraft(note?.content ?? '')
-      seededFor.current = resetKey
-      setDirty(false)
-    }
-  }, [note, resetKey])
+    if (!editor || editor.isDestroyed || note === undefined) return
+    if (seeded.current?.editor === editor && seeded.current.key === resetKey) return
+    editor.commands.setContent(note?.doc ?? EMPTY_DOC, { emitUpdate: false })
+    seeded.current = { editor, key: resetKey }
+    setDraft(null)
+  }, [editor, note, resetKey])
+
+  // setEditable emits an update by default, which would save a note merely opened (write on
+  // read): toggling edition never changes the document, so no update is emitted.
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) editor.setEditable(mode === 'edit' && !isLoading, false)
+  }, [editor, mode, isLoading])
 
   // Sauvegarde automatique après 1 s sans frappe.
   useEffect(() => {
-    if (!dirty) return
+    if (!draft) return
     const timer = setTimeout(() => {
       onSave(draft)
-      setDirty(false)
+      setDraft(null)
     }, AUTOSAVE_DELAY)
     return () => clearTimeout(timer)
-  }, [draft, dirty, onSave])
+  }, [draft, onSave])
 
   const savedTime = formatTime(note?.updatedAt)
-  const status = isSaving
-    ? 'Enregistrement…'
-    : dirty
-      ? 'Modifié'
-      : savedTime
-        ? `Enregistré à ${savedTime}`
-        : ''
+  const status = isSaving ? 'Enregistrement…' : draft ? 'Modifié' : savedTime ? `Enregistré à ${savedTime}` : ''
 
   const tab = (m: Mode, label: string) => (
     <button
@@ -103,27 +134,11 @@ export function NoteEditor({ title, icon, textareaLabel, note, isLoading, onSave
         </div>
       </div>
 
-      {mode === 'edit' ? (
-        <textarea
-          aria-label={textareaLabel}
-          value={draft}
-          disabled={isLoading}
-          onChange={(e) => {
-            setDraft(e.target.value)
-            setDirty(true)
-          }}
-          placeholder="Écris tes notes en Markdown…"
-          className="mt-3 h-48 w-full resize-y rounded-lg border border-line bg-surface p-3 font-mono text-sm text-content outline-none transition focus:border-brand-purple"
-        />
-      ) : draft.trim() ? (
-        <div className="yc-md mt-3 min-h-48 rounded-lg border border-line bg-surface p-3">
-          <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{draft}</ReactMarkdown>
+      <div className="yc-note mt-3">
+        <div className="yc-note-page">
+          <EditorContent editor={editor} />
         </div>
-      ) : (
-        <p className="mt-3 min-h-48 rounded-lg border border-line bg-surface p-3 text-sm text-content-muted">
-          Rien à afficher — écris une note dans l'onglet « Éditer ».
-        </p>
-      )}
+      </div>
     </section>
   )
 }

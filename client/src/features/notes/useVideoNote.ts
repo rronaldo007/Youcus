@@ -1,16 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import type { NoteData, NoteDoc } from '@/features/notes/noteDoc'
 
-export interface VideoNote {
-  content: string
-  updatedAt: string
-}
 
-/** Note Markdown de l'utilisateur pour une vidéo (null si aucune). */
+/** Note de l'utilisateur pour une vidéo (null si aucune). */
 export function useVideoNote(videoId: string) {
   return useQuery({
     queryKey: ['notes', 'video', videoId],
-    queryFn: () => apiFetch<VideoNote | null>(`/videos/${videoId}/note`),
+    queryFn: () => apiFetch<NoteData | null>(`/videos/${videoId}/note`),
     // Le brouillon local fait autorité pendant l'édition : pas de refetch intempestif.
     staleTime: Infinity,
     retry: false,
@@ -21,10 +18,10 @@ export function useVideoNote(videoId: string) {
 export function useSaveVideoNote(videoId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (content: string) =>
-      apiFetch<VideoNote>(`/videos/${videoId}/note`, {
+    mutationFn: (doc: NoteDoc) =>
+      apiFetch<NoteData>(`/videos/${videoId}/note`, {
         method: 'PUT',
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ doc }),
       }),
     onSuccess: (note) => {
       queryClient.setQueryData(['notes', 'video', videoId], note)

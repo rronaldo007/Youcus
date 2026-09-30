@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
-import type { NoteData } from '@/features/notes/NoteEditor'
+import type { NoteData, NoteDoc } from '@/features/notes/noteDoc'
 
-/** Note Markdown de l'utilisateur pour une playlist (null si aucune). */
+/** Note de l'utilisateur pour une playlist (null si aucune). */
 export function usePlaylistNote(playlistId: string) {
   return useQuery({
     queryKey: ['notes', 'playlist', playlistId],
@@ -16,10 +16,10 @@ export function usePlaylistNote(playlistId: string) {
 export function useSavePlaylistNote(playlistId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (content: string) =>
+    mutationFn: (doc: NoteDoc) =>
       apiFetch<NoteData>(`/playlists/${playlistId}/note`, {
         method: 'PUT',
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ doc }),
       }),
     onSuccess: (note) => {
       queryClient.setQueryData(['notes', 'playlist', playlistId], note)

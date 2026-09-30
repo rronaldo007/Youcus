@@ -1,6 +1,13 @@
 model Note {
   id         String    @id @default(cuid())
+  // Plain text of `doc` (export, search). Holds the Markdown of a note never saved since YC-40.
   content    String    @db.Text
+  // Rich-editor document (TipTap / ProseMirror JSON), YC-40. Null until the note is saved again:
+  // legacy Markdown notes are converted on read.
+  doc        Json?
+  // The original Markdown of a note written before the rich editor, copied on its first rich
+  // save and never touched again: an archive in case the conversion missed something (YC-40).
+  legacyMarkdown String? @db.Text
   author     User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId   String
   video      Video?    @relation(fields: [videoId], references: [id], onDelete: Cascade)

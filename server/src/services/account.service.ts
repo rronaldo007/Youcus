@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
+import { markdownToDoc } from '@/lib/markdownToDoc'
+import type { NoteDoc } from '@/lib/noteDoc'
 
 /** Données personnelles exportées (RGPD) — sans les jetons OAuth (sensibles). */
 export interface AccountExport {
@@ -19,7 +21,8 @@ export interface AccountExport {
     videos: { youtubeId: string; title: string; position: number }[]
   }[]
   progress: { videoId: string; completed: boolean; watchedSeconds: number }[]
-  notes: { videoId: string | null; playlistId: string | null; content: string; updatedAt: Date }[]
+  // `doc` is the rich-editor document (YC-40); `content` its plain text, or the legacy Markdown.
+  notes: { videoId: string | null; playlistId: string | null; content: string; doc: NoteDoc; legacyMarkdown: string | null; updatedAt: Date }[]
 }
 
 /**
@@ -70,6 +73,8 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       videoId: n.videoId,
       playlistId: n.playlistId,
       content: n.content,
+      doc: n.doc ? (n.doc as unknown as NoteDoc) : markdownToDoc(n.content),
+      legacyMarkdown: n.legacyMarkdown,
       updatedAt: n.updatedAt,
     })),
   }
