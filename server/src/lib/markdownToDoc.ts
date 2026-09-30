@@ -60,8 +60,10 @@ function block(token: Token): NoteNode[] {
     }
     case 'html':
       return [{ type: 'paragraph', ...textContent((token as Tokens.HTML).text.trim()) }]
+    case 'hr':
+      return [{ type: 'horizontalRule' }]
     default:
-      // space, hr, def: nothing to keep.
+      // space, def: nothing to keep.
       return []
   }
 }

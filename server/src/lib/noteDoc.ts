@@ -60,9 +60,11 @@ const heading = z.object({
   content: z.array(inline).optional(),
 })
 
+const horizontalRule = z.object({ type: z.literal('horizontalRule') })
+
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
 const block: z.ZodType<NoteNode> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, horizontalRule]),
 )
 const listItem = z.object({ type: z.literal('listItem'), content: z.array(block).min(1) })
 const blockquote = z.object({ type: z.literal('blockquote'), content: z.array(block).min(1) })

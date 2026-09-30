@@ -52,6 +52,14 @@ describe('markdownToDoc (YC-40)', () => {
     expect(json).toContain('{"type":"heading","attrs":{"level":3}')
   })
 
+  it('keeps a thematic break as a horizontal rule (YC-41)', () => {
+    expect(markdownToDoc('avant\n\n***\n\naprès').content).toEqual([
+      { type: 'paragraph', content: [{ type: 'text', text: 'avant' }] },
+      { type: 'horizontalRule' },
+      { type: 'paragraph', content: [{ type: 'text', text: 'après' }] },
+    ])
+  })
+
   it('never keeps an unsafe link, but keeps its text', () => {
     const json = JSON.stringify(doc)
     expect(json).not.toContain('javascript:')

@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { EditorContent, Extension, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extensions'
-import { EMPTY_DOC, type NoteData, type NoteDoc } from '@/features/notes/noteDoc'
+import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
+import { LinkField } from '@/features/notes/LinkField'
+import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc } from '@/features/notes/noteDoc'
 import './note-editor.css'
 
 export type { NoteData } from '@/features/notes/noteDoc'
@@ -10,28 +12,30 @@ export type { NoteData } from '@/features/notes/noteDoc'
 const AUTOSAVE_DELAY = 1000
 type Mode = 'edit' | 'preview'
 
-/** Only what opens a web page or a mail client, like the server (server/src/lib/noteDoc.ts). */
-function isSafeHref(url: string): boolean {
-  try {
-    return ['http:', 'https:', 'mailto:'].includes(new URL(url).protocol)
-  } catch {
-    return false
-  }
-}
-
 /**
- * The editor may only produce what the server accepts, or a save would fail: code blocks and
- * rules come with later tickets (YC-44), headings stop at level 3, links are http(s) or mailto.
+ * The editor may only produce what the server accepts, or a save would fail: code blocks come
+ * with YC-44, headings stop at level 3, links are http(s) or mailto. Ctrl+K calls `openLink`
+ * through a ref, so the extensions are built once per editor.
  */
-const EXTENSIONS = [
-  StarterKit.configure({
-    heading: { levels: [1, 2, 3] },
-    codeBlock: false,
-    horizontalRule: false,
-    link: { openOnClick: false, autolink: true, defaultProtocol: 'https', isAllowedUri: (url) => isSafeHref(url) },
-  }),
-  Placeholder.configure({ placeholder: 'Écris tes notes… (# titre, - liste, **gras**, `code`)' }),
-]
+function buildExtensions(openLink: { current: () => void }) {
+  return [
+    StarterKit.configure({
+      heading: { levels: [1, 2, 3] },
+      codeBlock: false,
+      link: { openOnClick: false, autolink: true, defaultProtocol: 'https', isAllowedUri: (url) => isSafeHref(url) },
+    }),
+    Placeholder.configure({ placeholder: 'Écris tes notes… (# titre, - liste, **gras**, `code`)' }),
+    Extension.create({
+      name: 'linkShortcut',
+      addKeyboardShortcuts: () => ({
+        'Mod-k': () => {
+          openLink.current()
+          return true
+        },
+      }),
+    }),
+  ]
+}
 
 interface NoteEditorProps {
   /** Titre du panneau (distingue note de vidéo / de playlist). */
@@ -58,7 +62,8 @@ function formatTime(iso: string | undefined): string {
 }
 
 /**
- * Éditeur de note riche (YC-40, TipTap) : écriture, autosave (debounce) et lecture seule.
+ * Éditeur de note riche (YC-40, TipTap) : écriture, barre de mise en forme (YC-41), autosave
+ * (debounce) et lecture seule.
  * Utilisé pour les notes de vidéo et de playlist. La page suit la maquette « Éditeur de notes ».
  */
 export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey }: NoteEditorProps) {
@@ -67,9 +72,12 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
   // Which editor instance was seeded for which target: useEditor may destroy and recreate its
   // instance (Suspense, remounts), and a new instance must be seeded again or it stays empty.
   const seeded = useRef<{ editor: unknown; key: string } | null>(null)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const openLink = useRef(() => setLinkOpen(true))
+  const extensions = useMemo(() => buildExtensions(openLink), [])
 
   const editor = useEditor({
-    extensions: EXTENSIONS,
+    extensions,
     content: EMPTY_DOC,
     editorProps: { attributes: { 'aria-label': editorLabel, 'aria-multiline': 'true', role: 'textbox' } },
     onUpdate: ({ editor }) => setDraft(editor.getJSON() as NoteDoc),
@@ -79,7 +87,9 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
   useEffect(() => {
     if (!editor || editor.isDestroyed || note === undefined) return
     if (seeded.current?.editor === editor && seeded.current.key === resetKey) return
-    editor.commands.setContent(note?.doc ?? EMPTY_DOC, { emitUpdate: false })
+    // Out of the history too: loading a note is not an edit the user can undo (the « Annuler »
+    // tool was enabled on a note just opened, found by the YC-41 tests).
+    editor.chain().setMeta('addToHistory', false).setContent(note?.doc ?? EMPTY_DOC, { emitUpdate: false }).run()
     seeded.current = { editor, key: resetKey }
     setDraft(null)
   }, [editor, note, resetKey])
@@ -135,6 +145,12 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
       </div>
 
       <div className="yc-note mt-3">
+        {editor && mode === 'edit' && (
+          <div className="yc-note-tools">
+            <FormattingToolbar editor={editor} onLink={() => setLinkOpen(true)} />
+            {linkOpen && <LinkField editor={editor} onClose={() => setLinkOpen(false)} />}
+          </div>
+        )}
         <div className="yc-note-page">
           <EditorContent editor={editor} />
         </div>

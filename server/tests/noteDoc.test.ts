@@ -26,6 +26,11 @@ describe('parseNoteDoc (YC-40)', () => {
     expect(parseNoteDoc({ type: 'doc', content: [{ type: 'heading', attrs: { level: 1 }, content: [t('T')] }, { type: 'paragraph' }] })).toMatchObject({ ok: true })
   })
 
+  it('accepts a horizontal rule (YC-41) and keeps nothing but its type', () => {
+    const res = parseNoteDoc({ type: 'doc', content: [p(t('avant')), { type: 'horizontalRule', attrs: { style: 'x' } }, p(t('après'))] })
+    expect(res.ok && res.doc.content[1]).toEqual({ type: 'horizontalRule' })
+  })
+
   it.each([
     ['a script node', { type: 'doc', content: [{ type: 'script', text: 'alert(1)' }] }],
     ['a javascript: link', { type: 'doc', content: [p(t('x', [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }]))] }],
