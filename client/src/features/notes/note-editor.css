@@ -42,6 +42,13 @@
   --note-highlight-orange: #f8d8b6;
   --note-highlight-violet: #e2d7f2;
   --note-highlight-gris: #e4ddcf;
+  /* Paper tints and the margin rule (YC-45), Figma « note/paper/* » and « notebook/margin ». */
+  --note-paper-creme: #fffdf8;
+  --note-paper-blanc: #ffffff;
+  --note-paper-sepia: #f4ecd8;
+  --note-paper-bleu: #eef3f8;
+  --note-paper-vert: #eff4ec;
+  --note-margin: #e2a597;
 }
 
 .dark .yc-note {
@@ -67,21 +74,22 @@
   --note-highlight-orange: #5a3618;
   --note-highlight-violet: #3b2d5c;
   --note-highlight-gris: #3a3732;
+  --note-paper-creme: #1d1b18;
+  --note-paper-blanc: #1f1f1f;
+  --note-paper-sepia: #2a2419;
+  --note-paper-bleu: #1a2029;
+  --note-paper-vert: #1b221c;
+  --note-margin: #6b3a30;
 }
 
 .yc-note-page {
+  /* The paper (YC-45) is drawn from a step and an offset: the page uses the 32 px step, the
+     previews of the Page menu the same drawing at 10 px. */
+  --S: var(--note-step);
+  --T: var(--note-top);
+  position: relative;
   border: 1px solid var(--note-border);
   border-radius: 12px;
-  background-color: var(--note-paper);
-  /* « Lignes » paper: one rule every step, drawn in CSS only (no image). */
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(var(--note-step) - 1px),
-    var(--note-rule) calc(var(--note-step) - 1px),
-    var(--note-rule) var(--note-step)
-  );
-  background-position: 0 var(--note-top);
   color: var(--note-ink);
   font-family: 'Hanken Grotesk', system-ui, sans-serif;
   font-size: 16px;
@@ -966,5 +974,253 @@
 @media (max-width: 480px) {
   .yc-code-body {
     font-size: 12px;
+  }
+}
+
+/* ---- Paper, tint and margin (YC-45), Figma « Papier de note » 37:1447 ---- */
+
+.yc-note [data-tint='creme'] {
+  --page-bg: var(--note-paper-creme);
+}
+
+.yc-note [data-tint='blanc'] {
+  --page-bg: var(--note-paper-blanc);
+}
+
+.yc-note [data-tint='sepia'] {
+  --page-bg: var(--note-paper-sepia);
+}
+
+.yc-note [data-tint='bleu'] {
+  --page-bg: var(--note-paper-bleu);
+}
+
+.yc-note [data-tint='vert'] {
+  --page-bg: var(--note-paper-vert);
+}
+
+[data-paper] {
+  background-color: var(--page-bg, var(--note-paper-creme));
+}
+
+/* The paper band above the first rule (Figma starts Lignes, Seyès and Points at 60 px): the
+   repeated pattern would otherwise draw one more row above the text. */
+[data-paper] {
+  --top-band: linear-gradient(var(--page-bg, var(--note-paper-creme)), var(--page-bg, var(--note-paper-creme)));
+  --top-band-size: 100% calc(var(--T) + 2px);
+}
+
+/* Lignes: one rule per step, the text on it. */
+[data-paper='lignes'] {
+  background-image:
+    var(--top-band),
+    linear-gradient(to bottom, transparent calc(var(--S) - 1px), var(--note-rule) calc(var(--S) - 1px));
+  background-size:
+    var(--top-band-size),
+    100% var(--S);
+  background-position:
+    0 0,
+    0 var(--T);
+  background-repeat: no-repeat, repeat;
+}
+
+/* Seyès: the same rules, three thin ones between them, and a column every step from the top. */
+[data-paper='seyes'] {
+  background-image:
+    linear-gradient(to right, var(--note-rule) 1px, transparent 1px),
+    var(--top-band),
+    linear-gradient(to bottom, transparent calc(var(--S) - 1px), var(--note-rule) calc(var(--S) - 1px)),
+    linear-gradient(to bottom, transparent calc(var(--S) / 4 - 1px), var(--note-rule) calc(var(--S) / 4 - 1px));
+  background-size:
+    var(--S) 100%,
+    var(--top-band-size),
+    100% var(--S),
+    100% calc(var(--S) / 4);
+  background-position:
+    0 0,
+    0 0,
+    0 var(--T),
+    0 var(--T);
+  background-repeat: repeat, no-repeat, repeat, repeat;
+}
+
+/* Carreaux: a square grid on the step, from the very top (37:776 has a row at 28 px). */
+[data-paper='carreaux'] {
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--S) - 1px), var(--note-rule) calc(var(--S) - 1px)),
+    linear-gradient(to right, var(--note-rule) 1px, transparent 1px);
+  background-size:
+    100% var(--S),
+    var(--S) 100%;
+  background-position:
+    0 var(--T),
+    0 0;
+}
+
+/* Points: a 3 px dot where the grid lines would cross. */
+[data-paper='points'] {
+  background-image:
+    var(--top-band),
+    radial-gradient(circle, var(--note-border) 1.5px, transparent 1.6px);
+  background-size:
+    var(--top-band-size),
+    var(--S) var(--S);
+  background-position:
+    0 0,
+    calc(var(--S) / -2) calc(var(--T) + var(--S) / 2);
+  background-repeat: no-repeat, repeat;
+}
+
+[data-paper='uni'] {
+  background-image: none;
+}
+
+/* The margin column: 96 px with its red rule, the text 21 px after it (34:217); 64 and 82 px
+   on a phone (34:809). */
+.yc-note-page {
+  --margin-x: 96px;
+  --margin-text: 117px;
+}
+
+@media (max-width: 480px) {
+  .yc-note-page {
+    --margin-x: 64px;
+    --margin-text: 82px;
+  }
+}
+
+.yc-note-page[data-margin='true']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--margin-x);
+  width: 1px;
+  background: var(--note-margin);
+  pointer-events: none;
+}
+
+.yc-note-page[data-margin='true'] .tiptap {
+  padding-left: var(--margin-text);
+}
+
+/* Page menu (38:707). */
+.yc-menu-page {
+  width: 368px;
+}
+
+.yc-papers {
+  display: flex;
+  gap: 6px;
+  padding-left: 2px;
+}
+
+.yc-paper-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 64px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--note-ink-muted);
+  cursor: pointer;
+}
+
+.yc-paper-choice[aria-checked='true'] {
+  color: var(--note-ink);
+}
+
+.yc-paper-preview {
+  --S: 10px;
+  --T: -1px;
+  display: block;
+  width: 60px;
+  height: 52px;
+  border: 1px solid var(--note-border);
+  border-radius: 6px;
+}
+
+.yc-paper-choice[aria-checked='true'] .yc-paper-preview {
+  border: 2px solid var(--note-ink);
+}
+
+.yc-paper-choice:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-paper-name {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.yc-tint-dot {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--note-ink);
+  background: var(--page-bg);
+}
+
+/* A switch shown as in the « Interrupteur » component (90:53): track 44 × 26. */
+.yc-menu-switch {
+  justify-content: space-between;
+}
+
+/* The switch shows the state (38:707): no checked background on its row. */
+.yc-menu-item.yc-menu-switch[aria-checked='true'] {
+  background: transparent;
+}
+
+.yc-menu-item.yc-menu-switch:hover {
+  background: var(--note-sunken);
+}
+
+.yc-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--note-border);
+  transition: background-color 0.15s;
+}
+
+.yc-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--note-paper);
+  transition: transform 0.15s;
+}
+
+[aria-checked='true'] > .yc-switch {
+  background: var(--note-ink);
+}
+
+[aria-checked='true'] > .yc-switch::after {
+  transform: translateX(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-switch,
+  .yc-switch::after {
+    transition: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .yc-menu-page {
+    width: min(368px, calc(100vw - 32px));
+  }
+
+  .yc-papers {
+    flex-wrap: wrap;
   }
 }

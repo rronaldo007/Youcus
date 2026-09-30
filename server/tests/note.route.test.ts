@@ -47,6 +47,32 @@ describe('PUT /api/videos/:videoId/note (YC-40)', () => {
     expect(upsert).not.toHaveBeenCalled()
   })
 
+  it('stores the page sent with the document, and returns it (YC-45)', async () => {
+    const page = { paper: 'seyes', tint: 'sepia', margin: false }
+    upsert.mockResolvedValue({ content: 'ok', doc, page, updatedAt: new Date('2026-09-30') })
+    const res = await request(await loadApp()).put('/api/videos/v1/note').set('Cookie', session()).send({ doc, page })
+    expect(res.status).toBe(200)
+    expect(res.body.page).toEqual(page)
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ update: { doc, content: 'ok', page } }))
+  })
+
+  it('keeps the stored page when only the document is sent (YC-45)', async () => {
+    await request(await loadApp()).put('/api/videos/v1/note').set('Cookie', session()).send({ doc })
+    expect(upsert.mock.calls[0][0].update).not.toHaveProperty('page')
+  })
+
+  it.each([
+    ['an unknown paper', { paper: 'papyrus', tint: 'creme', margin: true }],
+    ['a CSS tint', { paper: 'uni', tint: '#ff0000', margin: true }],
+    ['a missing key', { paper: 'uni', tint: 'creme' }],
+    ['an extra key', { paper: 'uni', tint: 'creme', margin: true, style: 'x' }],
+    ['a string', 'seyes'],
+  ])('refuses %s as page with 400 and stores nothing (YC-45)', async (_name, page) => {
+    const res = await request(await loadApp()).put('/api/videos/v1/note').set('Cookie', session()).send({ doc, page })
+    expect(res.status).toBe(400)
+    expect(upsert).not.toHaveBeenCalled()
+  })
+
   it('refuses the old Markdown body with 400', async () => {
     const res = await request(await loadApp()).put('/api/videos/v1/note').set('Cookie', session()).send({ content: '# note' })
     expect(res.status).toBe(400)

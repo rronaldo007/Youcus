@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
-import type { NoteData, NoteDoc } from '@/features/notes/noteDoc'
+import type { NoteData, NoteSave } from '@/features/notes/noteDoc'
 
 
 /** Note de l'utilisateur pour une vidéo (null si aucune). */
@@ -18,10 +18,10 @@ export function useVideoNote(videoId: string) {
 export function useSaveVideoNote(videoId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (doc: NoteDoc) =>
+    mutationFn: (payload: NoteSave) =>
       apiFetch<NoteData>(`/videos/${videoId}/note`, {
         method: 'PUT',
-        body: JSON.stringify({ doc }),
+        body: JSON.stringify(payload),
       }),
     onSuccess: (note) => {
       queryClient.setQueryData(['notes', 'video', videoId], note)

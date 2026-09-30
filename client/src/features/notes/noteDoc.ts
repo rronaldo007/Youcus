@@ -1,3 +1,5 @@
+import type { NotePage } from '@/features/notes/notePage'
+
 /**
  * Rich-editor note document (YC-40): TipTap / ProseMirror JSON. The server validates it and
  * only keeps the nodes and marks the editor offers (see server/src/lib/noteDoc.ts).
@@ -19,7 +21,15 @@ export const EMPTY_DOC: NoteDoc = { type: 'doc', content: [] }
 
 export interface NoteData {
   doc: NoteDoc
+  /** Paper, tint and margin (YC-45); null = never chosen, the defaults apply. */
+  page?: NotePage | null
   updatedAt: string
+}
+
+/** What an autosave sends: the document, and the page when it was changed. */
+export interface NoteSave {
+  doc: NoteDoc
+  page?: NotePage
 }
 
 /** Only what opens a web page or a mail client, like the server (server/src/lib/noteDoc.ts). */
