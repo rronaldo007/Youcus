@@ -11,6 +11,9 @@
 @import '@fontsource/instrument-serif/400.css';
 @import '@fontsource/instrument-serif/400-italic.css';
 @import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/lora/400.css';
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/caveat/400.css';
 
 .yc-note {
   --note-ink: #17150f;
@@ -23,6 +26,22 @@
   --note-step: 32px;
   --note-top: 28px;
   --note-shadow: 0 8px 12px rgba(23, 20, 15, 0.12);
+  /* Note colours (YC-42), Figma « note/text/* » and « note/highlight/* », light mode. */
+  --note-text-encre: #17150f;
+  --note-text-gris: #5a554a;
+  --note-text-rouge: #b0311c;
+  --note-text-orange: #8f4709;
+  --note-text-vert: #1e6e40;
+  --note-text-bleu: #1d4e89;
+  --note-text-violet: #5e3a94;
+  --note-text-prune: #8e2f5e;
+  --note-highlight-jaune: #f6de84;
+  --note-highlight-vert: #cde8c4;
+  --note-highlight-bleu: #cfe0f5;
+  --note-highlight-rose: #f5d2de;
+  --note-highlight-orange: #f8d8b6;
+  --note-highlight-violet: #e2d7f2;
+  --note-highlight-gris: #e4ddcf;
 }
 
 .dark .yc-note {
@@ -33,6 +52,21 @@
   --note-sunken: #262420;
   --note-border: #3a3732;
   --note-shadow: 0 8px 12px rgba(0, 0, 0, 0.4);
+  --note-text-encre: #ede8dd;
+  --note-text-gris: #a39d90;
+  --note-text-rouge: #f08a77;
+  --note-text-orange: #e39a55;
+  --note-text-vert: #6cc98a;
+  --note-text-bleu: #8ab4ea;
+  --note-text-violet: #b9a0e8;
+  --note-text-prune: #e488b4;
+  --note-highlight-jaune: #5a4a14;
+  --note-highlight-vert: #24452c;
+  --note-highlight-bleu: #1f3a5a;
+  --note-highlight-rose: #58253a;
+  --note-highlight-orange: #5a3618;
+  --note-highlight-violet: #3b2d5c;
+  --note-highlight-gris: #3a3732;
 }
 
 .yc-note-page {
@@ -423,4 +457,280 @@
 
 .dark .yc-link-error {
   color: #f08a73;
+}
+
+/* ---- Colours, highlight, fonts and sizes (YC-42): the note stores a name, the theme gives the value ---- */
+
+.yc-note [data-color='encre'],
+.yc-note [data-swatch-color='encre'] {
+  --swatch: var(--note-text-encre);
+}
+
+.yc-note [data-color='gris'],
+.yc-note [data-swatch-color='gris'] {
+  --swatch: var(--note-text-gris);
+}
+
+.yc-note [data-color='rouge'],
+.yc-note [data-swatch-color='rouge'] {
+  --swatch: var(--note-text-rouge);
+}
+
+.yc-note [data-color='orange'],
+.yc-note [data-swatch-color='orange'] {
+  --swatch: var(--note-text-orange);
+}
+
+.yc-note [data-color='vert'],
+.yc-note [data-swatch-color='vert'] {
+  --swatch: var(--note-text-vert);
+}
+
+.yc-note [data-color='bleu'],
+.yc-note [data-swatch-color='bleu'] {
+  --swatch: var(--note-text-bleu);
+}
+
+.yc-note [data-color='violet'],
+.yc-note [data-swatch-color='violet'] {
+  --swatch: var(--note-text-violet);
+}
+
+.yc-note [data-color='prune'],
+.yc-note [data-swatch-color='prune'] {
+  --swatch: var(--note-text-prune);
+}
+
+.yc-note [data-highlight='jaune'],
+.yc-note [data-swatch-highlight='jaune'] {
+  --swatch: var(--note-highlight-jaune);
+}
+
+.yc-note [data-highlight='vert'],
+.yc-note [data-swatch-highlight='vert'] {
+  --swatch: var(--note-highlight-vert);
+}
+
+.yc-note [data-highlight='bleu'],
+.yc-note [data-swatch-highlight='bleu'] {
+  --swatch: var(--note-highlight-bleu);
+}
+
+.yc-note [data-highlight='rose'],
+.yc-note [data-swatch-highlight='rose'] {
+  --swatch: var(--note-highlight-rose);
+}
+
+.yc-note [data-highlight='orange'],
+.yc-note [data-swatch-highlight='orange'] {
+  --swatch: var(--note-highlight-orange);
+}
+
+.yc-note [data-highlight='violet'],
+.yc-note [data-swatch-highlight='violet'] {
+  --swatch: var(--note-highlight-violet);
+}
+
+.yc-note [data-highlight='gris'],
+.yc-note [data-swatch-highlight='gris'] {
+  --swatch: var(--note-highlight-gris);
+}
+
+.yc-note-page [data-color] {
+  color: var(--swatch);
+}
+
+.yc-note-page mark[data-highlight] {
+  /* The text keeps its own colour on the highlight: ink stays at 7:1 or more in both themes. */
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--swatch);
+  color: inherit;
+}
+
+.yc-note [data-font='hanken'] {
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-note [data-font='instrument'] {
+  font-family: 'Instrument Serif', Georgia, serif;
+}
+
+.yc-note [data-font='lora'] {
+  font-family: 'Lora', Georgia, serif;
+}
+
+.yc-note [data-font='atkinson'] {
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+
+.yc-note [data-font='jetbrains'] {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-ligatures: none;
+}
+
+.yc-note [data-font='caveat'] {
+  font-family: 'Caveat', cursive;
+}
+
+.yc-note-page [data-size='12'] {
+  font-size: 12px;
+}
+
+.yc-note-page [data-size='14'] {
+  font-size: 14px;
+}
+
+.yc-note-page [data-size='16'] {
+  font-size: 16px;
+}
+
+.yc-note-page [data-size='18'] {
+  font-size: 18px;
+}
+
+.yc-note-page [data-size='20'] {
+  font-size: 20px;
+}
+
+.yc-note-page [data-size='24'] {
+  font-size: 24px;
+}
+
+.yc-note-page [data-size='28'] {
+  font-size: 28px;
+}
+
+.yc-note-page [data-size='32'] {
+  font-size: 32px;
+}
+
+/* Font menu (33:271): each name in its own font, at the size of the mockup. */
+.yc-menu [data-font-preview] {
+  font-size: 15px;
+}
+
+.yc-menu [data-font-preview][data-font='instrument'] {
+  font-size: 19px;
+}
+
+.yc-menu [data-font-preview][data-font='caveat'] {
+  font-size: 22px;
+}
+
+.yc-menu-hint {
+  color: var(--note-ink-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.yc-menu-rule {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--note-border);
+}
+
+.yc-menu-narrow {
+  width: 160px;
+}
+
+.yc-size-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 4px;
+}
+
+.yc-tool-outline {
+  border-color: var(--note-border);
+}
+
+.yc-glyph-step {
+  font-weight: 600;
+}
+
+.yc-size-value {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+}
+
+/* Colour tools (31:88): the bar under the icon shows the colour one click applies. */
+.yc-color-tool {
+  display: flex;
+  align-items: center;
+}
+
+.yc-tool-color {
+  padding: 0 4px 0 8px;
+}
+
+.yc-tool-chevron {
+  min-width: 28px;
+  padding: 0 4px;
+}
+
+.yc-color-pastille {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.yc-color-bar {
+  width: 20px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--swatch);
+}
+
+/* Colours menu (33:207). */
+.yc-menu-colors {
+  width: 368px;
+}
+
+.yc-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.yc-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.yc-swatch-dot {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.yc-swatch[aria-checked='true'] {
+  box-shadow: inset 0 0 0 2px var(--note-ink);
+}
+
+.yc-swatch:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-swatch-none {
+  border: 1.5px solid var(--note-ink);
+  background: linear-gradient(135deg, transparent calc(50% - 1px), var(--note-ink) calc(50% - 1px), var(--note-ink) calc(50% + 1px), transparent calc(50% + 1px));
+}
+
+@media (max-width: 420px) {
+  .yc-menu-colors {
+    width: min(368px, calc(100vw - 32px));
+  }
 }

@@ -11,9 +11,23 @@ import { z } from 'zod'
 export const MAX_DOC_CHARS = 200_000
 export const MAX_DOC_DEPTH = 20
 
+/**
+ * Colours, highlights, fonts and sizes (YC-42): a note stores their NAME, never a CSS value, so
+ * the client can give each name a light and a dark value. Same lists as
+ * client/src/features/notes/noteMarks.ts.
+ */
+export const TEXT_COLORS = ['encre', 'gris', 'rouge', 'orange', 'vert', 'bleu', 'violet', 'prune'] as const
+export const HIGHLIGHTS = ['jaune', 'vert', 'bleu', 'rose', 'orange', 'violet', 'gris'] as const
+export const FONTS = ['hanken', 'instrument', 'lora', 'atkinson', 'jetbrains', 'caveat'] as const
+export const SIZES = [12, 14, 16, 18, 20, 24, 28, 32] as const
+
 export type NoteMark =
   | { type: 'bold' | 'italic' | 'underline' | 'strike' | 'code' }
   | { type: 'link'; attrs: { href: string } }
+  | { type: 'textColor'; attrs: { color: (typeof TEXT_COLORS)[number] } }
+  | { type: 'highlight'; attrs: { color: (typeof HIGHLIGHTS)[number] } }
+  | { type: 'textFont'; attrs: { font: (typeof FONTS)[number] } }
+  | { type: 'textSize'; attrs: { size: (typeof SIZES)[number] } }
 
 export type NoteNode = {
   type: string
@@ -43,7 +57,16 @@ const linkMark = z.object({
   type: z.literal('link'),
   attrs: z.object({ href: z.string().max(2000).refine(isSafeHref, 'Lien non autorisé') }),
 })
-const markSchema = z.union([simpleMark, linkMark])
+const textColorMark = z.object({ type: z.literal('textColor'), attrs: z.object({ color: z.enum(TEXT_COLORS) }) })
+const highlightMark = z.object({ type: z.literal('highlight'), attrs: z.object({ color: z.enum(HIGHLIGHTS) }) })
+const textFontMark = z.object({ type: z.literal('textFont'), attrs: z.object({ font: z.enum(FONTS) }) })
+const textSizeMark = z.object({
+  type: z.literal('textSize'),
+  attrs: z.object({
+    size: z.union([z.literal(12), z.literal(14), z.literal(16), z.literal(18), z.literal(20), z.literal(24), z.literal(28), z.literal(32)]),
+  }),
+})
+const markSchema = z.union([simpleMark, linkMark, textColorMark, highlightMark, textFontMark, textSizeMark])
 
 const textNode = z.object({
   type: z.literal('text'),

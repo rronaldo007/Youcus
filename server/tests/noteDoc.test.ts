@@ -31,6 +31,28 @@ describe('parseNoteDoc (YC-40)', () => {
     expect(res.ok && res.doc.content[1]).toEqual({ type: 'horizontalRule' })
   })
 
+  it('accepts colours, highlight, font and size by name (YC-42)', () => {
+    const marks = [
+      { type: 'textColor', attrs: { color: 'rouge' } },
+      { type: 'highlight', attrs: { color: 'jaune' } },
+      { type: 'textFont', attrs: { font: 'lora' } },
+      { type: 'textSize', attrs: { size: 18 } },
+    ]
+    const res = parseNoteDoc({ type: 'doc', content: [p(t('coloré', marks))] })
+    expect(res.ok && res.doc.content[0]).toEqual(p(t('coloré', marks)))
+  })
+
+  it.each([
+    ['a hex colour', { type: 'textColor', attrs: { color: '#b0311c' } }],
+    ['an unknown colour name', { type: 'textColor', attrs: { color: 'fuchsia' } }],
+    ['a CSS highlight', { type: 'highlight', attrs: { color: 'rgb(255,0,0)' } }],
+    ['an unknown font', { type: 'textFont', attrs: { font: 'Comic Sans MS' } }],
+    ['a size off the list', { type: 'textSize', attrs: { size: 13 } }],
+    ['a size as a CSS string', { type: 'textSize', attrs: { size: '18px' } }],
+  ])('refuses %s (YC-42)', (_name, mark) => {
+    expect(parseNoteDoc({ type: 'doc', content: [p(t('x', [mark]))] })).toMatchObject({ ok: false, status: 400 })
+  })
+
   it.each([
     ['a script node', { type: 'doc', content: [{ type: 'script', text: 'alert(1)' }] }],
     ['a javascript: link', { type: 'doc', content: [p(t('x', [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }]))] }],

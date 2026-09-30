@@ -15,9 +15,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
     "@fontsource/hanken-grotesk": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/lora": "^5.3.0",
     "@tanstack/react-query": "^5.59.0",
     "@tiptap/extensions": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
