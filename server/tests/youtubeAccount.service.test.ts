@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import { refreshAccessToken } from '@/lib/googleOAuth'
 import { listMyPlaylists as ytListMyPlaylists } from '@/lib/youtube'
-import { getValidAccessToken, listMyPlaylists } from '@/services/youtubeAccount.service'
+import { listMyPlaylists } from '@/services/youtubeAccount.service'
+import { getValidAccessToken } from '@/services/youtubeToken.service'
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {

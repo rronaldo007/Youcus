@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/prisma'
-import { HttpError } from '@/middleware/errorHandler'
-import { refreshAccessToken } from '@/lib/googleOAuth'
 import { listMyPlaylists as ytListMyPlaylists } from '@/lib/youtube'
 import { importPlaylist } from '@/services/playlist.service'
+import { getValidAccessToken } from '@/services/youtubeToken.service'
 
 export interface MyPlaylistItem {
   youtubeId: string
@@ -10,40 +9,6 @@ export interface MyPlaylistItem {
   thumbnailUrl: string | null
   videoCount: number
   alreadyImported: boolean
-}
-
-/**
- * Renvoie un jeton d'accès YouTube valide pour l'utilisateur,
- * en le rafraîchissant si nécessaire. 403 si le compte n'est pas (ou plus) connecté à YouTube.
- */
-export async function getValidAccessToken(userId: string): Promise<string> {
-  const user = await prisma.user.findUnique({ where: { id: userId } })
-  if (!user?.ytAccessToken) {
-    throw new HttpError(403, 'Connectez votre compte YouTube (reconnexion requise)')
-  }
-
-  const expiresAt = user.ytTokenExpiry?.getTime() ?? 0
-  // Marge de 60 s pour éviter d'utiliser un jeton sur le point d'expirer.
-  if (expiresAt - Date.now() > 60_000) return user.ytAccessToken
-
-  // Jeton mort (pas de refresh token, ou refus de Google : révoqué, ou expiré au bout de 7 jours
-  // quand l'app OAuth est en « Testing ») : on l'efface et on répond 403, pour que le client
-  // propose de reconnecter YouTube. Le 401 reste réservé à l'absence de session Youcus.
-  const refreshed = user.ytRefreshToken
-    ? await refreshAccessToken(user.ytRefreshToken).catch(() => null)
-    : null
-  if (!refreshed) {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null },
-    })
-    throw new HttpError(403, 'Accès YouTube expiré, reconnectez votre compte YouTube')
-  }
-  await prisma.user.update({
-    where: { id: userId },
-    data: { ytAccessToken: refreshed.accessToken, ytTokenExpiry: refreshed.expiresAt },
-  })
-  return refreshed.accessToken
 }
 
 /** Liste les playlists du compte YouTube de l'utilisateur, en marquant les déjà importées. */
