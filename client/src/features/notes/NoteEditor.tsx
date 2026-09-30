@@ -5,6 +5,7 @@ import { Placeholder } from '@tiptap/extensions'
 import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
 import { LinkField } from '@/features/notes/LinkField'
 import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc } from '@/features/notes/noteDoc'
+import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/features/notes/noteMarks'
 import './note-editor.css'
 
 export type { NoteData } from '@/features/notes/noteDoc'
@@ -25,6 +26,11 @@ function buildExtensions(openLink: { current: () => void }) {
       link: { openOnClick: false, autolink: true, defaultProtocol: 'https', isAllowedUri: (url) => isSafeHref(url) },
     }),
     Placeholder.configure({ placeholder: 'Écris tes notes… (# titre, - liste, **gras**, `code`)' }),
+    // Colours, highlight, font and size store a name, never a CSS value (YC-42).
+    TextColorMark,
+    HighlightMark,
+    TextFontMark,
+    TextSizeMark,
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({

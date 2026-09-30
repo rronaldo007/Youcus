@@ -263,6 +263,103 @@ describe('FormattingToolbar (YC-41)', () => {
     })
   })
 
+  describe('colours, fonts and sizes (YC-42)', () => {
+    const marksOf = (editor: Editor) => editor.getJSON().content?.[0].content?.[0].marks ?? []
+
+    it('the palette offers 8 text colours and none + 7 highlights, and stores a name', async () => {
+      const { editor } = await readyEditor()
+      fireEvent.click(screen.getByRole('button', { name: 'Choisir la couleur du texte' }))
+      const menu = screen.getByRole('menu', { name: 'Couleurs' })
+      const names = within(menu).getAllByRole('menuitemradio').map((i) => i.getAttribute('aria-label'))
+      expect(names).toEqual([
+        'Texte encre', 'Texte gris', 'Texte rouge', 'Texte orange', 'Texte vert', 'Texte bleu', 'Texte violet', 'Texte prune',
+        'Aucun surlignage', 'Surlignage jaune', 'Surlignage vert', 'Surlignage bleu', 'Surlignage rose', 'Surlignage orange', 'Surlignage violet', 'Surlignage gris',
+      ])
+      expect(within(menu).getByRole('menuitemradio', { name: 'Texte encre' })).toHaveFocus()
+      fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Texte prune' }))
+      expect(marksOf(editor)).toEqual([{ type: 'textColor', attrs: { color: 'prune' } }])
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(editor.getHTML()).toContain('data-color="prune"')
+    })
+
+    it('one click reapplies the last colour, and « encre » takes the colour off', async () => {
+      const { editor } = await readyEditor()
+      expect(screen.getByRole('button', { name: 'Couleur du texte : rouge' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Choisir la couleur du texte' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Texte bleu' }))
+      const apply = await screen.findByRole('button', { name: 'Couleur du texte : bleu' })
+      fireEvent.click(screen.getByRole('button', { name: 'Choisir la couleur du texte' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Texte encre' }))
+      expect(marksOf(editor)).toEqual([])
+      fireEvent.click(apply)
+      expect(marksOf(editor)).toEqual([{ type: 'textColor', attrs: { color: 'bleu' } }])
+    })
+
+    it('highlights by name, one click reapplies it, « Aucun » removes it', async () => {
+      const { editor } = await readyEditor()
+      fireEvent.click(screen.getByRole('button', { name: 'Surlignage : jaune' }))
+      expect(marksOf(editor)).toEqual([{ type: 'highlight', attrs: { color: 'jaune' } }])
+      expect(editor.getHTML()).toContain('<mark data-highlight="jaune">bonjour</mark>')
+      fireEvent.click(screen.getByRole('button', { name: 'Choisir le surlignage' }))
+      const current = screen.getByRole('menuitemradio', { name: 'Surlignage jaune' })
+      expect(current).toHaveAttribute('aria-checked', 'true')
+      expect(current).toHaveFocus()
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Aucun surlignage' }))
+      expect(marksOf(editor)).toEqual([])
+    })
+
+    it('Échap closes the colours menu and gives the focus back to its chevron', async () => {
+      await readyEditor()
+      const chevron = screen.getByRole('button', { name: 'Choisir le surlignage' })
+      fireEvent.click(chevron)
+      expect(screen.getByRole('menuitemradio', { name: 'Aucun surlignage' })).toHaveFocus()
+      key(screen.getByRole('menu'), 'ArrowRight')
+      expect(screen.getByRole('menuitemradio', { name: 'Surlignage jaune' })).toHaveFocus()
+      key(screen.getByRole('menu'), 'Escape')
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(chevron).toHaveFocus()
+    })
+
+    it('sets a font from the list, the default font takes the mark off', async () => {
+      const { editor } = await readyEditor()
+      fireEvent.click(screen.getByRole('button', { name: 'Police : Hanken Grotesk' }))
+      const menu = screen.getByRole('menu', { name: 'Police et taille' })
+      expect(within(menu).getAllByRole('menuitemradio').map((i) => i.querySelector('.yc-menu-item-label')?.textContent)).toEqual([
+        'Hanken Grotesk', 'Instrument Serif', 'Lora', 'Atkinson Hyperlegible', 'JetBrains Mono', 'Caveat',
+      ])
+      fireEvent.click(within(menu).getByRole('menuitemradio', { name: /Lora/ }))
+      expect(marksOf(editor)).toEqual([{ type: 'textFont', attrs: { font: 'lora' } }])
+      fireEvent.click(await screen.findByRole('button', { name: 'Police : Lora' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: /Hanken Grotesk/ }))
+      expect(marksOf(editor)).toEqual([])
+    })
+
+    it('sets a size from 12 to 32, steps it with − and +, and 16 takes the mark off', async () => {
+      const { editor } = await readyEditor()
+      fireEvent.click(screen.getByRole('button', { name: 'Taille : 16 px' }))
+      expect(screen.getAllByRole('menuitemradio').map((i) => i.textContent)).toEqual(['12 px', '14 px', '16 px', '18 px', '20 px', '24 px', '28 px', '32 px'])
+      fireEvent.click(screen.getByRole('menuitemradio', { name: '18 px' }))
+      expect(marksOf(editor)).toEqual([{ type: 'textSize', attrs: { size: 18 } }])
+      fireEvent.click(await screen.findByRole('button', { name: 'Police : Hanken Grotesk' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Agrandir la taille' }))
+      expect(marksOf(editor)).toEqual([{ type: 'textSize', attrs: { size: 20 } }])
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Réduire la taille' }))
+      await waitFor(() => expect(screen.getByText('18 px')).toBeInTheDocument())
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Réduire la taille' }))
+      expect(marksOf(editor)).toEqual([])
+    })
+
+    it('keeps a pasted named colour, drops a pasted hex or CSS colour', async () => {
+      const { editor } = await readyEditor()
+      editor.commands.setContent(
+        '<p><span data-color="rouge">nommé</span> <span style="color:#ff0000">hex</span> <span data-color="#ff0000">faux</span> <mark style="background:yellow">css</mark></p>',
+      )
+      const json = JSON.stringify(editor.getJSON())
+      expect(json).toContain('{"type":"textColor","attrs":{"color":"rouge"}}')
+      expect(json).not.toMatch(/#|yellow|style/)
+    })
+  })
+
   it('is hidden in « Aperçu », where the note is read-only', async () => {
     await readyEditor()
     fireEvent.click(screen.getByRole('button', { name: 'Aperçu' }))
