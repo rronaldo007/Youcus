@@ -14,6 +14,8 @@ import { logger } from '@/lib/logger'
 let client: Redis | null = null
 let disabled = false
 
+const CONNECT_TIMEOUT_MS = 1000
+
 /** Connexion paresseuse : rien n'est ouvert tant qu'aucun cache n'est demandé. */
 function getClient(): Redis | null {
   if (disabled) return null
@@ -28,7 +30,7 @@ function getClient(): Redis | null {
     // Une commande ne doit jamais faire attendre une requête HTTP :
     // si Redis ne répond pas, on abandonne et on passe à la source.
     maxRetriesPerRequest: 1,
-    connectTimeout: 1000,
+    connectTimeout: CONNECT_TIMEOUT_MS,
     lazyConnect: false,
     enableOfflineQueue: false,
   })
@@ -38,6 +40,33 @@ function getClient(): Redis | null {
   })
 
   return client
+}
+
+/**
+ * YC-33: the client is created on first use and the offline queue is off, so a command sent
+ * before the first connection completes fails at once (the first invalidation after every
+ * boot was lost). Wait for that first connection only, never longer than the connect timeout.
+ * A Redis that goes down later is not waited for: its commands are skipped.
+ */
+async function readyClient(): Promise<Redis | null> {
+  const redis = getClient()
+  if (!redis) return null
+  if (redis.status === 'ready') return redis
+  if (redis.status !== 'connecting' && redis.status !== 'connect') return null
+  const ready = await new Promise<boolean>((resolve) => {
+    const done = (ok: boolean) => {
+      clearTimeout(timer)
+      redis.off('ready', onReady)
+      redis.off('error', onError)
+      resolve(ok)
+    }
+    const onReady = () => done(true)
+    const onError = () => done(false)
+    const timer = setTimeout(() => done(false), CONNECT_TIMEOUT_MS)
+    redis.once('ready', onReady)
+    redis.once('error', onError)
+  })
+  return ready ? redis : null
 }
 
 /** Ferme la connexion (arrêt du serveur, fin des tests). */
@@ -69,7 +98,7 @@ export async function cacheAside<T>(
   loader: () => Promise<T>,
   ttlSeconds: number = DEFAULT_TTL_SECONDS,
 ): Promise<T> {
-  const redis = getClient()
+  const redis = await readyClient()
 
   if (redis) {
     try {
@@ -98,7 +127,7 @@ export async function cacheAside<T>(
 
 /** Invalide une clé. Appelé au rafraîchissement manuel : l'utilisateur veut du frais. */
 export async function invalidate(key: string): Promise<void> {
-  const redis = getClient()
+  const redis = await readyClient()
   if (!redis) return
   try {
     await redis.del(key)
