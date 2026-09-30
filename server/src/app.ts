@@ -39,7 +39,7 @@ export function createApp() {
   const app = express()
 
   app.use(helmet({ contentSecurityPolicy: { directives: CSP_DIRECTIVES } }))
-  app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }))
+  app.use(cors({ origin: [env.CLIENT_ORIGIN, ...env.CORS_EXTRA_ORIGINS], credentials: true }))
   app.use(express.json())
   app.use(cookieParser(env.SESSION_SECRET))
   app.use(pinoHttp({ logger }))
