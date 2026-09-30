@@ -26,6 +26,13 @@ const schema = z.object({
   // Cache NoSQL. Optionnel par conception : sans lui, l'API YouTube est
   // interrogée directement (voir lib/cache.ts).
   REDIS_URL: z.string().url().optional(),
+  // Built client (Vite dist) served by the API itself, so front and API share one origin and
+  // the session cookie is first-party on mobile (YC-11). Unset in dev: Vite serves the client.
+  // An empty value (`CLIENT_DIST=`) means unset, never a crash at boot.
+  CLIENT_DIST: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  // Session cookie SameSite (YC-11). Unset: 'none' in production (front and API were on two
+  // sites), 'lax' elsewhere. Once every public link points to the single origin, set 'lax'.
+  SESSION_SAMESITE: z.enum(['lax', 'none']).optional(),
 })
 
 const DEV_SESSION_SECRET = 'dev-secret-change-me'

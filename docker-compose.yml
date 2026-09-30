@@ -106,7 +106,10 @@ services:
   # ---------------------------------------------------------------------------
   api:
     profiles: ["prod"]
-    build: ./server
+    # Context = repository root: the image also builds the client it serves (YC-11).
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     container_name: youcus-api
     restart: unless-stopped
     depends_on:

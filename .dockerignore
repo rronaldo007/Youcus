@@ -1,0 +1,14 @@
+# Build context = repository root (YC-11: the API image also builds the client).
+# Allow-list: only what the build needs gets in; secrets and local artefacts never do.
+*
+!package.json
+!package-lock.json
+!client
+!server
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
