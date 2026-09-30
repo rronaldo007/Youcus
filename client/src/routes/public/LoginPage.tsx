@@ -1,4 +1,4 @@
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { googleLoginUrl } from '@/lib/api'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { Logo } from '@/components/ui/Logo'
@@ -49,6 +49,9 @@ export function LoginPage() {
           <p className="mt-6 text-xs leading-relaxed text-content-muted">
             Pour continuer, Google partagera votre nom, votre adresse e-mail et votre photo de profil avec Youcus.
           </p>
+          <Link to="/confidentialite" className="mt-3 inline-block text-xs text-content-muted underline hover:text-content">
+            Confidentialité
+          </Link>
         </div>
       </main>
     </div>

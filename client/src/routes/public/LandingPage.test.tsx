@@ -20,4 +20,13 @@ describe('LandingPage', () => {
     expect(screen.getByText('Lecteur focus')).toBeInTheDocument()
     expect(screen.getByText('Progression')).toBeInTheDocument()
   })
+
+  it('links to the privacy policy (YC-38)', () => {
+    render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'Confidentialité' })).toHaveAttribute('href', '/confidentialite')
+  })
 })
