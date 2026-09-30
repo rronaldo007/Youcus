@@ -41,7 +41,7 @@ port_is_ours() {
   esac
 }
 
-# Stops a process started by start.sh, WITH its children. nodemon restarts the API as soon
+# Stops a process started by start.sh, WITH its children. The watcher restarts the API as soon
 # as only the listening child dies, so we kill the whole process group that setsid created.
 stop_group() {
   local name="$1" pidfile="$RUN_DIR/$1.pid" pgid
