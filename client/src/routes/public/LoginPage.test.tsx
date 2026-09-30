@@ -22,6 +22,12 @@ describe('LoginPage', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
+  it('links to the privacy policy (YC-38)', async () => {
+    renderLogin()
+    const link = await screen.findByRole('link', { name: 'Confidentialité' })
+    expect(link).toHaveAttribute('href', '/confidentialite')
+  })
+
   it('propose la connexion Google (vers /auth/google)', async () => {
     renderLogin()
     const cta = await screen.findByRole('link', { name: /Continuer avec Google/i })

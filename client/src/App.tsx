@@ -6,6 +6,7 @@ import { FocusPlayerPage } from '@/routes/playlists/FocusPlayerPage'
 import { ImportModal } from '@/features/playlists/ImportModal'
 import { LoginPage } from '@/routes/public/LoginPage'
 import { SettingsPage } from '@/routes/settings/SettingsPage'
+import { PrivacyPage } from '@/routes/public/PrivacyPage'
 
 const router = createBrowserRouter([
   {
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/', element: <HomePage /> },
       { path: '/login', element: <LoginPage /> },
+      { path: '/confidentialite', element: <PrivacyPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/import', element: <ImportModal /> },
       { path: '/playlists/:id', element: <PlaylistDetailPage /> },
