@@ -18,6 +18,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "metadata:refresh": "tsx src/jobs/refreshMetadata.cli.ts",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

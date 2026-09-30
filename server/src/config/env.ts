@@ -21,6 +21,8 @@ const schema = z.object({
     })
     .optional(),
   YOUTUBE_API_KEY: z.string().optional(),
+  // Daily refresh of YouTube metadata, 30-day policy (YC-8). 'off' disables it.
+  METADATA_REFRESH: z.enum(['on', 'off']).default('on'),
   // Cache NoSQL. Optionnel par conception : sans lui, l'API YouTube est
   // interrogée directement (voir lib/cache.ts).
   REDIS_URL: z.string().url().optional(),

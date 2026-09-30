@@ -2,16 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
-import {
-  extractPlaylistId,
-  fetchPlaylist,
-  type VideoDetails,
-  type YouTubeChannel,
-  type YouTubePlaylist,
-  type YouTubeVideo,
-} from '@/lib/youtube'
+import { extractPlaylistId, fetchPlaylist, type YouTubePlaylist, type YouTubeVideo } from '@/lib/youtube'
 import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
-import { parseChapters } from '@/lib/chapters'
+import { syncChannels, syncChapters, videoMetadata } from '@/services/videoMetadata.service'
 
 /**
  * Lecture des métadonnées d'une playlist YouTube en cache-aside (CS-67).
@@ -68,60 +61,6 @@ async function syncVideos(
     await tx.playlistVideo.createMany({ data: rows })
   }
   return rows.length
-}
-
-/**
- * Rebuilds the chapters of a video from its description (YC-3). Chapters are derived data:
- * they are replaced on every sync, so an edited description never leaves stale chapters.
- */
-async function syncChapters(tx: Prisma.TransactionClient, videoId: string, details: VideoDetails): Promise<void> {
-  const chapters = parseChapters(details.description, details.durationSeconds)
-  await tx.chapter.deleteMany({ where: { videoId } })
-  if (chapters.length > 0) {
-    await tx.chapter.createMany({ data: chapters.map((c) => ({ videoId, ...c })) })
-  }
-}
-
-/** Video columns filled from videos.list (YC-1). Counters become BigInt at the database edge. */
-function videoMetadata(
-  d: VideoDetails,
-  channelIds: Map<string, string>,
-  syncedAt: Date,
-): Omit<Prisma.VideoUncheckedCreateInput, 'youtubeId' | 'title'> {
-  return {
-    durationSeconds: d.durationSeconds,
-    description: d.description,
-    channelId: d.channelYoutubeId ? (channelIds.get(d.channelYoutubeId) ?? null) : null,
-    publishedAt: d.publishedAt ? new Date(d.publishedAt) : null,
-    viewCount: d.viewCount === null ? null : BigInt(d.viewCount),
-    likeCount: d.likeCount === null ? null : BigInt(d.likeCount),
-    status: d.status,
-    embeddable: d.embeddable,
-    blockedRegions: d.blockedRegions ?? Prisma.DbNull,
-    topics: d.topics ?? Prisma.DbNull,
-    hasPaidPromotion: d.hasPaidPromotion,
-    definition: d.definition,
-    hasCaptions: d.hasCaptions,
-    syncedAt,
-  }
-}
-
-/** Upserts the channels by YouTube id and returns YouTube id → Channel.id. */
-async function syncChannels(
-  tx: Prisma.TransactionClient,
-  channels: YouTubeChannel[] | undefined,
-): Promise<Map<string, string>> {
-  const ids = new Map<string, string>()
-  for (const c of channels ?? []) {
-    const data = { title: c.title, handle: c.handle, avatarUrl: c.avatarUrl }
-    const row = await tx.channel.upsert({
-      where: { youtubeId: c.youtubeId },
-      create: { youtubeId: c.youtubeId, ...data },
-      update: data,
-    })
-    ids.set(c.youtubeId, row.id)
-  }
-  return ids
 }
 
 /** Playlist columns filled from playlists.list (YC-1). */
