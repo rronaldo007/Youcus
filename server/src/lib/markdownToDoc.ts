@@ -1,5 +1,5 @@
 import { marked, type Token, type Tokens } from 'marked'
-import { isSafeHref, type NoteDoc, type NoteMark, type NoteNode } from '@/lib/noteDoc'
+import { CODE_LANGUAGES, isSafeHref, type NoteDoc, type NoteMark, type NoteNode } from '@/lib/noteDoc'
 
 /**
  * Converts a legacy Markdown note into the rich-editor document (YC-40).
@@ -12,6 +12,17 @@ import { isSafeHref, type NoteDoc, type NoteMark, type NoteNode } from '@/lib/no
 export function markdownToDoc(markdown: string): NoteDoc {
   const content = blocks(marked.lexer(markdown))
   return { type: 'doc', content }
+}
+
+const LANGUAGE_ALIASES: Record<string, (typeof CODE_LANGUAGES)[number]> = {
+  js: 'javascript', jsx: 'javascript', mjs: 'javascript', ts: 'typescript', tsx: 'typescript', py: 'python',
+  sh: 'bash', shell: 'bash', zsh: 'bash', xml: 'html', htm: 'html',
+}
+
+function codeLanguage(lang: string | undefined): (typeof CODE_LANGUAGES)[number] | null {
+  const id = (lang ?? '').trim().split(/\s+/)[0].toLowerCase()
+  if ((CODE_LANGUAGES as readonly string[]).includes(id)) return id as (typeof CODE_LANGUAGES)[number]
+  return LANGUAGE_ALIASES[id] ?? null
 }
 
 function blocks(tokens: Token[]): NoteNode[] {
@@ -62,10 +73,12 @@ function block(token: Token): NoteNode[] {
       }
       return [{ type: 'bulletList', content: items }]
     }
-    case 'code':
-      return (token as Tokens.Code).text.split('\n').map((line) =>
-        line ? { type: 'paragraph', content: [{ type: 'text', text: line, marks: [{ type: 'code' }] }] } : { type: 'paragraph' },
-      )
+    case 'code': {
+      // A real code block since YC-44; a language outside the list becomes plain text.
+      const t = token as Tokens.Code
+      const language = codeLanguage(t.lang)
+      return [{ type: 'codeBlock', ...(language ? { attrs: { language } } : {}), ...(t.text ? { content: [{ type: 'text', text: t.text }] } : {}) }]
+    }
     case 'table': {
       const t = token as Tokens.Table
       const rows = [t.header.map((c) => c.text), ...t.rows.map((r) => r.map((c) => c.text))]

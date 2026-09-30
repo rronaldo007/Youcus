@@ -31,6 +31,28 @@ describe('parseNoteDoc (YC-40)', () => {
     expect(res.ok && res.doc.content[1]).toEqual({ type: 'horizontalRule' })
   })
 
+  it('accepts a code block, stores only a real language and hidden line numbers (YC-44)', () => {
+    const code = (attrs?: unknown) => ({ type: 'codeBlock', ...(attrs ? { attrs } : {}), content: [{ type: 'text', text: 'const a = 1\n  return a' }] })
+    const res = parseNoteDoc({
+      type: 'doc',
+      content: [code({ language: 'javascript', lineNumbers: true }), code({ language: null, lineNumbers: false }), code()],
+    })
+    expect(res.ok && res.doc.content.map((n) => n.attrs ?? null)).toEqual([{ language: 'javascript' }, { lineNumbers: false }, null])
+    expect(res.ok && docToPlainText(res.doc)).toBe('const a = 1\n  return a\nconst a = 1\n  return a\nconst a = 1\n  return a')
+  })
+
+  it('drops marks inside a code block: code is plain text (YC-44)', () => {
+    const res = parseNoteDoc({ type: 'doc', content: [{ type: 'codeBlock', content: [t('x', [{ type: 'bold' }])] }] })
+    expect(res.ok && res.doc.content[0]).toEqual({ type: 'codeBlock', content: [{ type: 'text', text: 'x' }] })
+  })
+
+  it.each([
+    ['a language off the list', { type: 'codeBlock', attrs: { language: 'brainfuck' }, content: [t('x')] }],
+    ['a paragraph inside a code block', { type: 'codeBlock', content: [p(t('x'))] }],
+  ])('refuses %s (YC-44)', (_name, node) => {
+    expect(parseNoteDoc({ type: 'doc', content: [node] })).toMatchObject({ ok: false, status: 400 })
+  })
+
   it('accepts nested task lists with their checked state (YC-43)', () => {
     const doc = {
       type: 'doc',

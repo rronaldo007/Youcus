@@ -60,6 +60,17 @@ describe('markdownToDoc (YC-40)', () => {
     ])
   })
 
+  it('turns fenced code into a code block with its language (YC-44)', () => {
+    const block = doc.content.find((n) => n.type === 'codeBlock')
+    expect(block).toEqual({
+      type: 'codeBlock',
+      attrs: { language: 'javascript' },
+      content: [{ type: 'text', text: 'useEffect(() => {\n  return () => clearInterval(id)\n}, [])' }],
+    })
+    expect(markdownToDoc('```brainfuck\n+++\n```').content[0]).toEqual({ type: 'codeBlock', content: [{ type: 'text', text: '+++' }] })
+    expect(markdownToDoc('```sh\nls\n```').content[0].attrs).toEqual({ language: 'bash' })
+  })
+
   it('turns « - [ ] » lists into task lists, nested ones too (YC-43)', () => {
     const doc = markdownToDoc('- [ ] à faire\n- [x] fait\n  - [ ] sous')
     expect(parseNoteDoc(doc)).toMatchObject({ ok: true })

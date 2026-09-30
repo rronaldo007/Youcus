@@ -21,3 +21,12 @@ if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
   Range.prototype.getBoundingClientRect = () => new DOMRect()
 }
+
+// jsdom n'a pas ResizeObserver : le bloc de code s'en sert pour tomber sur la réglure (YC-44).
+if (typeof window.ResizeObserver === 'undefined') {
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+}
