@@ -21,3 +21,20 @@ export interface NoteData {
   doc: NoteDoc
   updatedAt: string
 }
+
+/** Only what opens a web page or a mail client, like the server (server/src/lib/noteDoc.ts). */
+export function isSafeHref(url: string): boolean {
+  try {
+    return ['http:', 'https:', 'mailto:'].includes(new URL(url).protocol)
+  } catch {
+    return false
+  }
+}
+
+/** « exemple.fr » becomes « https://exemple.fr »; an address with a scheme is kept as typed. */
+export function normalizeHref(value: string): string {
+  const url = value.trim()
+  if (!url) return ''
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return url
+  return url.includes('@') && !url.includes('/') ? `mailto:${url}` : `https://${url}`
+}

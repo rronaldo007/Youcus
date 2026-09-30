@@ -5,6 +5,7 @@
  */
 @import '@fontsource/hanken-grotesk/400.css';
 @import '@fontsource/hanken-grotesk/400-italic.css';
+@import '@fontsource/hanken-grotesk/500.css';
 @import '@fontsource/hanken-grotesk/600.css';
 @import '@fontsource/hanken-grotesk/700.css';
 @import '@fontsource/instrument-serif/400.css';
@@ -21,6 +22,7 @@
   /* Every paper keeps the same 32 px step, so text falls on the ruling (37:1447). */
   --note-step: 32px;
   --note-top: 28px;
+  --note-shadow: 0 8px 12px rgba(23, 20, 15, 0.12);
 }
 
 .dark .yc-note {
@@ -30,6 +32,7 @@
   --note-rule: #262420;
   --note-sunken: #262420;
   --note-border: #3a3732;
+  --note-shadow: 0 8px 12px rgba(0, 0, 0, 0.4);
 }
 
 .yc-note-page {
@@ -137,4 +140,287 @@
   height: 0;
   color: var(--note-ink-muted);
   pointer-events: none;
+}
+
+.yc-note-page hr {
+  /* One ruled row, the line in its middle: the text below stays on the ruling. */
+  height: var(--note-step);
+  margin: 0;
+  border: 0;
+  background: linear-gradient(var(--note-ink-muted), var(--note-ink-muted)) center / 100% 1px no-repeat;
+}
+
+.yc-note-page hr.ProseMirror-selectednode {
+  outline: 2px solid var(--note-ink);
+  outline-offset: -2px;
+}
+
+/* ---- Formatting toolbar (YC-41), Figma « Barre de mise en forme » 32:365 ---- */
+
+.yc-note-tools {
+  position: relative;
+  margin-bottom: 12px;
+  color: var(--note-ink);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* Groups wrap as a whole, never a lone button (component description). */
+  gap: 4px 8px;
+  padding: 4px;
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background: var(--note-paper);
+}
+
+.yc-tool-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.yc-tool,
+.yc-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border: 1px solid transparent;
+  color: var(--note-ink);
+  cursor: pointer;
+}
+
+.yc-tool {
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.yc-tool:hover,
+.yc-select:hover {
+  background: var(--note-sunken);
+}
+
+.yc-tool[aria-pressed='true'] {
+  border-color: var(--note-ink);
+  background: var(--note-sunken);
+}
+
+.yc-tool[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.yc-tool[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.yc-tool:focus-visible,
+.yc-select:focus-visible,
+.yc-menu-item:focus-visible,
+.yc-link-field input:focus-visible,
+.yc-link-button:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-tool-icon {
+  display: block;
+  flex-shrink: 0;
+  width: var(--size, 24px);
+  height: var(--size, 24px);
+  /* The Figma SVG is the mask: the icon takes the text colour, light and dark. */
+  background-color: currentColor;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.yc-glyph {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.yc-glyph-bold {
+  font-weight: 700;
+}
+
+.yc-glyph-italic {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 21px;
+  font-style: italic;
+}
+
+.yc-glyph-underline,
+.yc-glyph-strike {
+  font-weight: 600;
+}
+
+.yc-glyph-underline {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.yc-glyph-strike {
+  text-decoration: line-through;
+}
+
+.yc-select {
+  gap: 6px;
+  padding: 0 8px 0 12px;
+  border-color: var(--note-border);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---- Menus, Figma « Menu de l'éditeur » 33:2774 ---- */
+
+.yc-menu-anchor {
+  position: relative;
+}
+
+.yc-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 280px;
+  padding: 8px;
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background: var(--note-paper);
+  box-shadow: var(--note-shadow);
+}
+
+.yc-menu-label {
+  margin: 0;
+  padding: 8px 0 4px 8px;
+  color: var(--note-ink-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.88px;
+}
+
+.yc-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--note-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.yc-menu-item:hover,
+.yc-menu-item[aria-checked='true'] {
+  background: var(--note-sunken);
+}
+
+.yc-menu-item-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.yc-menu-shortcut {
+  color: var(--note-ink-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.yc-style-h1 .yc-menu-item-label {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 30px;
+}
+
+.yc-style-h2 .yc-menu-item-label {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 24px;
+}
+
+.yc-style-h3 .yc-menu-item-label {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.yc-style-paragraph .yc-menu-item-label {
+  font-size: 16px;
+}
+
+.yc-style-quote .yc-menu-item-label {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 20px;
+  font-style: italic;
+}
+
+/* ---- Link field (Ctrl+K) ---- */
+
+.yc-link-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background: var(--note-paper);
+}
+
+.yc-link-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.yc-link-field input {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--note-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--note-ink);
+  font-size: 14px;
+}
+
+.yc-link-button {
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--note-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--note-ink);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.yc-link-button:hover {
+  background: var(--note-sunken);
+}
+
+.yc-link-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #b0311c;
+  font-size: 13px;
+}
+
+.dark .yc-link-error {
+  color: #f08a73;
 }
