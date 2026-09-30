@@ -33,6 +33,12 @@ const schema = z.object({
   // Session cookie SameSite (YC-11). Unset: 'none' in production (front and API were on two
   // sites), 'lax' elsewhere. Once every public link points to the single origin, set 'lax'.
   SESSION_SAMESITE: z.enum(['lax', 'none']).optional(),
+  // Extra origins allowed by CORS only, comma-separated (YC-35): the old front address while
+  // public links still point to it. The Google login always returns to CLIENT_ORIGIN.
+  CORS_EXTRA_ORIGINS: z
+    .string()
+    .optional()
+    .transform((v) => (v ?? '').split(',').map((o) => o.trim()).filter(Boolean)),
 })
 
 const DEV_SESSION_SECRET = 'dev-secret-change-me'
