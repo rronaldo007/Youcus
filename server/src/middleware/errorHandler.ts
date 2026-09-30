@@ -16,8 +16,13 @@ export function notFound(_req: Request, res: Response) {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
-  const status = err instanceof HttpError ? err.status : 500
-  const message = err instanceof Error ? err.message : 'Erreur interne'
-  if (status >= 500) logger.error({ err }, 'Erreur non gérée')
-  res.status(status).json({ error: message })
+  if (err instanceof HttpError) {
+    if (err.status >= 500) logger.error({ err }, 'Erreur non gérée')
+    res.status(err.status).json({ error: err.message })
+    return
+  }
+  // YC-34: an unexpected error's message can expose internals (a Prisma query, a table name,
+  // a library detail). It goes to the log only; the browser gets a generic message.
+  logger.error({ err }, 'Erreur non gérée')
+  res.status(500).json({ error: 'Erreur interne' })
 }
