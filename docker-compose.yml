@@ -45,7 +45,7 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
-  # DEV : code source monte, hot-reload (nodemon / Vite). Profil "dev".
+  # DEV : code source monte, hot-reload (tsx watch / Vite). Profil "dev".
   # ---------------------------------------------------------------------------
   api-dev:
     profiles: ["dev"]
