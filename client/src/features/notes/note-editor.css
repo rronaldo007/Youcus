@@ -213,8 +213,12 @@
 .yc-tool-group {
   display: flex;
   flex-shrink: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
+  /* A group wider than the bar (« Style et police » at 390 px) wraps inside itself instead of
+     widening the page; the compact phone bar comes with YC-47. */
+  max-width: 100%;
 }
 
 .yc-tool,
@@ -796,4 +800,171 @@
 .yc-menu-item-medium {
   font-size: 14px;
   font-weight: 500;
+}
+
+/* ---- Code block (YC-44), Figma « Bloc de code » 36:592: a dark stage in both themes ---- */
+
+.yc-style-code .yc-menu-item-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+}
+
+.yc-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.yc-note-page .yc-code {
+  /* Stage colours, measured on #121110: text 15.4:1, keywords 5.95:1, functions 11.7:1,
+     numbers 11.1:1, comments and line numbers 6.99:1 (YC-17). */
+  --code-bg: #121110;
+  --code-text: #ede8dd;
+  --code-muted: #a39d90;
+  --code-keyword: #e86a55;
+  --code-function: #f0c674;
+  --code-number: #9fd3a8;
+  /* A long line must scroll inside the block, not widen the page: its width stays the page's. */
+  contain: inline-size;
+  /* No overflow: hidden here: the language menu opens out of the block. */
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: var(--code-bg);
+  color: var(--code-text);
+}
+
+.yc-code-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 6px 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  line-height: normal;
+}
+
+.yc-code-language,
+.yc-code-copy {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--code-muted);
+  cursor: pointer;
+}
+
+.yc-code-language {
+  gap: 4px;
+  padding: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.yc-code-copy {
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.yc-code-copy:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.yc-code-language:focus-visible,
+.yc-code-copy:focus-visible {
+  outline: 2px solid var(--code-text);
+  outline-offset: 2px;
+}
+
+.yc-code-spacer {
+  flex: 1;
+}
+
+/* The language menu keeps the note's paper colours, not the stage's. */
+.yc-code .yc-menu {
+  color: var(--note-ink);
+}
+
+.yc-code-body {
+  display: flex;
+  gap: 14px;
+  padding: 12px 14px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-variant-ligatures: none;
+  line-height: 22px;
+}
+
+.yc-code-gutter {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  color: var(--code-muted);
+  text-align: right;
+  user-select: none;
+}
+
+/* Never wraps: long lines scroll sideways. More specific than ProseMirror's own
+   « .ProseMirror pre { white-space: pre-wrap } », injected after this sheet; the code
+   element itself gets its « pre » inline (CodeBlockView), over NodeViewContent's. */
+.yc-note-page .yc-code-body pre,
+.yc-note-page .yc-code-body pre code {
+  white-space: pre;
+}
+
+.yc-code-body pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.yc-code-body code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.yc-code .hljs-keyword,
+.yc-code .hljs-built_in,
+.yc-code .hljs-literal,
+.yc-code .hljs-selector-tag,
+.yc-code .hljs-tag,
+.yc-code .hljs-meta {
+  color: var(--code-keyword);
+}
+
+.yc-code .hljs-title,
+.yc-code .hljs-attr,
+.yc-code .hljs-selector-class,
+.yc-code .hljs-selector-id,
+.yc-code .hljs-property {
+  color: var(--code-function);
+}
+
+.yc-code .hljs-number,
+.yc-code .hljs-string,
+.yc-code .hljs-regexp,
+.yc-code .hljs-symbol {
+  color: var(--code-number);
+}
+
+.yc-code .hljs-comment,
+.yc-code .hljs-doctag {
+  color: var(--code-muted);
+}
+
+@media (max-width: 480px) {
+  .yc-code-body {
+    font-size: 12px;
+  }
 }

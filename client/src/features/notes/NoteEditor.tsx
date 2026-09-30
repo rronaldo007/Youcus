@@ -8,6 +8,7 @@ import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
 import { LinkField } from '@/features/notes/LinkField'
 import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc } from '@/features/notes/noteDoc'
 import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/features/notes/noteMarks'
+import { NoteCodeBlock } from '@/features/notes/codeBlock'
 import './note-editor.css'
 
 export type { NoteData } from '@/features/notes/noteDoc'
@@ -16,8 +17,8 @@ const AUTOSAVE_DELAY = 1000
 type Mode = 'edit' | 'preview'
 
 /**
- * The editor may only produce what the server accepts, or a save would fail: code blocks come
- * with YC-44, headings stop at level 3, links are http(s) or mailto. Ctrl+K calls `openLink`
+ * The editor may only produce what the server accepts, or a save would fail: StarterKit's code
+ * block is replaced by NoteCodeBlock (YC-44), headings stop at level 3, links are http(s) or mailto. Ctrl+K calls `openLink`
  * through a ref, so the extensions are built once per editor.
  */
 function buildExtensions(openLink: { current: () => void }) {
@@ -28,6 +29,8 @@ function buildExtensions(openLink: { current: () => void }) {
       link: { openOnClick: false, autolink: true, defaultProtocol: 'https', isAllowedUri: (url) => isSafeHref(url) },
     }),
     Placeholder.configure({ placeholder: 'Écris tes notes… (# titre, - liste, **gras**, `code`)' }),
+    // Code blocks with a language, line numbers and Copier (YC-44).
+    NoteCodeBlock,
     // Task lists, nested, each box named for screen readers (YC-43).
     TaskList,
     TaskItem.configure({

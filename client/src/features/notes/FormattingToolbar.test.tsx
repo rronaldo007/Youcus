@@ -155,6 +155,7 @@ describe('FormattingToolbar (YC-41)', () => {
         'Titre 3Ctrl+Alt+3',
         'ParagrapheCtrl+Alt+0',
         'Citation',
+        'Bloc de code```',
       ])
       const current = within(menu).getByRole('menuitemradio', { checked: true })
       expect(current).toHaveTextContent('Paragraphe')
@@ -183,9 +184,11 @@ describe('FormattingToolbar (YC-41)', () => {
       key(menu, 'ArrowDown')
       expect(within(menu).getByRole('menuitemradio', { name: 'Citation' })).toHaveFocus()
       key(menu, 'ArrowDown')
+      expect(within(menu).getByRole('menuitemradio', { name: /Bloc de code/ })).toHaveFocus()
+      key(menu, 'ArrowDown')
       expect(within(menu).getByRole('menuitemradio', { name: /Titre 1/ })).toHaveFocus()
       key(menu, 'End')
-      expect(within(menu).getByRole('menuitemradio', { name: 'Citation' })).toHaveFocus()
+      expect(within(menu).getByRole('menuitemradio', { name: /Bloc de code/ })).toHaveFocus()
       key(menu, 'Escape')
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
       expect(button).toHaveFocus()
@@ -445,6 +448,85 @@ describe('FormattingToolbar (YC-41)', () => {
         expect(editor.getJSON().content?.[0].attrs).toEqual({ textAlign: align })
       }
       expect(editor.getHTML()).toContain('<p style="text-align: center;">bonjour</p>')
+    })
+  })
+
+  describe('code block (YC-44)', () => {
+    const codeDoc = (text: string, attrs: Record<string, unknown> = { language: 'javascript' }) => ({
+      type: 'doc',
+      content: [{ type: 'codeBlock', attrs, content: [{ type: 'text', text }] }],
+    })
+
+    it('turns the paragraph into a code block from the toolbar and from Styles', async () => {
+      const { editor, toolbar } = await readyEditor()
+      fireEvent.click(within(toolbar).getByRole('button', { name: 'Bloc de code (Ctrl+Alt+C)' }))
+      expect(editor.isActive('codeBlock')).toBe(true)
+      expect(await screen.findByRole('button', { name: 'Style de paragraphe : Bloc de code' })).toBeInTheDocument()
+      fireEvent.click(within(toolbar).getByRole('button', { name: 'Bloc de code (Ctrl+Alt+C)' }))
+      expect(editor.isActive('codeBlock')).toBe(false)
+      fireEvent.click(screen.getByRole('button', { name: /^Style de paragraphe/ }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: /Bloc de code/ }))
+      expect(editor.getJSON().content?.[0]).toMatchObject({ type: 'codeBlock', content: [{ type: 'text', text: 'bonjour' }] })
+    })
+
+    it('colours the code by language and shows one number per line', async () => {
+      const { editor } = await readyEditor()
+      editor.commands.setContent(codeDoc('const id = setInterval(tick, 1000)\n// nettoyage'))
+      const code = await screen.findByText('const', { selector: '.hljs-keyword' })
+      expect(code).toBeInTheDocument()
+      expect(screen.getByText('1000', { selector: '.hljs-number' })).toBeInTheDocument()
+      expect(screen.getByText('// nettoyage', { selector: '.hljs-comment' })).toBeInTheDocument()
+      const gutter = document.querySelector('.yc-code-gutter')
+      expect(gutter).toHaveAttribute('aria-hidden', 'true')
+      expect(gutter?.textContent).toBe('12')
+    })
+
+    it('a language off the list becomes plain text, whatever brought it (``` rule, paste, setContent)', async () => {
+      const { editor } = await readyEditor()
+      editor.commands.setContent(codeDoc('fn main() {}', { language: 'rust' }))
+      await waitFor(() => expect(editor.getJSON().content?.[0].attrs?.language).toBeNull())
+      editor.commands.setContent('<pre><code class="language-brainfuck">+++</code></pre>')
+      expect(editor.getJSON().content?.[0].attrs?.language).toBeNull()
+      editor.commands.setContent('<pre><code class="language-python">print(1)</code></pre>')
+      expect(editor.getJSON().content?.[0].attrs?.language).toBe('python')
+    })
+
+    it('changes the language and hides the line numbers from the block menu', async () => {
+      const { editor } = await readyEditor()
+      editor.commands.setContent(codeDoc('print(1)', { language: null }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Langage du bloc : Texte brut' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Python' }))
+      expect(editor.getJSON().content?.[0].attrs).toMatchObject({ language: 'python', lineNumbers: true })
+      fireEvent.click(await screen.findByRole('button', { name: 'Langage du bloc : Python' }))
+      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Numéros de ligne' }))
+      expect(editor.getJSON().content?.[0].attrs).toMatchObject({ language: 'python', lineNumbers: false })
+      await waitFor(() => expect(document.querySelector('.yc-code-gutter')).toBeNull())
+    })
+
+    it('Copier puts the code alone in the clipboard, never the line numbers', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+      const { editor } = await readyEditor()
+      editor.commands.setContent(codeDoc('a()\nb()'))
+      fireEvent.click(await screen.findByRole('button', { name: 'Copier le code' }))
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('a()\nb()'))
+      expect(await screen.findByText('Code copié')).toBeInTheDocument()
+    })
+
+    it('Tab indents inside the block; after Échap, Tab is left to the browser (no trap)', async () => {
+      const { el, editor } = await readyEditor()
+      editor.commands.setContent(codeDoc('x'))
+      editor.commands.setTextSelection(1)
+      key(el, 'Tab')
+      expect(editor.getJSON().content?.[0].content?.[0]).toEqual({ type: 'text', text: '  x' })
+      key(el, 'Escape')
+      // fireEvent returns true when nothing called preventDefault: the browser moves the focus.
+      expect(fireEvent.keyDown(el, { key: 'Tab' })).toBe(true)
+      expect(editor.getJSON().content?.[0].content?.[0]).toEqual({ type: 'text', text: '  x' })
+      // Any other key re-arms the indentation.
+      key(el, 'ArrowRight')
+      key(el, 'Tab')
+      expect(editor.state.doc.textContent).toMatch(/^ {2}x {2}$|^ {4}x$| {2}x {2}/)
     })
   })
 

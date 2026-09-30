@@ -103,9 +103,27 @@ const heading = z
 
 const horizontalRule = z.object({ type: z.literal('horizontalRule') })
 
+/** Code block languages (YC-44), same ids as client/src/features/notes/codeLanguages.ts. */
+export const CODE_LANGUAGES = ['javascript', 'typescript', 'python', 'html', 'css', 'json', 'bash', 'sql', 'java', 'php'] as const
+// Plain text only inside: no marks, no hard breaks (lines are \n in the text).
+const codeText = z.object({ type: z.literal('text'), text: z.string().min(1) })
+const codeBlock = z
+  .object({
+    type: z.literal('codeBlock'),
+    attrs: z.object({ language: z.enum(CODE_LANGUAGES).nullable().optional(), lineNumbers: z.boolean().optional() }).optional(),
+    content: z.array(codeText).optional(),
+  })
+  .transform(({ attrs, ...node }) => {
+    // Defaults (plain text, line numbers shown) are not stored.
+    const kept: { language?: string; lineNumbers?: boolean } = {}
+    if (attrs?.language) kept.language = attrs.language
+    if (attrs?.lineNumbers === false) kept.lineNumbers = false
+    return Object.keys(kept).length ? { ...node, attrs: kept } : node
+  })
+
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
 const block: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, horizontalRule]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule]),
 )
 const listItem = z.object({ type: z.literal('listItem'), content: z.array(block).min(1) })
 const blockquote = z.object({ type: z.literal('blockquote'), content: z.array(block).min(1) })
@@ -156,6 +174,10 @@ export const EMPTY_DOC: NoteDoc = { type: 'doc', content: [] }
 export function docToPlainText(doc: NoteDoc): string {
   const lines: string[] = []
   const walk = (node: NoteNode) => {
+    if (node.type === 'codeBlock') {
+      lines.push((node.content ?? []).map((n) => n.text ?? '').join(''))
+      return
+    }
     if (node.type === 'paragraph' || node.type === 'heading') {
       lines.push(
         (node.content ?? []).map((n) => (n.type === 'text' ? (n.text ?? '') : n.type === 'hardBreak' ? '\n' : '')).join(''),

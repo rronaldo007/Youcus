@@ -26,6 +26,7 @@ import quoteIcon from './icons/quote.svg'
 import codeIcon from './icons/code.svg'
 import clearFormatIcon from './icons/clear-format.svg'
 import dividerIcon from './icons/divider.svg'
+import codeBlockIcon from './icons/code-block.svg'
 import textColorIcon from './icons/text-color.svg'
 import highlighterIcon from './icons/highlighter.svg'
 import taskListIcon from './icons/task-list.svg'
@@ -113,7 +114,7 @@ function MenuItem({
   )
 }
 
-type Style = 'h1' | 'h2' | 'h3' | 'paragraph' | 'quote'
+type Style = 'h1' | 'h2' | 'h3' | 'paragraph' | 'quote' | 'code'
 
 const STYLES: { id: Style; label: string; shortcut?: string }[] = [
   { id: 'h1', label: 'Titre 1', shortcut: 'Ctrl+Alt+1' },
@@ -121,10 +122,15 @@ const STYLES: { id: Style; label: string; shortcut?: string }[] = [
   { id: 'h3', label: 'Titre 3', shortcut: 'Ctrl+Alt+3' },
   { id: 'paragraph', label: 'Paragraphe', shortcut: 'Ctrl+Alt+0' },
   { id: 'quote', label: 'Citation' },
+  { id: 'code', label: 'Bloc de code', shortcut: '```' },
 ]
 
 function applyStyle(editor: Editor, style: Style) {
   let chain = editor.chain().focus()
+  if (style === 'code') {
+    if (!editor.isActive('codeBlock')) chain.setCodeBlock().run()
+    return
+  }
   if (style === 'quote') {
     if (!editor.isActive('blockquote')) chain.setParagraph().setBlockquote().run()
     return
@@ -177,7 +183,9 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
-      style: (e.isActive('blockquote')
+      style: (e.isActive('codeBlock')
+        ? 'code'
+        : e.isActive('blockquote')
         ? 'quote'
         : e.isActive('heading', { level: 1 })
           ? 'h1'
@@ -205,6 +213,7 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
         return !!item && e.can().liftListItem(item)
       })(),
       quote: e.isActive('blockquote'),
+      codeBlock: e.isActive('codeBlock'),
       color: ((e.getAttributes('textColor').color as TextColor | undefined) ?? DEFAULT_COLOR) as TextColor,
       highlight: (e.getAttributes('highlight').color as Highlight | undefined) ?? null,
       font: ((e.getAttributes('textFont').font as FontId | undefined) ?? DEFAULT_FONT) as FontId,
@@ -577,6 +586,9 @@ export function FormattingToolbar({ editor, onLink }: FormattingToolbarProps) {
       </div>
 
       <div role="group" aria-label="Blocs" className="yc-tool-group">
+        <Tool label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
+          <Icon src={codeBlockIcon} />
+        </Tool>
         <Tool label="Insérer un séparateur" onRun={run((c) => c.setHorizontalRule())}>
           <Icon src={dividerIcon} />
         </Tool>

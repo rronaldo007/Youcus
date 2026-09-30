@@ -10,17 +10,28 @@ interface ToolMenuProps {
   menuClassName?: string
   /** Where the focus goes on opening; the checked item, else the first one. */
   initialFocus?: string
+  /** In the formatting toolbar (one roving tab stop), or on its own (a normal tab stop). */
+  inToolbar?: boolean
   children: (close: () => void) => ReactNode
 }
 
-const ITEMS = '[role="menuitem"], [role="menuitemradio"]'
+const ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]'
 
 /**
  * A toolbar button that opens a menu (Figma « Menu de l'éditeur », 33:2774): opens under the
  * button, closes on Échap or a click outside with the focus back on the button (YC-41, YC-42).
  * Arrows, Home and End move between the items.
  */
-export function ToolMenu({ buttonLabel, buttonClassName, buttonContent, menuLabel, menuClassName = '', initialFocus, children }: ToolMenuProps) {
+export function ToolMenu({
+  buttonLabel,
+  buttonClassName,
+  buttonContent,
+  menuLabel,
+  menuClassName = '',
+  initialFocus,
+  inToolbar = true,
+  children,
+}: ToolMenuProps) {
   const [open, setOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -70,8 +81,8 @@ export function ToolMenu({ buttonLabel, buttonClassName, buttonContent, menuLabe
         ref={buttonRef}
         type="button"
         className={buttonClassName}
-        data-tool=""
-        tabIndex={-1}
+        data-tool={inToolbar ? '' : undefined}
+        tabIndex={inToolbar ? -1 : 0}
         aria-label={buttonLabel}
         title={buttonLabel}
         aria-haspopup="menu"
