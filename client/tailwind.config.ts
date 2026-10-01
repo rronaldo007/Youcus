@@ -94,10 +94,20 @@ export default {
         // Figma « Tiroir de navigation » 108:325: it slides from the left over a veil.
         'yc-drawer-in': { from: { transform: 'translateX(-100%)' }, to: { transform: 'translateX(0)' } },
         'yc-fade': { from: { opacity: '0' }, to: { opacity: '1' } },
+        // Figma « Mouvement » 3:101: an entrance slides 24 px OR scales 0.96 → 1, with a fade; one axis.
+        'yc-rise': { from: { opacity: '0', transform: 'translateY(24px)' }, to: { opacity: '1', transform: 'none' } },
+        'yc-pop': { from: { opacity: '0', transform: 'scale(0.96)' }, to: { opacity: '1', transform: 'none' } },
+        // « Le playhead suit la vidéo, jamais d'easing sur une mesure » : linear.
+        'yc-playhead': { from: { width: '0%' }, to: { width: 'var(--yc-playhead-to)' } },
+        'yc-marquee': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } },
       },
       animation: {
         'yc-pulse': 'yc-pulse 1.2s ease-in-out infinite',
         'yc-toast-delay': 'yc-toast-delay 5s linear forwards',
+        'yc-rise': 'yc-rise 300ms ease-out both',
+        'yc-pop': 'yc-pop 300ms ease-out both',
+        'yc-playhead': 'yc-playhead 6s linear both',
+        'yc-marquee': 'yc-marquee 40s linear infinite',
       },
       minHeight: { touch: 'var(--yc-size-touch-min)' },
       minWidth: { touch: 'var(--yc-size-touch-min)' },
