@@ -1,0 +1,282 @@
+import {
+  AlignmentType,
+  BorderStyle,
+  Document,
+  ExternalHyperlink,
+  HeadingLevel,
+  LevelFormat,
+  Packer,
+  Paragraph,
+  ShadingType,
+  TextRun,
+  type IParagraphOptions,
+  type IRunOptions,
+  type ParagraphChild,
+} from 'docx'
+import { formatTimestamp } from '@/lib/format'
+import type { NoteDoc, NoteNode } from '@/features/notes/noteDoc'
+import type { NotePage } from '@/features/notes/notePage'
+
+/**
+ * A note as a Word document (YC-49), built from the editor's JSON, node by node: no HTML goes
+ * through, so there is nothing to sanitise, and what is exported is what the editor holds (the
+ * text typed a second ago too). Word has no dark theme: the colours are the light ones.
+ * Loaded only when « Exporter en .docx » is clicked (lazy import), with its library.
+ */
+
+// Light values of the note's colour names (note-editor.css, YC-42) and of its accent (YC-56).
+const TEXT_COLOURS: Record<string, string> = {
+  encre: '17150F',
+  gris: '5A554A',
+  rouge: 'B0311C',
+  orange: '8F4709',
+  vert: '1E6E40',
+  bleu: '1D4E89',
+  violet: '5E3A94',
+  prune: '8E2F5E',
+}
+const HIGHLIGHTS: Record<string, string> = {
+  jaune: 'F6DE84',
+  vert: 'CDE8C4',
+  bleu: 'CFE0F5',
+  rose: 'F5D2DE',
+  orange: 'F8D8B6',
+  violet: 'E2D7F2',
+  gris: 'E4DDCF',
+}
+const ACCENT = 'B0311C'
+const SUNKEN = 'EAE4D7'
+const FONTS: Record<string, string> = {
+  hanken: 'Hanken Grotesk',
+  instrument: 'Instrument Serif',
+  lora: 'Lora',
+  atkinson: 'Atkinson Hyperlegible',
+  jetbrains: 'JetBrains Mono',
+  caveat: 'Caveat',
+}
+const MONO = 'JetBrains Mono'
+// The icons of YC-46 as the symbols every Word has.
+const ICONS: Record<string, string> = {
+  ampoule: '💡',
+  etoile: '★',
+  question: '?',
+  drapeau: '⚑',
+  alerte: '⚠',
+  coche: '✓',
+  repere: '🔖',
+  horloge: '⏱',
+  crayon: '✎',
+  lien: '🔗',
+  code: '‹›',
+  lecture: '▶',
+  plus: '+',
+  citation: '“',
+  fermer: '✕',
+}
+const ALIGN = { center: AlignmentType.CENTER, right: AlignmentType.RIGHT, justify: AlignmentType.JUSTIFIED } as const
+
+/** px of the screen → twentieths of a point (Word's unit for spacing) and half-points (sizes). */
+const twips = (px: number) => Math.round(px * 15)
+const halfPoints = (px: number) => Math.round(px * 1.5)
+
+type Mark = { type: string; attrs?: Record<string, unknown> }
+
+/**
+ * The run options of a piece of text: its marks, over the note's base font and size. In a heading
+ * there is no base (`null`): the heading style gives font and size, a base on each run would
+ * override it (seen in the LibreOffice render: a title 1 at the size of the text).
+ */
+function runOptions(marks: Mark[] = [], base: { font: string; size: number } | null): IRunOptions {
+  const run: Record<string, unknown> = base ? { font: base.font, size: halfPoints(base.size) } : {}
+  for (const mark of marks) {
+    const value = mark.attrs ?? {}
+    if (mark.type === 'bold') run.bold = true
+    else if (mark.type === 'italic') run.italics = true
+    else if (mark.type === 'underline') run.underline = {}
+    else if (mark.type === 'strike') run.strike = true
+    else if (mark.type === 'code') {
+      run.font = MONO
+      run.shading = { type: ShadingType.CLEAR, fill: SUNKEN, color: 'auto' }
+    } else if (mark.type === 'textColor' && TEXT_COLOURS[value.color as string]) run.color = TEXT_COLOURS[value.color as string]
+    else if (mark.type === 'highlight' && HIGHLIGHTS[value.color as string])
+      run.shading = { type: ShadingType.CLEAR, fill: HIGHLIGHTS[value.color as string], color: 'auto' }
+    else if (mark.type === 'textFont' && FONTS[value.font as string]) run.font = FONTS[value.font as string]
+    else if (mark.type === 'textSize' && typeof value.size === 'number') run.size = halfPoints(value.size)
+  }
+  return run as IRunOptions
+}
+
+/** The inline content of a line: text, line breaks, icons, links. */
+function inlines(nodes: NoteNode[] = [], base: { font: string; size: number } | null): ParagraphChild[] {
+  const out: ParagraphChild[] = []
+  for (const node of nodes) {
+    const marks = (node.marks ?? []) as Mark[]
+    if (node.type === 'hardBreak') out.push(new TextRun({ break: 1 }))
+    else if (node.type === 'noteIcon') out.push(new TextRun({ ...runOptions(marks, base), text: ICONS[node.attrs?.name as string] ?? '•' }))
+    else if (node.type === 'text') {
+      const link = marks.find((m) => m.type === 'link')
+      const run = new TextRun({ ...runOptions(marks.filter((m) => m.type !== 'link'), base), text: node.text ?? '', ...(link ? { style: 'Hyperlink' } : {}) })
+      out.push(link ? new ExternalHyperlink({ link: String(link.attrs?.href ?? ''), children: [run] }) : run)
+    }
+  }
+  return out
+}
+
+interface Context {
+  base: { font: string; size: number }
+  /**
+   * The list a line is in: its kind, its depth, its instance for Word's numbering. Only the first
+   * line of an item carries the bullet or number (`continued` for the next ones); a task carries
+   * its box instead.
+   */
+  list?: { kind: 'bullet' | 'ordered' | 'task'; level: number; instance: number; continued?: boolean }
+  quote: boolean
+  task?: boolean
+}
+
+let instances = 0
+
+/** The marker of a line, « [04:05] » in the accent, before its text (YC-56). */
+function markerRun(attrs: Record<string, unknown> | undefined): ParagraphChild[] {
+  return typeof attrs?.marker === 'number' ? [new TextRun({ text: `[${formatTimestamp(attrs.marker)}] `, bold: true, color: ACCENT, font: MONO, size: 20 })] : []
+}
+
+/** Paragraph options shared by every line: alignment, spacing (YC-55), list, quote. */
+function lineOptions(attrs: Record<string, unknown> | undefined, ctx: Context): Partial<IParagraphOptions> {
+  const options: Record<string, unknown> = {}
+  const align = ALIGN[attrs?.textAlign as keyof typeof ALIGN]
+  if (align) options.alignment = align
+  const lineHeight = typeof attrs?.lineHeight === 'number' ? attrs.lineHeight : 1
+  options.spacing = {
+    before: twips(typeof attrs?.spaceBefore === 'number' ? attrs.spaceBefore : 0),
+    after: twips(typeof attrs?.spaceAfter === 'number' ? attrs.spaceAfter : 6),
+    line: Math.round(276 * lineHeight),
+  }
+  if (typeof attrs?.indent === 'number' && !ctx.list) options.indent = { firstLine: twips(attrs.indent) }
+  if (ctx.list) {
+    const level = Math.min(ctx.list.level, 8)
+    if (ctx.list.kind === 'task' || ctx.list.continued) options.indent = { left: twips(28 * (level + 1)) }
+    else options.numbering = { reference: ctx.list.kind, level, instance: ctx.list.instance }
+  }
+  if (ctx.quote) {
+    options.indent = { left: twips(24) }
+    options.border = { left: { style: BorderStyle.SINGLE, size: 12, color: 'D8D0BF', space: 8 } }
+  }
+  return options as Partial<IParagraphOptions>
+}
+
+/** The Word paragraphs of a block, recursively through lists and quotes. */
+function blocks(nodes: NoteNode[] = [], ctx: Context): Paragraph[] {
+  const out: Paragraph[] = []
+  for (const node of nodes) {
+    const attrs = node.attrs
+    if (node.type === 'paragraph') {
+      const checkbox = ctx.task !== undefined ? [new TextRun({ text: ctx.task ? '☑ ' : '☐ ', font: 'Segoe UI Symbol' })] : []
+      out.push(new Paragraph({ ...lineOptions(attrs, ctx), children: [...markerRun(attrs), ...checkbox, ...inlines(node.content, ctx.base)] }))
+      ctx = { ...ctx, task: undefined }
+    } else if (node.type === 'heading') {
+      const level = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3][(Number(attrs?.level) || 1) - 1]
+      out.push(new Paragraph({ ...lineOptions(attrs, ctx), heading: level, children: [...markerRun(attrs), ...inlines(node.content, null)] }))
+    } else if (node.type === 'bulletList' || node.type === 'orderedList') {
+      const kind = node.type === 'bulletList' ? 'bullet' : 'ordered'
+      const level = ctx.list ? ctx.list.level + 1 : 0
+      // A new instance restarts the numbering of each ordered list at 1.
+      const instance = ++instances
+      for (const item of node.content ?? []) out.push(...listItem(item, { ...ctx, list: { kind, level, instance } }))
+    } else if (node.type === 'taskList') {
+      const level = ctx.list ? ctx.list.level + 1 : 0
+      for (const item of node.content ?? [])
+        out.push(...listItem(item, { ...ctx, list: { kind: 'task', level, instance: 0 }, task: item.attrs?.checked === true }))
+    } else if (node.type === 'blockquote') {
+      out.push(...blocks(node.content, { ...ctx, quote: true }))
+    } else if (node.type === 'codeBlock') {
+      const text = (node.content ?? []).map((n) => n.text ?? '').join('')
+      for (const line of text.split('\n'))
+        out.push(
+          new Paragraph({
+            spacing: { before: 0, after: 0 },
+            shading: { type: ShadingType.CLEAR, fill: 'F1ECE2', color: 'auto' },
+            children: [new TextRun({ text: line || ' ', font: MONO, size: 19 })],
+          }),
+        )
+    } else if (node.type === 'horizontalRule') {
+      out.push(new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'D8D0BF', space: 1 } }, children: [] }))
+    }
+  }
+  return out
+}
+
+/** An item: its first line takes the bullet, number or box; the next lines only its indent. */
+function listItem(item: NoteNode, ctx: Context): Paragraph[] {
+  const [first, ...rest] = item.content ?? []
+  if (!first) return []
+  return [...blocks([first], ctx), ...blocks(rest, { ...ctx, task: undefined, list: ctx.list && { ...ctx.list, continued: true } })]
+}
+
+/** Bullets for the levels of a list (•, ◦, ▪…) and numbers (1., a., i.…), indented step by step. */
+const levels = (formats: { format: (typeof LevelFormat)[keyof typeof LevelFormat]; text: (i: number) => string }[]) =>
+  Array.from({ length: 9 }, (_, i) => {
+    const f = formats[i % formats.length]
+    return { level: i, format: f.format, text: f.text(i), alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: twips(28 * (i + 1)), hanging: twips(18) } } } }
+  })
+
+export interface DocxMeta {
+  /** « FULLSTACK · VIDÉO 4 · 14:32 », above the title. */
+  eyebrow?: string
+  title: string
+  page: NotePage
+}
+
+/** The Word document of a note; `noteToDocx` packs it for the browser, the tests for Node. */
+export function buildNoteDocument(doc: NoteDoc, meta: DocxMeta): Document {
+  instances = 0
+  const base = { font: FONTS[meta.page.font ?? 'hanken'] ?? FONTS.hanken, size: meta.page.size ?? 16 }
+  const head: Paragraph[] = [
+    ...(meta.eyebrow ? [new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: meta.eyebrow.toUpperCase(), font: MONO, size: 18, color: '5A554A' })] })] : []),
+    new Paragraph({ heading: HeadingLevel.TITLE, spacing: { after: 240 }, children: [new TextRun({ text: meta.title, font: 'Instrument Serif', size: 56 })] }),
+  ]
+  const document = new Document({
+    creator: 'Youcus',
+    title: meta.title,
+    styles: {
+      default: { document: { run: { font: base.font, size: halfPoints(base.size), color: '17150F' } } },
+      paragraphStyles: [
+        { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', run: { font: 'Instrument Serif', size: 48 }, paragraph: { spacing: { before: 240, after: 120 } } },
+        { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', run: { font: 'Instrument Serif', size: 36 }, paragraph: { spacing: { before: 200, after: 100 } } },
+        { id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', run: { font: 'Hanken Grotesk', size: 27, bold: true }, paragraph: { spacing: { before: 160, after: 80 } } },
+      ],
+    },
+    numbering: {
+      config: [
+        { reference: 'bullet', levels: levels([{ format: LevelFormat.BULLET, text: () => '•' }, { format: LevelFormat.BULLET, text: () => '◦' }, { format: LevelFormat.BULLET, text: () => '▪' }]) },
+        {
+          reference: 'ordered',
+          levels: levels([
+            { format: LevelFormat.DECIMAL, text: (i) => `%${i + 1}.` },
+            { format: LevelFormat.LOWER_LETTER, text: (i) => `%${i + 1}.` },
+            { format: LevelFormat.LOWER_ROMAN, text: (i) => `%${i + 1}.` },
+          ]),
+        },
+      ],
+    },
+    sections: [{ children: [...head, ...blocks(doc.content, { base, quote: false })] }],
+  })
+  return document
+}
+
+/** The .docx of a note, as a Blob to download. */
+export function noteToDocx(doc: NoteDoc, meta: DocxMeta): Promise<Blob> {
+  return Packer.toBlob(buildNoteDocument(doc, meta))
+}
+
+/** « useEffect en profondeur » → « useEffect-en-profondeur.docx »: no character a file system refuses. */
+export function docxFileName(title: string): string {
+  const name = title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\- ]+/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 80)
+  return `${name || 'note'}.docx`
+}

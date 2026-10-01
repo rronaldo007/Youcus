@@ -101,6 +101,30 @@ describe('expanded view of a note (YC-18)', () => {
     expect(status().querySelector('.yc-tool-icon')).toBeNull()
   })
 
+  it('« Exporter en .docx » downloads what the editor holds, named after the title (YC-49)', async () => {
+    const { editor } = await videoNote()
+    act(() => {
+      editor.commands.insertContentAt(editor.state.doc.content.size - 1, ' (tapé à l’instant)')
+    })
+    const made: Blob[] = []
+    const createObjectURL = vi.fn((blob: Blob) => {
+      made.push(blob)
+      return 'blob:note'
+    })
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
+    const names: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download)
+    })
+    const dialog = open()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Exporter en .docx' }))
+    await waitFor(() => expect(names).toEqual(['useEffect-en-profondeur.docx']), { timeout: 5000 })
+    expect(made[0].type).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    expect(made[0].size).toBeGreaterThan(1000)
+    expect(within(dialog).getByRole('button', { name: 'Exporter en .docx' })).not.toHaveAttribute('aria-busy')
+    click.mockRestore()
+  })
+
   it('lists the markers in time order, the seen ones and the one playing', async () => {
     await videoNote(530)
     const side = within(open()).getByRole('complementary', { name: 'Repères' })

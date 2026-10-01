@@ -309,6 +309,30 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
     player?.seek(seconds)
   }
 
+  // « Exporter en .docx » (YC-49): what the editor holds, built and downloaded here. The library
+  // (and the converter) load on the first click only.
+  const [exporting, setExporting] = useState<'idle' | 'busy' | 'failed'>('idle')
+  const exportDocx = async () => {
+    if (!editor || editor.isDestroyed || exporting === 'busy') return
+    setExporting('busy')
+    try {
+      const { noteToDocx, docxFileName } = await import('@/features/notes/noteToDocx')
+      const heading = context?.heading ?? title
+      const blob = await noteToDocx(editor.getJSON() as NoteDoc, { eyebrow: context?.eyebrow, title: heading, page })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = docxFileName(heading)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      setExporting('idle')
+    } catch {
+      setExporting('failed')
+    }
+  }
+
   const savedTime = formatTime(note?.updatedAt)
   const status = isSaving ? 'Enregistrement…' : draft || pageDirty ? 'Modifié' : savedTime ? `Enregistré à ${savedTime}` : ''
 
@@ -356,6 +380,11 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
           {status.startsWith('Enregistré à') && <Icon src={checkIcon} size={16} />}
           {[status, player ? `${markers.length} repère${markers.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')}
         </p>
+        {exporting === 'failed' && (
+          <p role="alert" className="yc-x-error">
+            L'export a échoué. Réessaie : ta note n'a pas bougé.
+          </p>
+        )}
       </div>
       <div className="yc-x-actions">
         <div role="group" aria-label="Lire ou modifier" className="yc-x-segment">
@@ -366,6 +395,9 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
             Modifier
           </button>
         </div>
+        <button type="button" className="yc-x-export" aria-busy={exporting === 'busy' || undefined} onClick={exportDocx}>
+          {exporting === 'busy' ? 'Export…' : 'Exporter en .docx'}
+        </button>
         <button type="button" className="yc-x-icon" aria-label="Réduire (revenir à la note)" title="Réduire" onClick={() => closeView()}>
           <Icon src={collapseIcon} size={20} />
         </button>
