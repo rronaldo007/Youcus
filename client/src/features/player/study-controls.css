@@ -1,0 +1,70 @@
+/* Study controls under the player (YC-59), Figma « Contrôles d'étude » 102:66 and « Menu du lecteur » 102:101. */
+
+.yc-study {
+  /* The editor's menus (ToolMenu) read the note's tokens: here they take the page's. */
+  --note-ink: var(--yc-content);
+  --note-ink-muted: var(--yc-content-muted);
+  --note-paper: var(--yc-canvas);
+  --note-sunken: var(--yc-surface-2);
+  --note-border: var(--yc-line);
+  --note-shadow: 0 8px 12px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.yc-study-menus {
+  display: flex;
+  gap: 8px;
+}
+
+.yc-study-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--yc-line);
+  border-radius: 8px;
+  background: var(--yc-canvas);
+  color: var(--yc-content);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yc-study-select:hover {
+  background: var(--yc-surface-2);
+}
+
+.yc-study-select:focus-visible {
+  outline: 2px solid var(--yc-content);
+  outline-offset: 2px;
+}
+
+.yc-study-select[aria-expanded='true'] .yc-tool-icon {
+  transform: rotate(180deg);
+}
+
+.yc-study .yc-study-menu {
+  width: 260px;
+}
+
+.yc-study-help {
+  margin: 0;
+  padding: 4px 8px 8px;
+  color: var(--yc-content-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.yc-study-keys {
+  margin: 0;
+  color: var(--yc-content-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  text-align: right;
+}

@@ -20,6 +20,7 @@ import { NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
 import { NoteSpacing } from '@/features/notes/noteSpacing'
 import { NoteIcon } from '@/features/notes/noteIcon'
 import { formatTimestamp } from '@/lib/format'
+import { isTyping } from '@/lib/keyboard'
 import './note-editor.css'
 
 export type { NoteData } from '@/features/notes/noteDoc'
@@ -143,12 +144,6 @@ interface Marker {
   text: string
 }
 
-/** M adds a marker only outside a field: in one, it is a letter. */
-function isTyping(target: EventTarget | null) {
-  if (!(target instanceof Element)) return false
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || !!target.closest('[contenteditable]:not([contenteditable="false"])')
-}
-
 /** Formate une date ISO en HH:MM (locale FR), ou '' si invalide. */
 function formatTime(iso: string | undefined): string {
   if (!iso) return ''
@@ -208,6 +203,7 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
   useEffect(() => {
     if (!hasPlayer) return
     const onKey = (e: globalThis.KeyboardEvent) => {
+      // M adds a marker only outside a field: in one, it is a letter.
       if (e.key.toLowerCase() !== 'm' || e.ctrlKey || e.altKey || e.metaKey || e.repeat || isTyping(e.target)) return
       if (addMarker.current()) e.preventDefault()
     }
