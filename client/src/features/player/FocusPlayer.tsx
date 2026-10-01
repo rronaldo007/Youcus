@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, type ReactNode } from 'react'
 
 // Types minimaux de la YouTube IFrame Player API.
 interface YTPlayer {
@@ -35,6 +35,8 @@ export interface FocusPlayerHandle {
   setRate(rate: number): void
   /** Shows the captions of `languageCode` ('' for the first one offered), or hides them (null). */
   setCaptions(languageCode: string | null): void
+  /** Plays again from the start (« Revoir » of the end card, YC-60). */
+  restart(): void
 }
 
 /** The tracks YouTube gives once its captions module is loaded; null when it gives none. */
@@ -97,6 +99,12 @@ interface FocusPlayerProps {
   captions?: string | null
   /** The caption tracks once YouTube gives them (YC-59). */
   onCaptionTracks?: (tracks: CaptionTrack[] | null, shown: string | null) => void
+  /** Called each time the video starts playing (YC-60: the end card goes away). */
+  onPlay?: () => void
+  /** Plays as soon as it is ready: the user asked for this video (« Lire la suivante », YC-60). */
+  autoplay?: boolean
+  /** Shown in place of the video, at its size or taller (the end card, YC-60). */
+  overlay?: ReactNode
 }
 
 /** The language of the captions shown, null when none or unknown. */
@@ -132,7 +140,21 @@ function applyCaptions(player: YTPlayer, languageCode: string | null) {
  * Sans distraction : rel=0, modestbranding, iv_load_policy=3.
  */
 export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(function FocusPlayer(
-  { youtubeId, title, startSeconds = 0, onProgress, onEnded, onTimeUpdate, rate = 1, onRateChange, captions = null, onCaptionTracks },
+  {
+    youtubeId,
+    title,
+    startSeconds = 0,
+    onProgress,
+    onEnded,
+    onTimeUpdate,
+    rate = 1,
+    onRateChange,
+    captions = null,
+    onCaptionTracks,
+    onPlay,
+    autoplay = false,
+    overlay,
+  },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -152,6 +174,10 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
   captionsRef.current = captions
   const onCaptionTracksRef = useRef(onCaptionTracks)
   onCaptionTracksRef.current = onCaptionTracks
+  const onPlayRef = useRef(onPlay)
+  onPlayRef.current = onPlay
+  const autoplayRef = useRef(autoplay)
+  autoplayRef.current = autoplay
 
   useImperativeHandle(
     ref,
@@ -186,6 +212,13 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
       },
       setCaptions(languageCode: string | null) {
         if (playerRef.current) applyCaptions(playerRef.current, languageCode)
+      },
+      restart() {
+        const player = playerRef.current
+        if (!player) return
+        player.seekTo(0, true)
+        player.playVideo()
+        onTimeUpdateRef.current?.(0)
       },
     }),
     [],
@@ -232,6 +265,7 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
             if (captionsRef.current !== null) applyCaptions(e.target, captionsRef.current)
             if (startSeconds > 0) e.target.seekTo(startSeconds, true)
             onTimeUpdateRef.current?.(startSeconds)
+            if (autoplayRef.current) e.target.playVideo()
           },
           onPlaybackRateChange: (e: { data: number }) => onRateChangeRef.current?.(e.data),
           // The captions module tells when it is (un)loaded: the tracks can be read then.
@@ -240,6 +274,7 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
           },
           onStateChange: (e: { data: number }) => {
             if (e.data === YT.PlayerState.PLAYING) {
+              onPlayRef.current?.()
               if (interval) clearInterval(interval)
               interval = setInterval(tick, 1000)
             } else {
@@ -264,8 +299,15 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
 
   return (
     <div>
-      <div className="aspect-video w-full overflow-hidden rounded-card bg-black">
-        <div ref={containerRef} title={title} className="h-full w-full" />
+      <div className="relative">
+        {/* Under an overlay the player stays mounted, out of sight and out of the tab order. */}
+        <div
+          className={`aspect-video w-full overflow-hidden rounded-card bg-black ${overlay ? 'invisible absolute inset-x-0 top-0' : ''}`}
+          aria-hidden={overlay ? true : undefined}
+        >
+          <div ref={containerRef} title={title} className="h-full w-full" />
+        </div>
+        {overlay}
       </div>
       <p className="mt-2 text-xs text-content-muted">
         Youcus retire les recommandations et l'habillage qui font dériver. Les publicités, elles,

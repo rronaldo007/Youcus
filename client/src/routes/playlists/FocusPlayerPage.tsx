@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { FocusPlayer, type CaptionTrack, type FocusPlayerHandle } from '@/features/player/FocusPlayer'
+import { EndCard, type SaveSentence } from '@/features/player/EndCard'
 import { StudyControls } from '@/features/player/StudyControls'
 import { readStudyPreferences, saveStudyPreferences } from '@/features/player/studyPreferences'
 import { VideoAbout } from '@/features/player/VideoAbout'
 import { VideoSidebar } from '@/features/player/VideoSidebar'
 import { VideoNotes } from '@/features/notes/VideoNotes'
+import type { NoteActions } from '@/features/notes/NoteEditor'
 import { reportWatchedSeconds, usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
 import { isPlayable } from '@/lib/availability'
 import { formatDuration } from '@/lib/format'
@@ -21,7 +23,23 @@ export function FocusPlayerPage() {
   const playerRef = useRef<FocusPlayerHandle>(null)
   const [currentSeconds, setCurrentSeconds] = useState(0)
   const seek = useCallback((seconds: number) => playerRef.current?.seekTo(seconds), [])
-  useEffect(() => setCurrentSeconds(0), [videoId])
+  // The end card (YC-60): shown when the video ends, gone as soon as it plays again.
+  const [endedAt, setEndedAt] = useState<number | null>(null)
+  const noteActions = useRef<NoteActions | null>(null)
+  useEffect(() => {
+    setCurrentSeconds(0)
+    setEndedAt(null)
+  }, [videoId])
+  // « Lire la suivante » asked for this video: it plays as soon as it is ready.
+  const autoplay = (useLocation().state as { autoplay?: boolean } | null)?.autoplay === true
+  const replay = useCallback(() => {
+    setEndedAt(null)
+    playerRef.current?.restart()
+  }, [])
+  const saveSentence = useCallback<SaveSentence>(
+    (text, done) => (endedAt === null ? false : (noteActions.current?.appendMarkedLine(text, endedAt, done) ?? false)),
+    [endedAt],
+  )
   // Study controls (YC-59): the speed and the captions stay from one video and one visit to the next.
   const [rate, setRate] = useState(() => readStudyPreferences().rate)
   const [captions, setCaptions] = useState<string | null>(() => readStudyPreferences().captions)
@@ -101,7 +119,33 @@ export function FocusPlayerPage() {
             title={video.title}
             startSeconds={startSeconds}
             onProgress={(s) => reportWatchedSeconds(id as string, video.id, s)}
-            onEnded={() => setProgress.mutate({ videoId: video.id, completed: true })}
+            onEnded={() => {
+              setEndedAt(Math.max(currentSeconds, video.durationSeconds))
+              setProgress.mutate({ videoId: video.id, completed: true })
+            }}
+            onPlay={() => setEndedAt(null)}
+            autoplay={autoplay}
+            overlay={
+              endedAt !== null && (
+                <EndCard
+                  number={video.position + 1}
+                  total={videos.length}
+                  seconds={endedAt}
+                  next={
+                    next && {
+                      title: next.title,
+                      thumbnailUrl: next.thumbnailUrl,
+                      durationSeconds: next.durationSeconds,
+                      number: next.position + 1,
+                      to: `/playlists/${id}/watch/${next.youtubeId}`,
+                    }
+                  }
+                  playlistTo={`/playlists/${id}`}
+                  onSave={saveSentence}
+                  onReplay={replay}
+                />
+              )
+            }
             onTimeUpdate={setCurrentSeconds}
             rate={rate}
             onRateChange={setRate}
@@ -154,6 +198,7 @@ export function FocusPlayerPage() {
           <VideoNotes
             videoId={video.id}
             player={{ seconds: currentSeconds, seek }}
+            actions={noteActions}
             context={{
               eyebrow: [data.title, `Vidéo ${video.position + 1}`, data.channelTitle, formatDuration(video.durationSeconds)].filter(Boolean).join(' · '),
               heading: video.title,

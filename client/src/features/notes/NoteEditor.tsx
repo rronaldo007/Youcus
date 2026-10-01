@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { EditorContent, Extension, useEditor, useEditorState } from '@tiptap/react'
 import { Selection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
@@ -16,7 +16,7 @@ import { readPage, type NotePage } from '@/features/notes/notePage'
 import { useNotePreferences } from '@/features/notes/useNotePreferences'
 import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/features/notes/noteMarks'
 import { NoteCodeBlock } from '@/features/notes/codeBlock'
-import { NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
+import { MAX_MARKER_SECONDS, NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
 import { NoteSpacing } from '@/features/notes/noteSpacing'
 import { NoteIcon } from '@/features/notes/noteIcon'
 import { formatTimestamp } from '@/lib/format'
@@ -79,6 +79,20 @@ function buildExtensions(
   ]
 }
 
+/** What a page can do to the note from outside it (YC-60). */
+export interface NoteActions {
+  /**
+   * Adds `text` as the last line of the note, timestamped at `seconds`, and saves it at once.
+   * False when the note cannot take it yet (still loading); `done` tells what the server said.
+   */
+  appendMarkedLine(text: string, seconds: number, done: SaveCallbacks): boolean
+}
+
+interface SaveCallbacks {
+  onSuccess?: () => void
+  onError?: () => void
+}
+
 interface NoteEditorProps {
   /** Titre du panneau (distingue note de vidéo / de playlist). */
   title: string
@@ -90,7 +104,7 @@ interface NoteEditorProps {
   note: NoteData | null | undefined
   isLoading: boolean
   /** Sauvegarde le document, et la page quand elle a changé (déclenché par l'autosave). */
-  onSave: (payload: NoteSave) => void
+  onSave: (payload: NoteSave, callbacks?: SaveCallbacks) => void
   isSaving: boolean
   /** Change quand la cible change (videoId / playlistId) → ré-amorce le brouillon. */
   resetKey: string
@@ -101,6 +115,8 @@ interface NoteEditorProps {
   player?: { seconds: number; seek: (seconds: number) => void }
   /** What the expanded view shows above the note (YC-18): « FULLSTACK · VIDÉO 4 · 14:32 » and a title. */
   context?: { eyebrow?: string; heading: string }
+  /** Filled with what a page can do to this note (the end card of the player, YC-60). */
+  actions?: MutableRefObject<NoteActions | null>
 }
 
 /**
@@ -156,7 +172,19 @@ function formatTime(iso: string | undefined): string {
  * (debounce) et lecture seule.
  * Utilisé pour les notes de vidéo et de playlist. La page suit la maquette « Éditeur de notes ».
  */
-export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey, player, context }: NoteEditorProps) {
+export function NoteEditor({
+  title,
+  icon,
+  editorLabel,
+  note,
+  isLoading,
+  onSave,
+  isSaving,
+  resetKey,
+  player,
+  context,
+  actions,
+}: NoteEditorProps) {
   const [draft, setDraft] = useState<NoteDoc | null>(null)
   // The page chosen here (YC-45) stays shown while it is saved; otherwise the stored one, or the
   // defaults. `pageDirty` only says an autosave is due.
@@ -251,6 +279,45 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
     }, AUTOSAVE_DELAY)
     return () => clearTimeout(timer)
   }, [draft, pageDirty, page, onSave, editor])
+
+  // The end card (YC-60) writes its sentence as the last line, timestamped, and it is saved at
+  // once: an autosave still waiting would be lost if « Lire la suivante » changes the video.
+  const latestSave = useRef({ page, pageDirty, onSave })
+  latestSave.current = { page, pageDirty, onSave }
+  useEffect(() => {
+    if (!actions) return
+    actions.current = {
+      appendMarkedLine(text, seconds, done) {
+        // Only into the note of THIS target, once it is loaded in the editor.
+        if (!editor || editor.isDestroyed || seeded.current?.editor !== editor || seeded.current.key !== resetKey) return false
+        const marker = Math.min(MAX_MARKER_SECONDS, Math.max(0, Math.floor(seconds)))
+        const line = { type: 'paragraph', attrs: { marker }, content: [{ type: 'text', text }] }
+        const { doc } = editor.state
+        const last = doc.lastChild
+        const end = doc.content.size
+        // An empty last line (a note just opened ends with one) takes the sentence, no blank is left.
+        const blank = last?.type.name === 'paragraph' && last.content.size === 0 && last.attrs.marker == null
+        const at = blank && last ? { from: end - last.nodeSize, to: end } : end
+        if (!editor.chain().insertContentAt(at, line).run()) return false
+        const { page: current, pageDirty: dirty, onSave: save } = latestSave.current
+        const json = editor.getJSON() as NoteDoc
+        save(dirty ? { doc: json, page: current } : { doc: json }, {
+          onSuccess: done.onSuccess,
+          // Not lost: the autosave tries again, as for any edit.
+          onError: () => {
+            if (!editor.isDestroyed) setDraft(editor.getJSON() as NoteDoc)
+            done.onError?.()
+          },
+        })
+        setDraft(null)
+        setPageDirty(false)
+        return true
+      },
+    }
+    return () => {
+      actions.current = null
+    }
+  }, [actions, editor, resetKey])
 
   // The expanded view (YC-18): the same editor, in a modal; nothing below is mounted twice.
   const view = useExpandedView()
