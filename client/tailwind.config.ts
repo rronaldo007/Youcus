@@ -14,6 +14,7 @@ export default {
         inverse: 'var(--yc-bg-inverse)',
         stage: 'var(--yc-bg-stage)',
         mark: 'var(--yc-bg-mark)',
+        'on-mark': 'var(--yc-text-on-mark)',
         accent: {
           DEFAULT: 'rgb(var(--yc-accent-rgb) / <alpha-value>)',
           hover: 'rgb(var(--yc-accent-hover-rgb) / <alpha-value>)',
@@ -84,6 +85,16 @@ export default {
       boxShadow: {
         modal: 'var(--yc-shadow-modal)',
         toast: 'var(--yc-shadow-toast)',
+      },
+      // Figma « Squelette » 96:140: opacity 1 → 0.55, 1.2 s (none under prefers-reduced-motion, in the component).
+      // Figma « Toast » 5:258: the bar at the bottom shows the 5 s delay.
+      keyframes: {
+        'yc-pulse': { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.55' } },
+        'yc-toast-delay': { from: { transform: 'scaleX(1)' }, to: { transform: 'scaleX(0)' } },
+      },
+      animation: {
+        'yc-pulse': 'yc-pulse 1.2s ease-in-out infinite',
+        'yc-toast-delay': 'yc-toast-delay 5s linear forwards',
       },
       minHeight: { touch: 'var(--yc-size-touch-min)' },
       minWidth: { touch: 'var(--yc-size-touch-min)' },

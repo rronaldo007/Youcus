@@ -139,11 +139,12 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
 
       <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {visible.map((pl) => (
-          <li key={pl.id} className="overflow-hidden rounded-card border border-line bg-surface text-left">
-            <Link to={`/playlists/${pl.id}`} className="block transition hover:opacity-95">
+          <li key={pl.id} className="flex flex-col gap-1 text-left">
+            {/* The card draws its own frame (YC-67); selection and deletion stay under it. */}
+            <Link to={`/playlists/${pl.id}`} className="block flex-1 rounded-yc-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus">
               <PlaylistCard playlist={pl} />
             </Link>
-            <div className="flex items-center justify-between border-t border-line px-3.5 py-2">
+            <div className="flex items-center justify-between px-1 py-1">
               <label className="flex items-center gap-2 text-sm text-content-muted">
                 <input
                   type="checkbox"

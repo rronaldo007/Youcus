@@ -59,10 +59,11 @@ describe('PlaylistLibrary', () => {
     vi.restoreAllMocks()
   })
 
-  it('affiche les playlists avec leur nombre de vidéos', async () => {
+  it('affiche les playlists avec ce qui reste à voir (YC-67)', async () => {
     renderLibrary()
     expect(await screen.findByText('Cours React')).toBeInTheDocument()
-    expect(screen.getByText(/12 vidéos/)).toBeInTheDocument()
+    expect(screen.getByText('12 restantes')).toBeInTheDocument()
+    expect(screen.getByText('0/12')).toBeInTheDocument()
   })
 
   it('supprime une playlist via DELETE /playlists/:id', async () => {
