@@ -1397,6 +1397,12 @@
   --indent: 64px;
 }
 
+/* A list has its own indent (Tab, Maj+Tab): a first-line indent never shows in it (YC-58). The
+   value stays stored, and comes back if the item becomes a paragraph again. */
+.yc-note-page .tiptap li p[data-indent] {
+  --indent: 0px;
+}
+
 /* The menu. */
 .yc-menu-spacing {
   width: 280px;

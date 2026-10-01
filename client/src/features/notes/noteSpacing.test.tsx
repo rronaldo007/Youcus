@@ -145,6 +145,24 @@ describe('paragraph spacing (YC-55)', () => {
     expect(within(toolbar).getByRole('button', { name: 'Interligne et espacement (paragraphes seulement)' })).toHaveAttribute('aria-disabled', 'true')
   })
 
+  it('in a list, the first-line indent is unavailable: the list has its own (YC-58)', async () => {
+    const item = (text: string) => ({ type: 'listItem', content: [para(text, { indent: 32 })] })
+    initialDoc = { type: 'doc', content: [{ type: 'bulletList', content: [item('premier point'), item('second point')] }] }
+    const { editor, toolbar } = await readyEditor()
+    const menu = openMenu(toolbar)
+    for (const v of ['aucun', '32', '64']) {
+      const pill = within(menu).getByRole('menuitemradio', { name: `Retrait de première ligne : ${v} (pas dans une liste)` })
+      expect(pill).toHaveAttribute('aria-disabled', 'true')
+      expect(pill).toHaveAttribute('aria-checked', 'false')
+    }
+    fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Retrait de première ligne : 64 (pas dans une liste)' }))
+    expect(JSON.stringify(editor.getJSON())).not.toMatch(/"indent":\s*64/)
+    expect(within(menu).getByText(/Dans une liste, Tab et Maj\+Tab décalent le point/)).toBeInTheDocument()
+    // The interligne still applies in a list.
+    fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Interligne 2,0' }))
+    expect(JSON.stringify(editor.getJSON())).toMatch(/"lineHeight":\s*2/)
+  })
+
   describe('Tab key (YC-57)', () => {
     const tab = (el: Element, shiftKey = false) => fireEvent.keyDown(el, { key: 'Tab', shiftKey })
 
