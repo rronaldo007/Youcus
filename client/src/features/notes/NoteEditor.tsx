@@ -23,6 +23,7 @@ import { NoteImage } from '@/features/notes/noteImage'
 import { noteTableExtensions } from '@/features/notes/noteTable'
 import { NoteTab, NoteTabs } from '@/features/notes/noteTabs'
 import { NoteDiagram } from '@/features/notes/diagram/noteDiagram'
+import { NoteChart } from '@/features/notes/chart/noteChart'
 import { NoteTableBar } from '@/features/notes/NoteTableBar'
 import { ACCEPTED_IMAGES, imageProblem, uploadNoteImage } from '@/features/notes/noteImageUpload'
 import { formatTimestamp } from '@/lib/format'
@@ -83,6 +84,8 @@ function buildExtensions(
     NoteTab,
     // Diagrams (YC-53): shapes, arrows and text.
     NoteDiagram,
+    // Charts (YC-54): bars, a line or a pie from a small table.
+    NoteChart,
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({

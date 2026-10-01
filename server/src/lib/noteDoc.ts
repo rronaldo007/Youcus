@@ -260,6 +260,20 @@ const scene = z
 const noteDiagram = z.object({ type: z.literal('noteDiagram'), attrs: z.object({ scene }) })
 
 /**
+ * A chart (YC-54), Figma « Bloc de note › Graphique » 65:2230: a title, its kind, and a small table
+ * of labels and values (none negative; an empty value is null). Same limits as
+ * client/src/features/notes/chart/chart.ts.
+ */
+export const MAX_CHART_ROWS = 24
+const chartRow = z.object({ label: z.string().max(24), value: z.number().finite().min(0).max(1_000_000_000).nullable() })
+const chart = z.object({
+  title: z.string().max(80),
+  kind: z.enum(['bar', 'line', 'pie']),
+  rows: z.array(chartRow).min(1).max(MAX_CHART_ROWS),
+})
+const noteChart = z.object({ type: z.literal('noteChart'), attrs: z.object({ chart }) })
+
+/**
  * Tabs (YC-52), Figma « Bloc de note › Onglets » (65:2126): several pages in one note, each with
  * a title and its blocks. Which tab is shown is not stored: it is a state of the screen. A tab
  * holds the blocks of a note except tabs (no tabs in tabs).
@@ -275,11 +289,11 @@ const noteTabs = z.object({ type: z.literal('noteTabs'), content: z.array(noteTa
 
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
 const block: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteTabs, noteDiagram]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteTabs, noteDiagram, noteChart]),
 )
 // What a tab may hold: every block of a note but tabs.
 const tabBlock: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteDiagram]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteDiagram, noteChart]),
 )
 // What a cell may hold: the blocks of a note, except a table (no table in a table) and an image.
 const cellBlock: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
@@ -345,6 +359,16 @@ export function docToPlainText(doc: NoteDoc): string {
       const sc = node.attrs?.scene as { shapes: { text: string }[]; arrows: { label: string }[] } | undefined
       for (const text of [...(sc?.shapes ?? []).map((x) => x.text), ...(sc?.arrows ?? []).map((a) => a.label)]) {
         if (text) lines.push(text)
+      }
+      return
+    }
+    if (node.type === 'noteChart') {
+      // Its title, then each row « label value »: the search finds a chart by what it shows.
+      const ch = node.attrs?.chart as { title: string; rows: { label: string; value: number | null }[] } | undefined
+      if (ch?.title) lines.push(ch.title)
+      for (const r of ch?.rows ?? []) {
+        const line = [r.label, r.value ?? ''].join(' ').trim()
+        if (line) lines.push(line)
       }
       return
     }

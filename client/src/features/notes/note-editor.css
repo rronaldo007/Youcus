@@ -3027,3 +3027,220 @@
   padding: 12px;
   background: var(--note-paper);
 }
+
+/* A chart (YC-54), Figma « Bloc de note › Graphique » 65:2230. */
+.yc-chart-block {
+  margin: 0;
+}
+
+.yc-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px 18px;
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  background: var(--note-paper);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.yc-chart-title {
+  flex: 1 0 0;
+  min-width: 0;
+  margin: 0;
+  color: var(--note-ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: normal;
+  overflow-wrap: anywhere;
+}
+
+.yc-chart-title[data-empty] {
+  color: var(--note-ink-muted);
+  font-weight: 500;
+}
+
+.yc-chart-plot {
+  width: 100%;
+  min-width: 0;
+}
+
+.yc-chart-plot svg {
+  display: block;
+  overflow: visible;
+}
+
+.yc-chart-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Above `.yc-note-page .tiptap p`: the paper's 32 px line is not the card's. */
+.yc-note-page .tiptap .yc-chart p {
+  margin: 0;
+  line-height: normal;
+}
+
+.yc-chart-foot p {
+  flex: 1 0 12em;
+  min-width: 0;
+  margin: 0;
+  color: var(--note-ink-muted);
+  font-size: 13px;
+  line-height: normal;
+}
+
+.yc-chart-edit {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--note-ink);
+  font: 500 13px 'Hanken Grotesk', system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.yc-chart-edit:hover,
+.yc-chart-edit[aria-expanded='true'] {
+  background: var(--note-sunken);
+}
+
+.yc-chart-edit:focus-visible,
+.yc-chart-remove:focus-visible,
+.yc-chart-data input:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+/* « Modifier les données »: the small table behind the drawing. */
+.yc-chart-data {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--note-border);
+}
+
+.yc-chart-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--note-ink-muted);
+  font-size: 13px;
+}
+
+.yc-chart-data input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--note-border);
+  border-radius: 8px;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  font: 400 14px 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-chart-data input[aria-invalid='true'] {
+  border-color: var(--note-text-rouge);
+}
+
+.yc-chart .yc-chart-table {
+  width: 100%;
+  /* Not a table of the note: none of its frame, its fill nor its fixed columns. */
+  border: 0;
+  border-radius: 0;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+  overflow: visible;
+  table-layout: auto;
+  background: transparent;
+}
+
+.yc-chart .yc-chart-table :is(th, td) {
+  min-width: 0;
+  padding: 0 6px 0 0;
+  border: 0;
+  background: transparent;
+  vertical-align: middle;
+}
+
+.yc-chart .yc-chart-table th {
+  color: var(--note-ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.yc-chart .yc-chart-table td:nth-child(2) {
+  width: 34%;
+}
+
+.yc-chart .yc-chart-table td:last-child,
+.yc-chart .yc-chart-table th:last-child {
+  width: 44px;
+  padding: 0;
+}
+
+.yc-chart-remove {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--note-ink-muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.yc-chart-remove:hover:not(:disabled) {
+  background: var(--note-sunken);
+  color: var(--note-ink);
+}
+
+.yc-chart-remove:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.yc-chart-error {
+  margin: 0;
+  color: var(--note-text-rouge);
+  font-size: 13px;
+}
+
+.yc-chart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.yc-chart-done {
+  margin-left: auto;
+  border: 1px solid var(--note-border);
+}
+
+/* On a phone (480 px, usePhone) the kind takes its own line, under the title. */
+@media (max-width: 480px) {
+  .yc-chart {
+    padding: 14px 14px 12px;
+  }
+
+  .yc-chart-kind {
+    width: 100%;
+  }
+
+  .yc-chart-kind button {
+    flex: 1;
+    padding: 0 6px;
+  }
+}

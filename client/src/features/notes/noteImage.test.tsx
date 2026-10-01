@@ -166,7 +166,7 @@ describe('images in a note (YC-50)', () => {
     })
   })
 
-  it('« + Insérer » lists the image and the tools of the bar, nothing that is not built', async () => {
+  it('« + Insérer » lists the blocks of the mockup (63:2013), then the tools of the bar', async () => {
     const { container } = await ready()
     const input = container.querySelector<HTMLInputElement>('[data-testid="note-image-input"]')!
     const click = vi.spyOn(input, 'click')
@@ -174,7 +174,7 @@ describe('images in a note (YC-50)', () => {
     const menu = screen.getByRole('menu', { name: 'Insérer' })
     const items = within(menu).getAllByRole('menuitem').map((i) => i.getAttribute('aria-label'))
     // The table's size grid (YC-51) sits between the image and the tools of the bar.
-    expect(items.filter((l) => !l?.startsWith('Tableau de'))).toEqual(['Image', 'Onglets', 'Schéma', 'Lien', 'Bloc de code', 'Citation', 'Séparateur'])
+    expect(items.filter((l) => !l?.startsWith('Tableau de'))).toEqual(['Image', 'Onglets', 'Schéma', 'Graphique', 'Lien', 'Bloc de code', 'Citation', 'Séparateur'])
     expect(items.filter((l) => l?.startsWith('Tableau de'))).toHaveLength(30)
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Image' }))
     expect(click).toHaveBeenCalled()

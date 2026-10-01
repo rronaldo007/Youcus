@@ -37,6 +37,7 @@ import imageIcon from './icons/image.svg'
 import tableIcon from './icons/table.svg'
 import tabsIcon from './icons/tabs.svg'
 import diagramIcon from './icons/diagram.svg'
+import chartIcon from './icons/chart.svg'
 import closeIcon from './icons/note/fermer.svg'
 import expandIcon from './icons/expand.svg'
 import collapseIcon from './icons/collapse.svg'
@@ -602,6 +603,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
           <SheetButton label="Insérer un schéma" disabled={state.inTable} onRun={run((c) => c.insertNoteDiagram())}>
             <Icon src={diagramIcon} />
           </SheetButton>
+          <SheetButton label="Insérer un graphique" disabled={state.inTable} onRun={run((c) => c.insertNoteChart())}>
+            <Icon src={chartIcon} />
+          </SheetButton>
           <SheetButton label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
             <Icon src={codeBlockIcon} />
           </SheetButton>
@@ -804,6 +808,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
             </Tool>
             <Tool label="Insérer un schéma" disabled={state.inTable} onRun={run((c) => c.insertNoteDiagram())}>
               <Icon src={diagramIcon} />
+            </Tool>
+            <Tool label="Insérer un graphique" disabled={state.inTable} onRun={run((c) => c.insertNoteChart())}>
+              <Icon src={chartIcon} />
             </Tool>
           </div>
         </div>
@@ -1120,6 +1127,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         <Tool label="Insérer un schéma" disabled={state.inTable} onRun={run((c) => c.insertNoteDiagram())}>
           <Icon src={diagramIcon} />
         </Tool>
+        <Tool label="Insérer un graphique" disabled={state.inTable} onRun={run((c) => c.insertNoteChart())}>
+          <Icon src={chartIcon} />
+        </Tool>
         <Tool label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
           <Icon src={codeBlockIcon} />
         </Tool>
@@ -1158,7 +1168,7 @@ const decimal = (v: number) => v.toFixed(v === 1.15 ? 2 : 1).replace('.', ',')
  */
 /**
  * « + Insérer » (Figma « Menu de l'éditeur › Insérer » 63:2013, YC-50): the blocks, then the
- * tools also in the bar. Only what exists is offered: the chart comes with its ticket (YC-54).
+ * tools also in the bar. A block that cannot sit where the cursor is (a table in a table) is left out.
  */
 function InsertMenu({
   editor,
@@ -1211,6 +1221,7 @@ function InsertMenu({
           {!inTable && <TableSizePicker onPick={(rows, cols) => editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run()} close={close} />}
           {!noTabsHere && entry('Onglets', tabsIcon, () => editor.chain().focus().insertNoteTabs().run(), close, 'Plusieurs pages dans la note')}
           {!inTable && entry('Schéma', diagramIcon, () => editor.chain().focus().insertNoteDiagram().run(), close, 'Formes, flèches et texte')}
+          {!inTable && entry('Graphique', chartIcon, () => editor.chain().focus().insertNoteChart().run(), close, 'Barres, courbe ou secteurs')}
           <div aria-hidden="true" className="yc-menu-rule" />
           <p aria-hidden="true" className="yc-menu-label">
             AUSSI DANS LA BARRE

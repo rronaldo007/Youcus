@@ -261,7 +261,7 @@ describe('diagrams in the .docx (YC-53)', () => {
 
   it('is a picture, its words as its alternative text', async () => {
     const buffer = await Packer.toBuffer(
-      buildNoteDocument({ type: 'doc', content: [node] } as NoteDoc, { title: 'Note', page: DEFAULT_PAGE, diagrams: new Map([[node, { data: png(), width: 480, height: 200 }]]) }),
+      buildNoteDocument({ type: 'doc', content: [node] } as NoteDoc, { title: 'Note', page: DEFAULT_PAGE, drawings: new Map([[node, { data: png(), width: 480, height: 200 }]]) }),
     )
     const zip = await JSZip.loadAsync(buffer)
     const xml = await zip.file('word/document.xml')!.async('string')
