@@ -1,3 +1,5 @@
+import { DEFAULT_FONT, DEFAULT_SIZE, type FontId, type FontSize } from '@/features/notes/noteMarkValues'
+
 /**
  * The page of a note (YC-45), Figma « Papier de note » (37:1447) and menu « Page » (38:707).
  * Stored per note as names; the CSS gives each tint a light and a dark value. Same lists as
@@ -29,6 +31,21 @@ export interface NotePage {
   margin: boolean
   /** Whether the timestamped markers are shown (YC-56); hiding them deletes none. */
   timestamps: boolean
+  /** The base font and size of the note's text (YC-48), set from Réglages › Notes. */
+  font?: FontId
+  size?: FontSize
+}
+
+/** The starting settings of every new note (YC-48): a whole page. Same as server/src/lib/notePage.ts. */
+export type NotePreferences = Required<NotePage>
+
+export const DEFAULT_PREFERENCES: NotePreferences = {
+  paper: 'lignes',
+  tint: 'creme',
+  margin: true,
+  timestamps: true,
+  font: DEFAULT_FONT,
+  size: DEFAULT_SIZE,
 }
 
 /** A note never given a page: lined cream paper with its margin, as in the mockup (34:217). */

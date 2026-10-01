@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { useDeleteAccount, useExportData } from '@/features/account/useAccount'
 import { useTheme } from '@/features/theme/useTheme'
+
+// Réglages › Notes (YC-48) brings the editor's styles and fonts: loaded only on this page.
+const NoteSettings = lazy(() => import('@/features/notes/NoteSettings'))
 
 type Theme = 'light' | 'dark'
 const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
@@ -82,6 +85,16 @@ export function SettingsPage() {
             })}
           </div>
         </div>
+      </section>
+
+      {/* Notes : réglages de départ de chaque nouvelle note (YC-48) */}
+      <section aria-labelledby="settings-notes" className="mt-6 rounded-card border border-line bg-canvas p-6">
+        <h2 id="settings-notes" className="text-sm font-semibold uppercase tracking-wide text-content-muted">
+          Notes
+        </h2>
+        <Suspense fallback={<p className="mt-4 text-sm text-content-muted">Chargement…</p>}>
+          <NoteSettings />
+        </Suspense>
       </section>
 
       {/* Données personnelles (RGPD) — héberge CS-22 */}

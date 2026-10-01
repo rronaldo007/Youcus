@@ -2,6 +2,10 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { clearSession } from '@/lib/session'
 import { requireAuth } from '@/middleware/requireAuth'
 import { deleteAccount, exportUserData } from '@/services/account.service'
+import { prisma } from '@/lib/prisma'
+import { HttpError } from '@/middleware/errorHandler'
+import { parseNotePreferences, readNotePreferences } from '@/lib/notePage'
+import type { Prisma } from '@prisma/client'
 
 export const accountRouter = Router()
 
@@ -32,5 +36,29 @@ accountRouter.delete(
     await deleteAccount(req.userId as string)
     clearSession(res)
     return res.json({ ok: true })
+  }),
+)
+
+// Réglages › Notes (YC-48): the starting settings of every new note, the defaults if none.
+accountRouter.get(
+  '/account/note-preferences',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { notePreferences: true } })
+    return res.json(readNotePreferences(user?.notePreferences))
+  }),
+)
+
+accountRouter.put(
+  '/account/note-preferences',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = parseNotePreferences(req.body)
+    if (!parsed.ok) throw new HttpError(400, parsed.message)
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { notePreferences: parsed.preferences as unknown as Prisma.InputJsonValue },
+    })
+    return res.json(parsed.preferences)
   }),
 )
