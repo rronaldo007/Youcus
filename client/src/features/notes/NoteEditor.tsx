@@ -19,6 +19,7 @@ import { NoteCodeBlock } from '@/features/notes/codeBlock'
 import { MAX_MARKER_SECONDS, NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
 import { NoteSpacing } from '@/features/notes/noteSpacing'
 import { NoteIcon } from '@/features/notes/noteIcon'
+import { noteSlashMenu, type SlashActions } from '@/features/notes/noteSlashMenu'
 import { NoteImage } from '@/features/notes/noteImage'
 import { noteTableExtensions } from '@/features/notes/noteTable'
 import { NoteTab, NoteTabs } from '@/features/notes/noteTabs'
@@ -46,6 +47,7 @@ function buildExtensions(
   addMarker: { current: () => boolean },
   seek: { current: (seconds: number) => void },
   onImageFiles: { current: (files: File[], at: number | null) => void },
+  slashActions: { current: SlashActions },
 ) {
   return [
     StarterKit.configure({
@@ -75,6 +77,8 @@ function buildExtensions(
     NoteSpacing,
     // Icons in the text, from the toolbar or « : » (YC-46).
     NoteIcon,
+    // « / » at the start of a line: the blocks of « + Insérer » (YC-64).
+    noteSlashMenu(slashActions),
     // Images pasted, dropped or chosen (YC-50), stored by the API.
     NoteImage.configure({ onFiles: onImageFiles }),
     // Tables (YC-51): header row, sort, Tab from cell to cell.
@@ -282,7 +286,8 @@ export function NoteEditor({
       }
     })()
   })
-  const extensions = useMemo(() => buildExtensions(openLink, addMarker, seek, onImageFiles), [])
+  const slashActions = useRef<SlashActions>({ image: () => imageInput.current?.click(), link: () => setLinkOpen(true) })
+  const extensions = useMemo(() => buildExtensions(openLink, addMarker, seek, onImageFiles, slashActions), [])
 
   const editor = useEditor({
     extensions,
