@@ -172,9 +172,38 @@ const codeBlock = z
     return Object.keys(kept).length ? { ...node, attrs: kept } : node
   })
 
+/**
+ * An image block (YC-50), Figma « Bloc de note › Image » (65:2007). The note keeps the id of a
+ * NoteImage only, never a URL: the client asks /api/note-images/:id, which serves its owner
+ * alone, so no note can point at an outside address. Centred and at its own size by default:
+ * the defaults are not stored.
+ */
+export const IMAGE_ALIGNS = ['left', 'center', 'full'] as const
+export const MAX_IMAGE_TEXT = 300
+const imageText = z.string().max(MAX_IMAGE_TEXT).nullable().optional()
+const noteImage = z
+  .object({
+    type: z.literal('noteImage'),
+    attrs: z.object({
+      id: z.string().uuid(),
+      alt: imageText,
+      caption: imageText,
+      align: z.enum(IMAGE_ALIGNS).nullable().optional(),
+      width: z.number().int().min(20).max(100).nullable().optional(),
+    }),
+  })
+  .transform(({ attrs, ...node }) => {
+    const kept: Record<string, unknown> = { id: attrs.id }
+    if (attrs.alt?.trim()) kept.alt = attrs.alt.trim()
+    if (attrs.caption?.trim()) kept.caption = attrs.caption.trim()
+    if (attrs.align && attrs.align !== 'center') kept.align = attrs.align
+    if (typeof attrs.width === 'number' && attrs.width !== 100) kept.width = attrs.width
+    return { ...node, attrs: kept }
+  })
+
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
 const block: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage]),
 )
 const listItem = z.object({ type: z.literal('listItem'), content: z.array(block).min(1) })
 const blockquote = z.object({ type: z.literal('blockquote'), content: z.array(block).min(1) })
@@ -225,6 +254,12 @@ export const EMPTY_DOC: NoteDoc = { type: 'doc', content: [] }
 export function docToPlainText(doc: NoteDoc): string {
   const lines: string[] = []
   const walk = (node: NoteNode) => {
+    if (node.type === 'noteImage') {
+      // The caption says what the image shows; else its alternative text. Searchable either way.
+      const text = (node.attrs?.caption ?? node.attrs?.alt) as string | undefined
+      if (text) lines.push(text)
+      return
+    }
     if (node.type === 'codeBlock') {
       lines.push((node.content ?? []).map((n) => n.text ?? '').join(''))
       return

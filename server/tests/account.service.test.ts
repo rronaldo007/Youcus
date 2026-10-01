@@ -5,8 +5,12 @@ import { deleteAccount, exportUserData } from '@/services/account.service'
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     user: { findUnique: vi.fn(), delete: vi.fn() },
+    noteImage: { findMany: vi.fn(async () => []) },
   },
 }))
+// The image files leave the bucket before the account (YC-50).
+const deleteObject = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/imageStorage', () => ({ deleteObject, getObject: vi.fn(), putObject: vi.fn() }))
 
 describe('exportUserData', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -36,6 +40,7 @@ describe('exportUserData', () => {
       progress: [{ videoId: 'v1', completed: true, watchedSeconds: 42 }],
       notes: [{ videoId: 'v1', playlistId: null, content: '# Note', updatedAt: new Date('2026-02-02') }],
       libraryVideos: [{ videoId: 'v2', addedAt: new Date('2026-10-01'), video: { youtubeId: 'yt2', title: 'Seule' } }],
+      noteImages: [{ id: 'img1', key: 'notes/u1/img1.webp', name: 'schema.png', width: 800, height: 600, bytes: 42000, createdAt: new Date('2026-10-01') }],
     } as never)
 
     const data = await exportUserData('u1')
@@ -46,6 +51,9 @@ describe('exportUserData', () => {
     expect(data.notes[0].content).toBe('# Note')
     // Videos kept on their own are personal data too (YC-61).
     expect(data.libraryVideos).toEqual([{ videoId: 'v2', youtubeId: 'yt2', title: 'Seule', addedAt: new Date('2026-10-01') }])
+    // What was stored, never where: the bucket key stays on the server.
+    expect(data.noteImages).toEqual([{ id: 'img1', name: 'schema.png', width: 800, height: 600, bytes: 42000, createdAt: new Date('2026-10-01') }])
+    expect(JSON.stringify(data)).not.toContain('notes/u1/')
     // Aucune fuite de jeton OAuth dans l'export.
     expect(JSON.stringify(data)).not.toContain('SECRET-TOKEN')
   })
@@ -58,6 +66,17 @@ describe('deleteAccount', () => {
     vi.mocked(prisma.user.delete).mockResolvedValue({ id: 'u1' } as never)
     await deleteAccount('u1')
     expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } })
+  })
+
+  it("retire d'abord les fichiers d'images du stockage, puis le compte (YC-50)", async () => {
+    vi.mocked(prisma.noteImage.findMany).mockResolvedValue([{ key: 'notes/u1/a.webp' }, { key: 'notes/u1/b.webp' }] as never)
+    deleteObject.mockRejectedValueOnce(new Error('down'))
+    vi.mocked(prisma.user.delete).mockResolvedValue({ id: 'u1' } as never)
+    await deleteAccount('u1')
+    // A file that fails is logged, the next one is still removed, the account still goes.
+    expect(deleteObject.mock.calls.map((c) => c[0])).toEqual(['notes/u1/a.webp', 'notes/u1/b.webp'])
+    expect(prisma.noteImage.findMany).toHaveBeenCalledWith({ where: { userId: 'u1' }, select: { key: true } })
+    expect(prisma.user.delete).toHaveBeenCalled()
   })
 
   it('renvoie 404 si le compte est déjà supprimé (P2025)', async () => {
