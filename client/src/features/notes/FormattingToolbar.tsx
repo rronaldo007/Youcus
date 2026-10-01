@@ -179,7 +179,7 @@ interface FormattingToolbarProps {
   /** Paper, tint, margin and markers shown (YC-45, YC-56), changed from « Fond » and the Page tools. */
   page: NotePage
   onPageChange: (page: NotePage) => void
-  /** Timestamps the current line at the player's position (YC-56); absent without a player. */
+  /** Timestamps the current line at the player's position (YC-56); absent without a player, and so are the timestamp tools. */
   onMarker?: () => void
 }
 
@@ -446,18 +446,20 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
                 ))}
               </div>
               <div aria-hidden="true" className="yc-menu-rule" />
-              <button
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={page.timestamps}
-                tabIndex={-1}
-                className="yc-menu-item yc-menu-switch"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onPageChange({ ...page, timestamps: !page.timestamps })}
-              >
-                <span className="yc-menu-item-label yc-menu-item-medium">Horodatages dans la marge</span>
-                <span aria-hidden="true" className="yc-switch" />
-              </button>
+              {onMarker && (
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={page.timestamps}
+                  tabIndex={-1}
+                  className="yc-menu-item yc-menu-switch"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onPageChange({ ...page, timestamps: !page.timestamps })}
+                >
+                  <span className="yc-menu-item-label yc-menu-item-medium">Horodatages dans la marge</span>
+                  <span aria-hidden="true" className="yc-switch" />
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitemcheckbox"
@@ -682,14 +684,17 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       </div>
 
       <div role="group" aria-label="Page" className="yc-tool-group">
+        {/* Timestamps belong to a video: a playlist note has neither the marker nor the switch. */}
         {onMarker && (
-          <Tool label="Ajouter un repère (M)" disabled={!state.canMarker} onRun={onMarker}>
-            <Icon src={markerIcon} />
-          </Tool>
+          <>
+            <Tool label="Ajouter un repère (M)" disabled={!state.canMarker} onRun={onMarker}>
+              <Icon src={markerIcon} />
+            </Tool>
+            <Tool label="Horodatages" pressed={page.timestamps} onRun={() => onPageChange({ ...page, timestamps: !page.timestamps })}>
+              <Icon src={clockIcon} />
+            </Tool>
+          </>
         )}
-        <Tool label="Horodatages" pressed={page.timestamps} onRun={() => onPageChange({ ...page, timestamps: !page.timestamps })}>
-          <Icon src={clockIcon} />
-        </Tool>
         <Tool label="Colonne de marge" pressed={page.margin} onRun={() => onPageChange({ ...page, margin: !page.margin })}>
           <Icon src={marginColumnIcon} />
         </Tool>
