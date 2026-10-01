@@ -2473,6 +2473,11 @@
 .yc-image-caption {
   display: block;
   width: 100%;
+  overflow: hidden;
+  resize: none;
+  overflow-wrap: anywhere;
+  /* Follows its text on a resize too, where the browser knows how (the script sets it on input). */
+  field-sizing: content;
   margin: 8px 0 0;
   padding: 0;
   border: 0;
@@ -2721,4 +2726,38 @@
   color: var(--note-ink-muted);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
+}
+
+/* A save the server did not take (YC-62): said in words, with « Réessayer ». */
+.yc-save-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--note-accent);
+  border-radius: 10px;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.yc-save-error button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--note-ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--note-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yc-save-error button:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
 }

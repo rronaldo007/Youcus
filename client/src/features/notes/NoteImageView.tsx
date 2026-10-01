@@ -41,6 +41,12 @@ export function NoteImageView({ node, updateAttributes, deleteNode, selected, ed
   const ref = useRef<HTMLElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const altId = useId()
+  // The caption field is as tall as its text, wrapped to the width it has.
+  const fitCaption = (el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
   useEffect(() => setBroken(false), [id])
 
   // Round the block's height up to the ruling step (32 px), as the code block does.
@@ -191,13 +197,23 @@ export function NoteImageView({ node, updateAttributes, deleteNode, selected, ed
 
       {editable ? (
         (selected || caption || captionFocused) && (
-        <input
+        // A textarea that grows with its text: on a phone a caption takes two lines, never cut
+        // (YC-62). Entrée adds no line: a caption is one sentence.
+        <textarea
+          ref={fitCaption}
+          rows={1}
           className="yc-image-caption"
           value={caption}
           maxLength={300}
           aria-label="Légende de l'image"
           placeholder={selected ? 'Ajouter une légende' : ''}
-          onChange={(e) => updateAttributes({ caption: e.target.value || null })}
+          onChange={(e) => {
+            updateAttributes({ caption: e.target.value.replace(/\n/g, ' ') || null })
+            fitCaption(e.target)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.preventDefault()
+          }}
           onFocus={() => setCaptionFocused(true)}
           onBlur={() => setCaptionFocused(false)}
           contentEditable={false}

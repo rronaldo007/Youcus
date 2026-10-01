@@ -21,6 +21,17 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(err.status).json({ error: err.message })
     return
   }
+  // A body the parser refused (too large, not JSON) is the client's doing: its 4xx is kept, with
+  // a sentence, not turned into a 500 that the editor would retry forever (YC-62).
+  const parser = err as { type?: string; status?: number }
+  if (parser.type === 'entity.too.large') {
+    res.status(413).json({ error: 'Contenu trop volumineux' })
+    return
+  }
+  if (parser.type === 'entity.parse.failed' || parser.type === 'encoding.unsupported') {
+    res.status(400).json({ error: 'Requête invalide' })
+    return
+  }
   // YC-34: an unexpected error's message can expose internals (a Prisma query, a table name,
   // a library detail). It goes to the log only; the browser gets a generic message.
   logger.error({ err }, 'Erreur non gérée')

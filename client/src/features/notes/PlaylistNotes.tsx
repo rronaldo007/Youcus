@@ -15,6 +15,7 @@ export function PlaylistNotes({ playlistId, context }: { playlistId: string; con
       isLoading={isLoading}
       onSave={save.mutate}
       isSaving={save.isPending}
+        isOffline={save.isPaused}
       resetKey={playlistId}
       context={context}
     />
