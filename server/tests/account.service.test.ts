@@ -35,6 +35,7 @@ describe('exportUserData', () => {
       ],
       progress: [{ videoId: 'v1', completed: true, watchedSeconds: 42 }],
       notes: [{ videoId: 'v1', playlistId: null, content: '# Note', updatedAt: new Date('2026-02-02') }],
+      libraryVideos: [{ videoId: 'v2', addedAt: new Date('2026-10-01'), video: { youtubeId: 'yt2', title: 'Seule' } }],
     } as never)
 
     const data = await exportUserData('u1')
@@ -43,6 +44,8 @@ describe('exportUserData', () => {
     expect(data.playlists[0].videos[0]).toEqual({ youtubeId: 'v1', title: 'Intro', position: 0 })
     expect(data.progress[0]).toEqual({ videoId: 'v1', completed: true, watchedSeconds: 42 })
     expect(data.notes[0].content).toBe('# Note')
+    // Videos kept on their own are personal data too (YC-61).
+    expect(data.libraryVideos).toEqual([{ videoId: 'v2', youtubeId: 'yt2', title: 'Seule', addedAt: new Date('2026-10-01') }])
     // Aucune fuite de jeton OAuth dans l'export.
     expect(JSON.stringify(data)).not.toContain('SECRET-TOKEN')
   })

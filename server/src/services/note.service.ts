@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { accessibleBy } from '@/lib/videoAccess'
 import { Prisma } from '@prisma/client'
 import { HttpError } from '@/middleware/errorHandler'
 import { markdownToDoc } from '@/lib/markdownToDoc'
@@ -51,10 +52,10 @@ async function startingPage(userId: string, page?: NotePage): Promise<NotePage> 
   return readNotePreferences(user?.notePreferences)
 }
 
-/** Vérifie que la vidéo appartient à au moins une playlist de l'utilisateur (sinon 404). */
+/** Checks the video is in one of the user's playlists or in their library (YC-61), else 404. */
 async function assertOwnsVideo(userId: string, videoId: string): Promise<void> {
   const video = await prisma.video.findFirst({
-    where: { id: videoId, playlists: { some: { playlist: { ownerId: userId } } } },
+    where: { id: videoId, ...accessibleBy(userId) },
     select: { id: true },
   })
   if (!video) throw new HttpError(404, 'Vidéo introuvable')

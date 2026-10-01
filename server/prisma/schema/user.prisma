@@ -17,4 +17,5 @@ model User {
   playlists      Playlist[]
   notes          Note[]
   progress       Progress[]
+  libraryVideos  LibraryVideo[]
 }

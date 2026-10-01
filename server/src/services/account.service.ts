@@ -23,6 +23,8 @@ export interface AccountExport {
     videos: { youtubeId: string; title: string; position: number }[]
   }[]
   progress: { videoId: string; completed: boolean; watchedSeconds: number }[]
+  /** Videos kept on their own, outside any playlist (YC-61). */
+  libraryVideos: { videoId: string; youtubeId: string; title: string; addedAt: Date }[]
   // `doc` is the rich-editor document (YC-40); `content` its plain text, or the legacy Markdown.
   notes: { videoId: string | null; playlistId: string | null; content: string; doc: NoteDoc; legacyMarkdown: string | null; updatedAt: Date }[]
 }
@@ -42,6 +44,7 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       },
       progress: true,
       notes: true,
+      libraryVideos: { orderBy: { addedAt: 'asc' }, include: { video: { select: { youtubeId: true, title: true } } } },
     },
   })
   if (!user) throw new HttpError(404, 'Compte introuvable')
@@ -72,6 +75,12 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       completed: pr.completed,
       watchedSeconds: pr.watchedSeconds,
     })),
+    libraryVideos: user.libraryVideos.map((lv) => ({
+      videoId: lv.videoId,
+      youtubeId: lv.video.youtubeId,
+      title: lv.video.title,
+      addedAt: lv.addedAt,
+    })),
     notes: user.notes.map((n) => ({
       videoId: n.videoId,
       playlistId: n.playlistId,
@@ -85,7 +94,7 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
 
 /**
  * Supprime définitivement le compte et toutes les données liées.
- * Les relations (playlists, vidéos, progression, notes) tombent en cascade (onDelete: Cascade).
+ * Les relations (playlists, vidéos, progression, notes, bibliothèque) tombent en cascade (onDelete: Cascade).
  */
 export async function deleteAccount(userId: string): Promise<void> {
   try {

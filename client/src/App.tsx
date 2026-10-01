@@ -3,6 +3,7 @@ import { RootLayout } from '@/components/layout/RootLayout'
 import { HomePage } from '@/routes/public/HomePage'
 import { PlaylistDetailPage } from '@/routes/playlists/PlaylistDetailPage'
 import { FocusPlayerPage } from '@/routes/playlists/FocusPlayerPage'
+import { SingleVideoPage } from '@/routes/videos/SingleVideoPage'
 import { ImportModal } from '@/features/playlists/ImportModal'
 import { LoginPage } from '@/routes/public/LoginPage'
 import { SettingsPage } from '@/routes/settings/SettingsPage'
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
       { path: '/import', element: <ImportModal /> },
       { path: '/playlists/:id', element: <PlaylistDetailPage /> },
       { path: '/playlists/:id/watch/:videoId', element: <FocusPlayerPage /> },
+      { path: '/videos/:youtubeId', element: <SingleVideoPage /> },
     ],
   },
 ])

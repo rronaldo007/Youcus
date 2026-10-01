@@ -21,6 +21,22 @@ export interface Playlist {
 /** Why a video cannot be played, or AVAILABLE (YC-13). */
 export type Availability = 'AVAILABLE' | 'PRIVATE' | 'DELETED' | 'NOT_EMBEDDABLE' | 'BLOCKED' | 'UPCOMING'
 
+/** A video kept on its own in the library, outside any playlist (YC-61). */
+export interface LibraryVideo {
+  id: string
+  youtubeId: string
+  title: string
+  thumbnailUrl: string | null
+  durationSeconds: number
+  channelTitle: string | null
+  availability: Availability
+  addedAt: string
+  completed: boolean
+  watchedSeconds: number
+  /** When it was marked seen, null otherwise. */
+  completedAt: string | null
+}
+
 export interface UnavailableSummary {
   total: number
   private: number
