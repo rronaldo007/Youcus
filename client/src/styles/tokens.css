@@ -1,0 +1,123 @@
+/*
+ * Design tokens of Youcus (YC-66), from the Figma « Youcus · Design System » (m1TdfhzTPUWmztRfQWF0Uw):
+ * collection « Couleur » (modes Clair / Sombre), « Dimensions », text and effect styles.
+ * Names follow the variables' code syntax (--yc-bg-page is bg/page). Paper, ink, one red signal.
+ */
+:root {
+  color-scheme: light;
+
+  /* Couleur · Clair */
+  --yc-bg-page: #f3efe6;
+  --yc-bg-app: #efeae0;
+  --yc-bg-surface: #fffdf8;
+  --yc-bg-sunken: #eae4d7;
+  --yc-bg-inverse: #17150f;
+  --yc-bg-stage: #121110;
+  --yc-bg-accent: #b0311c;
+  --yc-bg-accent-hover: #8f2716;
+  --yc-bg-mark: #f2d35b;
+  --yc-bg-error: #f6e3df;
+  --yc-bg-success: #e3efe3;
+  --yc-text-primary: #17150f;
+  --yc-text-muted: #5a554a;
+  --yc-text-inverse: #f3efe6;
+  --yc-text-on-accent: #fffdf8;
+  --yc-text-on-mark: #17150f;
+  --yc-text-accent: #b0311c;
+  --yc-text-error: #b0311c;
+  --yc-text-success: #1e6e40;
+  --yc-text-on-stage: #ede8dd;
+  --yc-text-accent-on-inverse: #f08a77;
+  --yc-border-default: #d8d0bf;
+  --yc-border-strong: #17150f;
+  --yc-border-error: #b0311c;
+  --yc-border-success: #1e6e40;
+  --yc-border-focus: #b0311c;
+  --yc-notebook-margin: #e2a597;
+  --yc-notebook-rule: #efe8da;
+  --yc-status-success-bg: #e3f1de;
+  --yc-status-success-text: #1a5e36;
+  --yc-status-warning-bg: #fbe6d0;
+  --yc-status-warning-text: #7e3d07;
+  --yc-status-error-bg: #f9dee6;
+  --yc-status-error-text: #9a2816;
+  /* The accent and the text on it as RGB triplets, for Tailwind's opacity modifiers (bg-accent/10). */
+  --yc-accent-rgb: 176 49 28;
+  --yc-accent-hover-rgb: 143 39 22;
+  --yc-on-accent-rgb: 255 253 248;
+  --yc-success-rgb: 30 110 64;
+
+  /* Dimensions */
+  --yc-space-4: 4px;
+  --yc-space-8: 8px;
+  --yc-space-12: 12px;
+  --yc-space-16: 16px;
+  --yc-space-24: 24px;
+  --yc-space-32: 32px;
+  --yc-space-48: 48px;
+  --yc-space-64: 64px;
+  --yc-space-96: 96px;
+  --yc-radius-sm: 6px;
+  --yc-radius-md: 10px;
+  --yc-radius-lg: 16px;
+  --yc-radius-xl: 20px;
+  --yc-radius-full: 999px;
+  --yc-size-button: 44px;
+  --yc-size-field: 40px;
+  --yc-size-touch-min: 44px;
+  --yc-size-icon: 20px;
+  --yc-stroke-hairline: 1px;
+  --yc-stroke-focus: 2px;
+
+  /* Élévation */
+  --yc-shadow-modal: 0 24px 64px rgb(23 20 15 / 0.22);
+  --yc-shadow-toast: 0 12px 32px rgb(23 20 15 / 0.16);
+
+  /* Typography families */
+  --yc-font-sans: 'Hanken Grotesk', system-ui, sans-serif;
+  --yc-font-serif: 'Instrument Serif', Georgia, serif;
+  --yc-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Couleur · Sombre */
+.dark {
+  color-scheme: dark;
+  --yc-bg-page: #121110;
+  --yc-bg-app: #0c0b0a;
+  --yc-bg-surface: #1d1b18;
+  --yc-bg-sunken: #262420;
+  --yc-bg-inverse: #f3efe6;
+  --yc-bg-stage: #0c0b0a;
+  --yc-bg-accent: #e86a55;
+  --yc-bg-accent-hover: #f08470;
+  --yc-bg-mark: #f2d35b;
+  --yc-bg-error: #3a1e19;
+  --yc-bg-success: #16301f;
+  --yc-text-primary: #ede8dd;
+  --yc-text-muted: #a39d90;
+  --yc-text-inverse: #17150f;
+  --yc-text-on-accent: #121110;
+  --yc-text-on-mark: #17150f;
+  --yc-text-accent: #e86a55;
+  --yc-text-error: #e86a55;
+  --yc-text-success: #4cc46e;
+  --yc-text-on-stage: #ede8dd;
+  --yc-text-accent-on-inverse: #b0311c;
+  --yc-border-default: #3a3732;
+  --yc-border-strong: #ede8dd;
+  --yc-border-error: #e86a55;
+  --yc-border-success: #4cc46e;
+  --yc-border-focus: #e86a55;
+  --yc-notebook-margin: #6b3a30;
+  --yc-notebook-rule: #262420;
+  --yc-status-success-bg: #1c3a24;
+  --yc-status-success-text: #86dba0;
+  --yc-status-warning-bg: #4a2c12;
+  --yc-status-warning-text: #f3b57a;
+  --yc-status-error-bg: #4e1f2e;
+  --yc-status-error-text: #f7a596;
+  --yc-accent-rgb: 232 106 85;
+  --yc-accent-hover-rgb: 240 132 112;
+  --yc-on-accent-rgb: 18 17 16;
+  --yc-success-rgb: 76 196 110;
+}
