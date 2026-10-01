@@ -121,7 +121,7 @@ export function EndCard({ context, seconds, onSave, onReplay }: EndCardProps) {
             </form>
             {status === 'failed' ? (
               <p id={helpId} role="alert" className="yc-end-help yc-end-error">
-                Pas encore enregistrée : la phrase est dans ta note, un nouvel essai part dans un instant.
+                Pas encore enregistrée : la phrase est dans ta note, qui dit ce qui bloque.
               </p>
             ) : status === 'unavailable' ? (
               <p id={helpId} role="alert" className="yc-end-help yc-end-error">

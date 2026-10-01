@@ -40,7 +40,9 @@ export function createApp() {
 
   app.use(helmet({ contentSecurityPolicy: { directives: CSP_DIRECTIVES } }))
   app.use(cors({ origin: [env.CLIENT_ORIGIN, ...env.CORS_EXTRA_ORIGINS], credentials: true }))
-  app.use(express.json())
+  // A note may hold 200,000 characters (MAX_DOC_CHARS, YC-40), up to 4 bytes each: the 100 kB
+  // default answered « Erreur interne » to a long note, retried for nothing (YC-62).
+  app.use(express.json({ limit: '1mb' }))
   app.use(cookieParser(env.SESSION_SECRET))
   app.use(pinoHttp({ logger }))
 

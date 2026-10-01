@@ -92,7 +92,7 @@ describe('a sentence from the end card (YC-60)', () => {
     ])
   })
 
-  it('a refused save is told, and the autosave sends it again', async () => {
+  it('a failed save is told, in the card and in the note, and sent again once the server is back', async () => {
     const { actions } = await ready()
     failNext = true
     const onError = vi.fn()
@@ -100,12 +100,14 @@ describe('a sentence from the end card (YC-60)', () => {
       actions.current?.appendMarkedLine('Retenu', 60, { onError })
     })
     await waitFor(() => expect(onError).toHaveBeenCalled())
-    await waitFor(() => expect(puts).toHaveLength(2), { timeout: 2500 })
+    // A server error (500) is retried every 5 s (YC-62).
+    expect(await screen.findByRole('alert')).toHaveTextContent("Ta note n'est pas enregistrée")
+    await waitFor(() => expect(puts).toHaveLength(2), { timeout: 7000 })
     expect(lines(puts[1].doc)).toEqual([
       ['première ligne', null],
       ['Retenu', 60],
     ])
-  })
+  }, 10000)
 
   it('is refused while the note is not loaded', async () => {
     let release: () => void = () => {}

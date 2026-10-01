@@ -24,6 +24,7 @@ import { noteTableExtensions } from '@/features/notes/noteTable'
 import { NoteTableBar } from '@/features/notes/NoteTableBar'
 import { ACCEPTED_IMAGES, imageProblem, uploadNoteImage } from '@/features/notes/noteImageUpload'
 import { formatTimestamp } from '@/lib/format'
+import { ApiError } from '@/lib/api'
 import { isTyping } from '@/lib/keyboard'
 import './note-editor.css'
 
@@ -99,7 +100,22 @@ export interface NoteActions {
 
 interface SaveCallbacks {
   onSuccess?: () => void
-  onError?: () => void
+  onError?: (error: unknown) => void
+}
+
+/** A save the server did not take (YC-62): what to say, and whether trying again can help. */
+interface SaveError {
+  message: string
+  /** Network down or server error: tried again by itself. A refusal (4xx) waits for an edit. */
+  retryable: boolean
+}
+
+/** Retried every 5 s while the server cannot be reached. */
+const RETRY_DELAY = 5000
+
+function describeSaveError(error: unknown): SaveError {
+  if (error instanceof ApiError) return { message: error.message, retryable: error.status >= 500 }
+  return { message: 'Le serveur ne répond pas', retryable: true }
 }
 
 interface NoteEditorProps {
@@ -115,6 +131,11 @@ interface NoteEditorProps {
   /** Sauvegarde le document, et la page quand elle a changé (déclenché par l'autosave). */
   onSave: (payload: NoteSave, callbacks?: SaveCallbacks) => void
   isSaving: boolean
+  /**
+   * The save waits for the network (YC-62): the browser is offline, React Query sends it when the
+   * connection is back. Not a failure, but not saved either.
+   */
+  isOffline?: boolean
   /** Change quand la cible change (videoId / playlistId) → ré-amorce le brouillon. */
   resetKey: string
   /**
@@ -189,6 +210,7 @@ export function NoteEditor({
   isLoading,
   onSave,
   isSaving,
+  isOffline = false,
   resetKey,
   player,
   context,
@@ -316,22 +338,63 @@ export function NoteEditor({
     editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false).setMeta('editable', editable))
   }, [editor, mode, isLoading])
 
+  // Every save goes through here (YC-62): a refusal or a lost connection is kept and shown, never
+  // covered by the time of the last save that worked. A ref, so the autosave timer below is not
+  // restarted by each render.
+  const [saveError, setSaveError] = useState<SaveError | null>(null)
+  const send = useRef<(payload: NoteSave, extra?: SaveCallbacks) => void>(() => {})
+  send.current = (payload, extra) =>
+    onSave(payload, {
+      onSuccess: () => {
+        setSaveError(null)
+        extra?.onSuccess?.()
+      },
+      onError: (error) => {
+        setSaveError(describeSaveError(error))
+        extra?.onError?.(error)
+      },
+    })
+  const saveCurrent = () => {
+    if (!editor || editor.isDestroyed) return
+    const doc = editor.getJSON() as NoteDoc
+    send.current(pageDirty ? { doc, page } : { doc })
+  }
+
   // Sauvegarde automatique après 1 s sans frappe ; un changement de page s'enregistre de même.
   useEffect(() => {
     if (!draft && !pageDirty) return
     const timer = setTimeout(() => {
       const doc = draft ?? (editor && !editor.isDestroyed ? (editor.getJSON() as NoteDoc) : null)
-      if (doc) onSave(pageDirty ? { doc, page } : { doc })
+      if (doc) send.current(pageDirty ? { doc, page } : { doc })
       setDraft(null)
       setPageDirty(false)
     }, AUTOSAVE_DELAY)
     return () => clearTimeout(timer)
-  }, [draft, pageDirty, page, onSave, editor])
+  }, [draft, pageDirty, page, editor])
+
+  // The connection came back? The note is sent again, every 5 s, without a keystroke. A refusal
+  // is not retried: the same note would be refused again; the next edit tries.
+  useEffect(() => {
+    if (!saveError?.retryable || !editor) return
+    const timer = setTimeout(() => {
+      if (!editor.isDestroyed) setDraft(editor.getJSON() as NoteDoc)
+    }, RETRY_DELAY)
+    return () => clearTimeout(timer)
+  }, [saveError, editor])
+
+  // Leaving the page with a note not saved asks first: the browser's own question.
+  const unsaved = saveError !== null || draft !== null || pageDirty || isOffline
+  useEffect(() => {
+    if (!unsaved) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
 
   // The end card (YC-60) writes its sentence as the last line, timestamped, and it is saved at
   // once: an autosave still waiting would be lost if « Lire la suivante » changes the video.
-  const latestSave = useRef({ page, pageDirty, onSave })
-  latestSave.current = { page, pageDirty, onSave }
+  const latestSave = useRef({ page, pageDirty })
+  latestSave.current = { page, pageDirty }
   useEffect(() => {
     if (!actions) return
     actions.current = {
@@ -347,16 +410,10 @@ export function NoteEditor({
         const blank = last?.type.name === 'paragraph' && last.content.size === 0 && last.attrs.marker == null
         const at = blank && last ? { from: end - last.nodeSize, to: end } : end
         if (!editor.chain().insertContentAt(at, line).run()) return false
-        const { page: current, pageDirty: dirty, onSave: save } = latestSave.current
+        const { page: current, pageDirty: dirty } = latestSave.current
         const json = editor.getJSON() as NoteDoc
-        save(dirty ? { doc: json, page: current } : { doc: json }, {
-          onSuccess: done.onSuccess,
-          // Not lost: the autosave tries again, as for any edit.
-          onError: () => {
-            if (!editor.isDestroyed) setDraft(editor.getJSON() as NoteDoc)
-            done.onError?.()
-          },
-        })
+        // Through `send`: a failure shows in the note and is retried like any save (YC-62).
+        send.current(dirty ? { doc: json, page: current } : { doc: json }, done)
         setDraft(null)
         setPageDirty(false)
         return true
@@ -445,7 +502,18 @@ export function NoteEditor({
   }
 
   const savedTime = formatTime(note?.updatedAt)
-  const status = isSaving ? 'Enregistrement…' : draft || pageDirty ? 'Modifié' : savedTime ? `Enregistré à ${savedTime}` : ''
+  // A failed save is never covered by the time of the last one that worked (YC-62).
+  const status = isOffline
+    ? 'Hors ligne · enregistrée au retour du réseau'
+    : isSaving
+    ? 'Enregistrement…'
+    : saveError
+      ? 'Non enregistré'
+      : draft || pageDirty
+        ? 'Modifié'
+        : savedTime
+          ? `Enregistré à ${savedTime}`
+          : ''
 
   const tab = (m: Mode, label: string) => (
     <button
@@ -567,6 +635,19 @@ export function NoteEditor({
         {expanded ? bigHeader : smallHeader}
         <div className={expanded ? 'yc-x-body' : 'yc-x-inline'}>
           <div className="yc-note mt-3">
+            {saveError && (
+              <p role="alert" className="yc-save-error">
+                <span>
+                  Ta note n'est pas enregistrée ({saveError.message}).{' '}
+                  {saveError.retryable
+                    ? 'Nouvel essai toutes les 5 secondes ; ce que tu écris reste ici.'
+                    : 'Ce que tu écris reste ici tant que la page est ouverte.'}
+                </span>
+                <button type="button" onClick={saveCurrent} disabled={isSaving}>
+                  Réessayer
+                </button>
+              </p>
+            )}
             {editor && mode === 'edit' && (
               <div className="yc-note-tools">
                 <FormattingToolbar

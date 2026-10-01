@@ -32,6 +32,7 @@ export function VideoNotes({
         isLoading={isLoading}
         onSave={save.mutate}
         isSaving={save.isPending}
+        isOffline={save.isPaused}
         resetKey={videoId}
         player={player}
         context={context}
