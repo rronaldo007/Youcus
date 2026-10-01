@@ -6,6 +6,7 @@ import { VideoSidebar } from '@/features/player/VideoSidebar'
 import { VideoNotes } from '@/features/notes/VideoNotes'
 import { reportWatchedSeconds, usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
 import { isPlayable } from '@/lib/availability'
+import { formatDuration } from '@/lib/format'
 
 /** Page lecteur focus : lecture, navigation, reprise à la dernière position (CS-19). */
 export function FocusPlayerPage() {
@@ -121,7 +122,14 @@ export function FocusPlayerPage() {
             playlistChannel={data.channelTitle}
           />
 
-          <VideoNotes videoId={video.id} player={{ seconds: currentSeconds, seek }} />
+          <VideoNotes
+            videoId={video.id}
+            player={{ seconds: currentSeconds, seek }}
+            context={{
+              eyebrow: [data.title, `Vidéo ${video.position + 1}`, data.channelTitle, formatDuration(video.durationSeconds)].filter(Boolean).join(' · '),
+              heading: video.title,
+            }}
+          />
         </div>
 
         <VideoSidebar playlistId={id as string} videos={videos} currentVideoId={video.youtubeId} />

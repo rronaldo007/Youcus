@@ -66,7 +66,10 @@ export function PlaylistDetailPage() {
       )}
 
       <div className="mt-6">
-        <PlaylistNotes playlistId={id as string} />
+        <PlaylistNotes
+          playlistId={id as string}
+          context={{ eyebrow: `Note de playlist · ${data.videoCount} vidéo${data.videoCount > 1 ? 's' : ''}`, heading: data.title }}
+        />
       </div>
 
       <ul className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
