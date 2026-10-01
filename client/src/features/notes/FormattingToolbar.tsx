@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { useEditorState, type Editor } from '@tiptap/react'
 import { ToolMenu } from '@/features/notes/ToolMenu'
 import {
@@ -33,6 +33,8 @@ import clockIcon from './icons/clock.svg'
 import { canSetMarker } from '@/features/notes/noteMarker'
 import lineSpacingIcon from './icons/line-spacing.svg'
 import insertIconIcon from './icons/insert-icon.svg'
+import closeIcon from './icons/note/fermer.svg'
+import { usePhone } from '@/features/notes/usePhone'
 import { searchIcons, type NoteIconId } from '@/features/notes/noteIcons'
 import {
   INDENTS,
@@ -99,6 +101,50 @@ function Tool({ label, onRun, pressed, disabled, className = 'yc-tool', children
   )
 }
 
+/**
+ * A button of the « Mise en forme » sheet (YC-47): a dialog, so every button is a tab stop, and
+ * like the toolbar it keeps the selection in the editor. `role` and `checked` make the swatches,
+ * papers and styles radios, the switches switches; the others say they are pressed.
+ */
+function SheetButton({
+  label,
+  onRun,
+  pressed,
+  checked,
+  role,
+  disabled,
+  className = 'yc-tool',
+  children,
+}: {
+  label: string
+  onRun: () => void
+  pressed?: boolean
+  checked?: boolean
+  role?: 'radio' | 'switch'
+  disabled?: boolean
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      role={role}
+      className={className}
+      aria-label={label}
+      title={label}
+      aria-pressed={role ? undefined : pressed}
+      aria-checked={role ? !!checked : undefined}
+      aria-disabled={disabled || undefined}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => {
+        if (!disabled) onRun()
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 /** A menu entry: keeps the editor selection, runs, and closes the menu unless told to stay. */
 function MenuItem({
   label,
@@ -143,8 +189,14 @@ const STYLES: { id: Style; label: string; shortcut?: string }[] = [
   { id: 'code', label: 'Bloc de code', shortcut: '```' },
 ]
 
-function applyStyle(editor: Editor, style: Style) {
-  let chain = editor.chain().focus()
+/**
+ * The chain a tool runs: it gives the focus back to the editor, except from the phone sheet,
+ * a modal dialog the focus must stay in (the phone keyboard would come up at every tap, YC-47).
+ */
+const chainOf = (editor: Editor, focus: boolean) => (focus ? editor.chain().focus() : editor.chain())
+
+function applyStyle(editor: Editor, style: Style, focus = true) {
+  let chain = chainOf(editor, focus)
   if (style === 'code') {
     if (!editor.isActive('codeBlock')) chain.setCodeBlock().run()
     return
@@ -179,8 +231,8 @@ function currentItem(editor: Editor): 'listItem' | 'taskItem' | null {
 }
 
 /** Sets a named mark, or removes it when the value is the default (plain text stores nothing). */
-function setNamed(editor: Editor, mark: string, attrs: Record<string, unknown>, isDefault: boolean) {
-  const chain = editor.chain().focus()
+function setNamed(editor: Editor, mark: string, attrs: Record<string, unknown>, isDefault: boolean, focus = true) {
+  const chain = chainOf(editor, focus)
   if (isDefault) chain.unsetMark(mark).run()
   else chain.setMark(mark, attrs).run()
 }
@@ -201,6 +253,12 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
   // The colour tools reapply the last colour chosen in one click (Figma « Outil couleur », 31:88).
   const [lastColor, setLastColor] = useState<TextColor>('rouge')
   const [lastHighlight, setLastHighlight] = useState<Highlight>('jaune')
+  // On a phone (YC-47): one scrolling row, and « Aa » opens the sheet with everything.
+  const phone = usePhone()
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const sheetOpenRef = useRef(false)
+  sheetOpenRef.current = sheetOpen
+  const ch = () => chainOf(editor, !sheetOpenRef.current)
 
   // The toolbar re-renders only when a state it shows changes, not on every keystroke.
   const state = useEditorState({
@@ -270,18 +328,24 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
     tools[next].focus()
   }
 
-  const run = (fn: (chain: ReturnType<Editor['chain']>) => ReturnType<Editor['chain']>) => () => fn(editor.chain().focus()).run()
+  // The focused tool becomes the tab stop.
+  const rovingFocus = (e: { target: EventTarget }) => {
+    if (!(e.target as HTMLElement).hasAttribute('data-tool')) return
+    ref.current?.querySelectorAll<HTMLElement>('[data-tool]').forEach((t) => (t.tabIndex = t === e.target ? 0 : -1))
+  }
+
+  const run = (fn: (chain: ReturnType<Editor['chain']>) => ReturnType<Editor['chain']>) => () => fn(ch()).run()
 
   const applyColor = (color: TextColor) => {
-    setNamed(editor, 'textColor', { color }, color === DEFAULT_COLOR)
+    setNamed(editor, 'textColor', { color }, color === DEFAULT_COLOR, !sheetOpenRef.current)
     if (color !== DEFAULT_COLOR) setLastColor(color)
   }
   const applyHighlight = (color: Highlight | null) => {
-    setNamed(editor, 'highlight', { color }, color === null)
+    setNamed(editor, 'highlight', { color }, color === null, !sheetOpenRef.current)
     if (color) setLastHighlight(color)
   }
-  const applyFont = (font: FontId) => setNamed(editor, 'textFont', { font }, font === DEFAULT_FONT)
-  const applySize = (size: FontSize) => setNamed(editor, 'textSize', { size }, size === DEFAULT_SIZE)
+  const applyFont = (font: FontId) => setNamed(editor, 'textFont', { font }, font === DEFAULT_FONT, !sheetOpenRef.current)
+  const applySize = (size: FontSize) => setNamed(editor, 'textSize', { size }, size === DEFAULT_SIZE, !sheetOpenRef.current)
   const stepSize = (step: 1 | -1) => {
     const next = SIZES[SIZES.indexOf(state.size) + step]
     if (next) applySize(next)
@@ -290,9 +354,66 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
   const styleLabel = STYLES.find((s) => s.id === state.style)?.label ?? 'Paragraphe'
   const fontLabel = FONTS.find((f) => f.id === state.font)?.label ?? 'Hanken Grotesk'
 
+  /** Police (31:55), with the size stepper; in the toolbar or in the phone sheet. */
+  const fontMenu = (inToolbar: boolean) => (
+    <ToolMenu
+      inToolbar={inToolbar}
+      buttonLabel={`Police : ${fontLabel}`}
+      buttonClassName="yc-select"
+      buttonContent={
+        <>
+          <span>{fontLabel}</span>
+          <Icon src={chevronIcon} size={18} />
+        </>
+      }
+      menuLabel="Police et taille"
+    >
+      {(close) => (
+        <>
+          <p aria-hidden="true" className="yc-menu-label">
+            POLICE
+          </p>
+          {FONTS.map((f) => (
+            <MenuItem
+              key={f.id}
+              checked={f.id === state.font}
+              className="yc-menu-item"
+              onSelect={() => {
+                applyFont(f.id)
+                close()
+              }}
+            >
+              <span className="yc-menu-item-label" data-font={f.id} data-font-preview="">
+                {f.label}
+              </span>
+              <span className="yc-menu-hint">{f.hint}</span>
+              {f.id === state.font && <Icon src={checkIcon} size={18} />}
+            </MenuItem>
+          ))}
+          <div aria-hidden="true" className="yc-menu-rule" />
+          <p aria-hidden="true" className="yc-menu-label">
+            TAILLE
+          </p>
+          <div className="yc-size-stepper">
+            <MenuItem ariaLabel="Réduire la taille" className="yc-tool yc-tool-outline" onSelect={() => stepSize(-1)}>
+              <span className="yc-glyph yc-glyph-step">−</span>
+            </MenuItem>
+            <span className="yc-size-value" aria-live="polite">
+              {state.size} px
+            </span>
+            <MenuItem ariaLabel="Agrandir la taille" className="yc-tool yc-tool-outline" onSelect={() => stepSize(1)}>
+              <span className="yc-glyph yc-glyph-step">+</span>
+            </MenuItem>
+          </div>
+        </>
+      )}
+    </ToolMenu>
+  )
+
   /** Both colour tools open the same menu (33:207); each puts the focus in its own section. */
   const colorMenu = (focus: 'text' | 'highlight') => (
     <ToolMenu
+      floating={phone}
       buttonLabel={focus === 'text' ? 'Choisir la couleur du texte' : 'Choisir le surlignage'}
       buttonClassName="yc-tool yc-tool-chevron"
       buttonContent={<Icon src={chevronIcon} size={16} />}
@@ -356,19 +477,289 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
     </ToolMenu>
   )
 
+  /** The sections of the phone sheet (Figma 35:3259), every tool of the large bar. */
+  const sheetContent = () => (
+    <>
+      <SheetSection label="STYLE">
+        <div role="radiogroup" aria-label="Style de paragraphe" className="yc-sheet-chips">
+          {STYLES.filter((st) => st.id !== 'code').map((st) => (
+            <SheetButton
+              key={st.id}
+              role="radio"
+              checked={state.style === st.id}
+              label={st.label}
+              className={`yc-sheet-chip yc-chip-${st.id}`}
+              onRun={() => applyStyle(editor, st.id, false)}
+            >
+              {st.label}
+            </SheetButton>
+          ))}
+        </div>
+      </SheetSection>
+
+      <SheetSection label="PAGE">
+        <div role="radiogroup" aria-label="Papier" className="yc-papers">
+          {PAPERS.map((pp) => (
+            <SheetButton
+              key={pp.id}
+              role="radio"
+              checked={page.paper === pp.id}
+              label={`Papier ${pp.label.toLowerCase()}`}
+              className="yc-paper-choice"
+              onRun={() => onPageChange({ ...page, paper: pp.id })}
+            >
+              <span className="yc-paper-preview" data-paper={pp.id} data-tint={page.tint} />
+              <span className="yc-paper-name">{pp.label}</span>
+            </SheetButton>
+          ))}
+        </div>
+        <div role="radiogroup" aria-label="Teinte" className="yc-swatches">
+          {TINTS.map((t) => (
+            <SheetButton
+              key={t.id}
+              role="radio"
+              checked={page.tint === t.id}
+              label={`Teinte ${t.label.toLowerCase()}`}
+              className="yc-swatch"
+              onRun={() => onPageChange({ ...page, tint: t.id })}
+            >
+              <span className="yc-swatch-dot yc-tint-dot" data-tint={t.id} />
+            </SheetButton>
+          ))}
+        </div>
+        {onMarker && (
+          <SheetButton
+            role="switch"
+            checked={page.timestamps}
+            label="Horodatages dans la marge"
+            className="yc-menu-item yc-menu-switch"
+            onRun={() => onPageChange({ ...page, timestamps: !page.timestamps })}
+          >
+            <span className="yc-menu-item-label yc-menu-item-medium">Horodatages dans la marge</span>
+            <span aria-hidden="true" className="yc-switch" />
+          </SheetButton>
+        )}
+        <SheetButton
+          role="switch"
+          checked={page.margin}
+          label="Colonne de marge"
+          className="yc-menu-item yc-menu-switch"
+          onRun={() => onPageChange({ ...page, margin: !page.margin })}
+        >
+          <span className="yc-menu-item-label yc-menu-item-medium">Colonne de marge</span>
+          <span aria-hidden="true" className="yc-switch" />
+        </SheetButton>
+      </SheetSection>
+
+      <SheetSection label="BLOCS">
+        <div className="yc-sheet-row">
+          <SheetButton label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
+            <Icon src={codeBlockIcon} />
+          </SheetButton>
+          <SheetButton label="Insérer un séparateur" onRun={run((c) => c.setHorizontalRule())}>
+            <Icon src={dividerIcon} />
+          </SheetButton>
+        </div>
+      </SheetSection>
+
+      <SheetSection label="POLICE ET TAILLE">
+        <div className="yc-sheet-row">
+          {fontMenu(false)}
+          <SheetButton label="Réduire la taille" className="yc-tool yc-tool-outline" disabled={state.size === SIZES[0]} onRun={() => stepSize(-1)}>
+            <span className="yc-glyph yc-glyph-step">−</span>
+          </SheetButton>
+          <span className="yc-size-value" aria-live="polite">
+            {state.size}
+          </span>
+          <SheetButton label="Agrandir la taille" className="yc-tool yc-tool-outline" disabled={state.size === SIZES[SIZES.length - 1]} onRun={() => stepSize(1)}>
+            <span className="yc-glyph yc-glyph-step">+</span>
+          </SheetButton>
+        </div>
+      </SheetSection>
+
+      <SheetSection label="CARACTÈRES">
+        <div className="yc-sheet-row">
+          <SheetButton label="Gras (Ctrl+B)" pressed={state.bold} onRun={run((c) => c.toggleBold())}>
+            <span className="yc-glyph yc-glyph-bold">B</span>
+          </SheetButton>
+          <SheetButton label="Italique (Ctrl+I)" pressed={state.italic} onRun={run((c) => c.toggleItalic())}>
+            <span className="yc-glyph yc-glyph-italic">I</span>
+          </SheetButton>
+          <SheetButton label="Souligné (Ctrl+U)" pressed={state.underline} onRun={run((c) => c.toggleUnderline())}>
+            <span className="yc-glyph yc-glyph-underline">U</span>
+          </SheetButton>
+          <SheetButton label="Barré (Ctrl+Maj+S)" pressed={state.strike} onRun={run((c) => c.toggleStrike())}>
+            <span className="yc-glyph yc-glyph-strike">S</span>
+          </SheetButton>
+          <SheetButton label="Effacer la mise en forme" onRun={run((c) => c.unsetAllMarks().clearNodes())}>
+            <Icon src={clearFormatIcon} />
+          </SheetButton>
+        </div>
+      </SheetSection>
+
+      <SheetSection label="COULEUR DU TEXTE">
+        <div role="radiogroup" aria-label="Couleur du texte" className="yc-swatches">
+          {TEXT_COLORS.map((c) => (
+            <SheetButton key={c} role="radio" checked={state.color === c} label={`Texte ${COLOR_LABELS[c].toLowerCase()}`} className="yc-swatch" onRun={() => applyColor(c)}>
+              <span className="yc-swatch-dot" data-swatch-color={c} />
+            </SheetButton>
+          ))}
+        </div>
+      </SheetSection>
+
+      <SheetSection label="SURLIGNAGE">
+        <div role="radiogroup" aria-label="Surlignage" className="yc-swatches">
+          <SheetButton role="radio" checked={state.highlight === null} label="Aucun surlignage" className="yc-swatch" onRun={() => applyHighlight(null)}>
+            <span className="yc-swatch-dot yc-swatch-none" />
+          </SheetButton>
+          {HIGHLIGHTS.map((c) => (
+            <SheetButton key={c} role="radio" checked={state.highlight === c} label={`Surlignage ${COLOR_LABELS[c].toLowerCase()}`} className="yc-swatch" onRun={() => applyHighlight(c)}>
+              <span className="yc-swatch-dot" data-swatch-highlight={c} />
+            </SheetButton>
+          ))}
+        </div>
+      </SheetSection>
+
+      <SheetSection label="LISTES ET ALIGNEMENT">
+        <div className="yc-sheet-row">
+          <SheetButton label="Liste à puces (Ctrl+Maj+8)" pressed={state.bulletList} onRun={run((c) => c.toggleBulletList())}>
+            <Icon src={bulletListIcon} />
+          </SheetButton>
+          <SheetButton label="Liste numérotée (Ctrl+Maj+7)" pressed={state.orderedList} onRun={run((c) => c.toggleOrderedList())}>
+            <Icon src={orderedListIcon} />
+          </SheetButton>
+          <SheetButton label="Liste de cases (Ctrl+Maj+9)" pressed={state.taskList} onRun={run((c) => c.toggleTaskList())}>
+            <Icon src={taskListIcon} />
+          </SheetButton>
+          <SheetButton label="Diminuer le retrait (Maj+Tab)" disabled={!state.canLift} onRun={() => ch().liftListItem(currentItem(editor) ?? 'listItem').run()}>
+            <Icon src={outdentIcon} />
+          </SheetButton>
+          <SheetButton label="Augmenter le retrait (Tab)" disabled={!state.canSink} onRun={() => ch().sinkListItem(currentItem(editor) ?? 'listItem').run()}>
+            <Icon src={indentIcon} />
+          </SheetButton>
+          {ALIGNS.slice(0, 2).map((a) => (
+            <SheetButton key={a.id} label={`Aligner ${a.label.toLowerCase()} (${a.shortcut})`} pressed={state.align === a.id} onRun={() => ch().setTextAlign(a.id).run()}>
+              <Icon src={a.icon} />
+            </SheetButton>
+          ))}
+        </div>
+      </SheetSection>
+
+      <SheetSection label="ALIGNEMENT, ESPACEMENT, INSERTION">
+        <div className="yc-sheet-row">
+          {ALIGNS.slice(2).map((a) => (
+            <SheetButton key={a.id} label={`Aligner ${a.label.toLowerCase()} (${a.shortcut})`} pressed={state.align === a.id} onRun={() => ch().setTextAlign(a.id).run()}>
+              <Icon src={a.icon} />
+            </SheetButton>
+          ))}
+          <SpacingMenu
+            inToolbar={false}
+            disabled={!state.inParagraph}
+            inList={state.inList}
+            spacing={state.spacing}
+            ruled={isRuled(page.paper)}
+            drawn={drawnSpacing(state.spacing, page.paper)}
+            onChange={(values) => ch().setParagraphSpacing(values).run()}
+          />
+          <SheetButton
+            label="Lien (Ctrl+K)"
+            pressed={state.link}
+            onRun={() => {
+              // The link field opens under the bar: the sheet steps aside for it.
+              setSheetOpen(false)
+              onLink()
+            }}
+          >
+            <Icon src={linkIcon} />
+          </SheetButton>
+          <SheetButton label="Citation (Ctrl+Maj+B)" pressed={state.quote} onRun={run((c) => c.toggleBlockquote())}>
+            <Icon src={quoteIcon} />
+          </SheetButton>
+          <SheetButton label="Code en ligne (Ctrl+E)" pressed={state.code} onRun={run((c) => c.toggleCode())}>
+            <Icon src={codeIcon} />
+          </SheetButton>
+          <IconPicker inToolbar={false} onPick={(name) => ch().insertNoteIcon(name).run()} />
+        </div>
+      </SheetSection>
+    </>
+  )
+
+  if (phone) {
+    return (
+      <>
+        <div className="yc-toolbar-compact-wrap">
+          <div ref={ref} role="toolbar" aria-label="Mise en forme" className="yc-toolbar yc-toolbar-compact" onKeyDown={onKeyDown} onFocus={rovingFocus}>
+            <button
+              type="button"
+              className="yc-tool yc-tool-aa"
+              data-tool=""
+              tabIndex={-1}
+              aria-label="Toute la mise en forme"
+              title="Toute la mise en forme"
+              aria-haspopup="dialog"
+              aria-expanded={sheetOpen}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSheetOpen(true)}
+            >
+              <span className="yc-glyph yc-glyph-aa">Aa</span>
+            </button>
+            <span aria-hidden="true" className="yc-toolbar-separator" />
+            <Tool label="Gras (Ctrl+B)" pressed={state.bold} onRun={run((c) => c.toggleBold())}>
+              <span className="yc-glyph yc-glyph-bold">B</span>
+            </Tool>
+            <Tool label="Italique (Ctrl+I)" pressed={state.italic} onRun={run((c) => c.toggleItalic())}>
+              <span className="yc-glyph yc-glyph-italic">I</span>
+            </Tool>
+            <Tool label="Souligné (Ctrl+U)" pressed={state.underline} onRun={run((c) => c.toggleUnderline())}>
+              <span className="yc-glyph yc-glyph-underline">U</span>
+            </Tool>
+            <div className="yc-color-tool">
+              <Tool label={`Couleur du texte : ${COLOR_LABELS[lastColor].toLowerCase()}`} className="yc-tool yc-tool-color" onRun={() => applyColor(lastColor)}>
+                <span className="yc-color-pastille">
+                  <Icon src={textColorIcon} />
+                  <span className="yc-color-bar" data-swatch-color={lastColor} />
+                </span>
+              </Tool>
+              {colorMenu('text')}
+            </div>
+            <div className="yc-color-tool">
+              <Tool label={`Surlignage : ${COLOR_LABELS[lastHighlight].toLowerCase()}`} className="yc-tool yc-tool-color" onRun={() => applyHighlight(lastHighlight)}>
+                <span className="yc-color-pastille">
+                  <Icon src={highlighterIcon} />
+                  <span className="yc-color-bar" data-swatch-highlight={lastHighlight} />
+                </span>
+              </Tool>
+              {colorMenu('highlight')}
+            </div>
+            <Tool label="Liste à puces (Ctrl+Maj+8)" pressed={state.bulletList} onRun={run((c) => c.toggleBulletList())}>
+              <Icon src={bulletListIcon} />
+            </Tool>
+            <Tool label="Liste de cases (Ctrl+Maj+9)" pressed={state.taskList} onRun={run((c) => c.toggleTaskList())}>
+              <Icon src={taskListIcon} />
+            </Tool>
+            <IconPicker floating onPick={(name) => ch().insertNoteIcon(name).run()} />
+            <Tool label="Annuler (Ctrl+Z)" disabled={!state.canUndo} onRun={run((c) => c.undo())}>
+              <Icon src={undoIcon} />
+            </Tool>
+          </div>
+        </div>
+        {sheetOpen && (
+          <Sheet
+            title="Mise en forme"
+            onClose={() => {
+              setSheetOpen(false)
+              ref.current?.querySelector<HTMLElement>('.yc-tool-aa')?.focus()
+            }}
+          >
+            {sheetContent()}
+          </Sheet>
+        )}
+      </>
+    )
+  }
+
   return (
-    <div
-      ref={ref}
-      role="toolbar"
-      aria-label="Mise en forme"
-      className="yc-toolbar"
-      onKeyDown={onKeyDown}
-      onFocus={(e) => {
-        // The focused tool becomes the tab stop.
-        if (!(e.target as HTMLElement).hasAttribute('data-tool')) return
-        ref.current?.querySelectorAll<HTMLElement>('[data-tool]').forEach((t) => (t.tabIndex = t === e.target ? 0 : -1))
-      }}
-    >
+    <div ref={ref} role="toolbar" aria-label="Mise en forme" className="yc-toolbar" onKeyDown={onKeyDown} onFocus={rovingFocus}>
       <div role="group" aria-label="Historique" className="yc-tool-group">
         <Tool label="Annuler (Ctrl+Z)" disabled={!state.canUndo} onRun={run((c) => c.undo())}>
           <Icon src={undoIcon} />
@@ -492,57 +883,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
           )}
         </ToolMenu>
 
-        <ToolMenu
-          buttonLabel={`Police : ${fontLabel}`}
-          buttonClassName="yc-select"
-          buttonContent={
-            <>
-              <span>{fontLabel}</span>
-              <Icon src={chevronIcon} size={18} />
-            </>
-          }
-          menuLabel="Police et taille"
-        >
-          {(close) => (
-            <>
-              <p aria-hidden="true" className="yc-menu-label">
-                POLICE
-              </p>
-              {FONTS.map((f) => (
-                <MenuItem
-                  key={f.id}
-                  checked={f.id === state.font}
-                  className="yc-menu-item"
-                  onSelect={() => {
-                    applyFont(f.id)
-                    close()
-                  }}
-                >
-                  <span className="yc-menu-item-label" data-font={f.id} data-font-preview="">
-                    {f.label}
-                  </span>
-                  <span className="yc-menu-hint">{f.hint}</span>
-                  {f.id === state.font && <Icon src={checkIcon} size={18} />}
-                </MenuItem>
-              ))}
-              <div aria-hidden="true" className="yc-menu-rule" />
-              <p aria-hidden="true" className="yc-menu-label">
-                TAILLE
-              </p>
-              <div className="yc-size-stepper">
-                <MenuItem ariaLabel="Réduire la taille" className="yc-tool yc-tool-outline" onSelect={() => stepSize(-1)}>
-                  <span className="yc-glyph yc-glyph-step">−</span>
-                </MenuItem>
-                <span className="yc-size-value" aria-live="polite">
-                  {state.size} px
-                </span>
-                <MenuItem ariaLabel="Agrandir la taille" className="yc-tool yc-tool-outline" onSelect={() => stepSize(1)}>
-                  <span className="yc-glyph yc-glyph-step">+</span>
-                </MenuItem>
-              </div>
-            </>
-          )}
-        </ToolMenu>
+        {fontMenu(true)}
 
         <ToolMenu
           buttonLabel={`Taille : ${state.size} px`}
@@ -630,10 +971,10 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         <Tool label="Liste de cases (Ctrl+Maj+9)" pressed={state.taskList} onRun={run((c) => c.toggleTaskList())}>
           <Icon src={taskListIcon} />
         </Tool>
-        <Tool label="Diminuer le retrait (Maj+Tab)" disabled={!state.canLift} onRun={() => editor.chain().focus().liftListItem(currentItem(editor) ?? 'listItem').run()}>
+        <Tool label="Diminuer le retrait (Maj+Tab)" disabled={!state.canLift} onRun={() => ch().liftListItem(currentItem(editor) ?? 'listItem').run()}>
           <Icon src={outdentIcon} />
         </Tool>
-        <Tool label="Augmenter le retrait (Tab)" disabled={!state.canSink} onRun={() => editor.chain().focus().sinkListItem(currentItem(editor) ?? 'listItem').run()}>
+        <Tool label="Augmenter le retrait (Tab)" disabled={!state.canSink} onRun={() => ch().sinkListItem(currentItem(editor) ?? 'listItem').run()}>
           <Icon src={indentIcon} />
         </Tool>
       </div>
@@ -648,7 +989,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         <Tool label="Code en ligne (Ctrl+E)" pressed={state.code} onRun={run((c) => c.toggleCode())}>
           <Icon src={codeIcon} />
         </Tool>
-        <IconPicker onPick={(name) => editor.chain().focus().insertNoteIcon(name).run()} />
+        <IconPicker onPick={(name) => ch().insertNoteIcon(name).run()} />
         <Tool label="Effacer la mise en forme" onRun={run((c) => c.unsetAllMarks().clearNodes())}>
           <Icon src={clearFormatIcon} />
         </Tool>
@@ -677,7 +1018,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
                   checked={a.id === state.align}
                   className="yc-menu-item"
                   onSelect={() => {
-                    editor.chain().focus().setTextAlign(a.id).run()
+                    ch().setTextAlign(a.id).run()
                     close()
                   }}
                 >
@@ -695,7 +1036,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
           spacing={state.spacing}
           ruled={isRuled(page.paper)}
           drawn={drawnSpacing(state.spacing, page.paper)}
-          onChange={(values) => editor.chain().focus().setParagraphSpacing(values).run()}
+          onChange={(values) => ch().setParagraphSpacing(values).run()}
         />
       </div>
 
@@ -742,7 +1083,10 @@ function SpacingMenu({
   drawn,
   ruled,
   onChange,
+  inToolbar = true,
 }: {
+  /** In the phone sheet, a normal tab stop (YC-47). */
+  inToolbar?: boolean
   disabled: boolean
   /** In a list, the list's own indent replaces the first-line indent (YC-58). */
   inList: boolean
@@ -800,6 +1144,7 @@ function SpacingMenu({
   )
   return (
     <ToolMenu
+      inToolbar={inToolbar}
       buttonLabel="Interligne et espacement"
       buttonClassName="yc-tool"
       buttonContent={<Icon src={lineSpacingIcon} />}
@@ -863,9 +1208,11 @@ function SpacingMenu({
  * « Insérer une icône » (Figma 33:2705): a search field over the grid of icons; Entrée in the
  * field inserts the first one shown.
  */
-function IconPicker({ onPick }: { onPick: (name: NoteIconId) => void }) {
+function IconPicker({ onPick, inToolbar = true, floating = false }: { onPick: (name: NoteIconId) => void; inToolbar?: boolean; floating?: boolean }) {
   return (
     <ToolMenu
+      inToolbar={inToolbar}
+      floating={floating}
       buttonLabel="Insérer une icône"
       buttonClassName="yc-tool"
       buttonContent={<Icon src={insertIconIcon} />}
@@ -929,5 +1276,87 @@ function IconGrid({ onPick }: { onPick: (name: NoteIconId) => void }) {
       </div>
       <p className="yc-spacing-help">Taille et couleur suivent le texte. Tape « : » pour chercher.</p>
     </>
+  )
+}
+
+function SheetSection({ label, children }: { label: string; children: ReactNode }) {
+  const id = useId()
+  return (
+    <section aria-labelledby={id} className="yc-sheet-section">
+      <h3 id={id} className="yc-sheet-label">
+        {label}
+      </h3>
+      {children}
+    </section>
+  )
+}
+
+const FOCUSABLE = 'button:not([disabled]), input, select, textarea, [href], [tabindex]:not([tabindex="-1"])'
+
+/**
+ * The bottom sheet of the phone editor (Figma 35:3259): a modal dialog over a veil. The focus goes
+ * to « Fermer » and stays inside; Échap, the veil and « Fermer » close it; the page under it does
+ * not scroll while it is open.
+ */
+function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  const close = useRef(onClose)
+  close.current = onClose
+
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>('.yc-sheet-close')?.focus()
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = overflow
+    }
+  }, [])
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      // A menu open in the sheet closes first (its own Échap stops here).
+      if ((e.target as HTMLElement).closest('[role="menu"]')) return
+      e.stopPropagation()
+      close.current()
+      return
+    }
+    if (e.key !== 'Tab') return
+    const items = Array.from(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter((el) => !el.closest('[role="menu"]'))
+    if (!items.length) return
+    const first = items[0]
+    const last = items[items.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+
+  return (
+    <div className="yc-sheet-layer">
+      <div className="yc-sheet-veil" aria-hidden="true" onMouseDown={(e) => e.preventDefault()} onClick={() => close.current()} />
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className="yc-sheet" onKeyDown={onKeyDown}>
+        <span aria-hidden="true" className="yc-sheet-handle" />
+        <div className="yc-sheet-head">
+          <h2 id={titleId} className="yc-sheet-title">
+            {title}
+          </h2>
+          <button
+            type="button"
+            className="yc-tool yc-sheet-close"
+            aria-label="Fermer"
+            title="Fermer"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => close.current()}
+          >
+            <Icon src={closeIcon} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
   )
 }
