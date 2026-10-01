@@ -144,4 +144,71 @@ describe('paragraph spacing (YC-55)', () => {
     const { toolbar } = await readyEditor()
     expect(within(toolbar).getByRole('button', { name: 'Interligne et espacement (paragraphes seulement)' })).toHaveAttribute('aria-disabled', 'true')
   })
+
+  describe('Tab key (YC-57)', () => {
+    const tab = (el: Element, shiftKey = false) => fireEvent.keyDown(el, { key: 'Tab', shiftKey })
+
+    it('Tab steps the first-line indent up, Maj+Tab down, and the note keeps the focus', async () => {
+      const { el, editor } = await readyEditor()
+      expect(tab(el)).toBe(false) // handled: the browser does not move the focus
+      expect(attrsOf(editor)).toMatchObject({ indent: 32 })
+      tab(el)
+      expect(attrsOf(editor)).toMatchObject({ indent: 64 })
+      expect(tab(el)).toBe(false) // last step: still kept in the note
+      expect(attrsOf(editor)).toMatchObject({ indent: 64 })
+      tab(el, true)
+      expect(attrsOf(editor)).toMatchObject({ indent: 32 })
+      tab(el, true)
+      expect(attrsOf(editor)).toMatchObject({ indent: null })
+      expect(attrsOf(editor, 1)).toMatchObject({ indent: null })
+    })
+
+    it('steps every paragraph of the selection from its own value', async () => {
+      initialDoc = { type: 'doc', content: [para('premier paragraphe', { indent: 32 }), para('second paragraphe')] }
+      const { el, editor } = await readyEditor()
+      act(() => {
+        editor.commands.setTextSelection({ from: 2, to: editor.state.doc.content.size - 2 })
+      })
+      tab(el)
+      expect([attrsOf(editor, 0).indent, attrsOf(editor, 1).indent]).toEqual([64, 32])
+    })
+
+    it('Échap then Tab leaves the note: the keyboard is never trapped', async () => {
+      const { el, editor } = await readyEditor()
+      fireEvent.keyDown(el, { key: 'Escape' })
+      expect(tab(el)).toBe(true) // not handled: the browser moves the focus on
+      expect(attrsOf(editor)).toMatchObject({ indent: null })
+      // Any other key ends it: Tab indents again.
+      fireEvent.keyDown(el, { key: 'ArrowRight' })
+      tab(el)
+      expect(attrsOf(editor)).toMatchObject({ indent: 32 })
+    })
+
+    it('a selection over a paragraph and a list indents the paragraph only', async () => {
+      const item = (text: string) => ({ type: 'listItem', content: [para(text)] })
+      initialDoc = { type: 'doc', content: [para('premier paragraphe'), { type: 'bulletList', content: [item('un point'), item('un autre')] }] }
+      const { el, editor } = await readyEditor()
+      act(() => {
+        editor.commands.setTextSelection({ from: 3, to: editor.state.doc.content.size - 4 })
+      })
+      tab(el)
+      expect(attrsOf(editor)).toMatchObject({ indent: 32 })
+      expect(JSON.stringify((editor.getJSON().content as NoteNode[])[1])).not.toMatch(/"indent":\s*(32|64)/)
+    })
+
+    it('in a list, Tab still nests the item and indents no paragraph', async () => {
+      const item = (text: string) => ({ type: 'listItem', content: [para(text)] })
+      initialDoc = { type: 'doc', content: [{ type: 'bulletList', content: [item('premier point'), item('second point')] }] }
+      const { el, editor } = await readyEditor()
+      act(() => {
+        editor.commands.setTextSelection(editor.state.doc.content.size - 4)
+      })
+      tab(el)
+      const list = (editor.getJSON().content as NoteNode[])[0]
+      expect(list.content).toHaveLength(1)
+      expect(JSON.stringify(list)).toContain('"bulletList"')
+      expect(JSON.stringify(editor.getJSON())).not.toMatch(/"indent":\s*(32|64)/)
+    })
+  })
 })
+
