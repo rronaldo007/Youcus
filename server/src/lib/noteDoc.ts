@@ -344,9 +344,29 @@ export function parseNoteDoc(input: unknown): ParsedDoc {
 
 export const EMPTY_DOC: NoteDoc = { type: 'doc', content: [] }
 
-/** Plain text of a document, one line per block: kept in `content` for export and search. */
-export function docToPlainText(doc: NoteDoc): string {
-  const lines: string[] = []
+/**
+ * A line of a note for the search (YC-22): its text, the marker it was written at (its own, else
+ * the last one above it: the nearest moment of the video) and the title it sits under.
+ */
+export type NoteLine = { text: string; marker: number | null; section: string | null }
+
+/** The lines of a document, one per block, as `docToPlainText` writes them, with their place. */
+export function noteLines(doc: NoteDoc): NoteLine[] {
+  const out: NoteLine[] = []
+  let marker: number | null = null
+  let section: string | null = null
+  // Every line is pushed through here: what is written, and where.
+  const lines = {
+    get length() {
+      return out.length
+    },
+    push(...texts: string[]) {
+      for (const text of texts) out.push({ text, marker, section })
+    },
+    splice(from: number) {
+      return out.splice(from).map((l) => l.text)
+    },
+  }
   const walk = (node: NoteNode) => {
     if (node.type === 'noteImage') {
       // The caption says what the image shows; else its alternative text. Searchable either way.
@@ -395,13 +415,22 @@ export function docToPlainText(doc: NoteDoc): string {
       return
     }
     if (node.type === 'paragraph' || node.type === 'heading') {
-      lines.push(
-        (node.content ?? []).map((n) => (n.type === 'text' ? (n.text ?? '') : n.type === 'hardBreak' ? '\n' : '')).join(''),
-      )
+      const own = node.attrs?.marker
+      if (typeof own === 'number') marker = own
+      const text = (node.content ?? []).map((n) => (n.type === 'text' ? (n.text ?? '') : n.type === 'hardBreak' ? '\n' : '')).join('')
+      if (node.type === 'heading' && text.trim()) section = text.trim()
+      lines.push(text)
       return
     }
     for (const child of node.content ?? []) walk(child)
   }
   for (const node of doc.content) walk(node)
-  return lines.join('\n')
+  return out
+}
+
+/** Plain text of a document, one line per block: kept in `content` for export and search. */
+export function docToPlainText(doc: NoteDoc): string {
+  return noteLines(doc)
+    .map((l) => l.text)
+    .join('\n')
 }

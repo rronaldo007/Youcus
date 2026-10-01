@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
 import { EndCard } from '@/features/player/EndCard'
 import { StudyControls } from '@/features/player/StudyControls'
@@ -9,6 +9,7 @@ import { VideoNotes } from '@/features/notes/VideoNotes'
 import { reportLibrarySeconds, useLibraryVideo, useSetLibraryProgress } from '@/features/library/useLibrary'
 import { AVAILABILITY_LABEL } from '@/lib/availability'
 import { formatDuration } from '@/lib/format'
+import { startAt } from '@/features/player/startAt'
 
 /**
  * The player of a video kept on its own (YC-61), at /videos/:youtubeId: the same player, study
@@ -20,6 +21,8 @@ export function SingleVideoPage() {
   const setProgress = useSetLibraryProgress()
   // The resume position is read once per video: a refetch must not move the player.
   const resumeRef = useRef<{ key: string; seconds: number } | null>(null)
+  const [params] = useSearchParams()
+  const at = startAt(params)
   const {
     playerRef,
     currentSeconds,
@@ -40,6 +43,10 @@ export function SingleVideoPage() {
     studyPlayer,
     onCaptionTracks,
   } = useStudySession(youtubeId)
+  // Another ?t= on the video already open (a second line of its note found by the search): go there.
+  useEffect(() => {
+    if (at !== null) seek(at)
+  }, [at, seek])
 
   const back = (
     <Link to="/" className="text-sm text-brand-purple hover:underline">
@@ -59,8 +66,9 @@ export function SingleVideoPage() {
     )
   }
 
-  if (resumeRef.current?.key !== video.youtubeId) {
-    resumeRef.current = { key: video.youtubeId, seconds: video.watchedSeconds }
+  // A moment asked by the address (?t=, a note found by the search) comes before the resume.
+  if (resumeRef.current?.key !== `${video.youtubeId}:${at}`) {
+    resumeRef.current = { key: `${video.youtubeId}:${at}`, seconds: at ?? video.watchedSeconds }
   }
   const startSeconds = resumeRef.current.seconds
 

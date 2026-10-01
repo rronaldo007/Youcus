@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
 import { EndCard } from '@/features/player/EndCard'
 import { StudyControls } from '@/features/player/StudyControls'
@@ -10,6 +10,7 @@ import { VideoNotes } from '@/features/notes/VideoNotes'
 import { reportWatchedSeconds, usePlaylist, useSetProgress } from '@/features/playlists/usePlaylists'
 import { isPlayable } from '@/lib/availability'
 import { formatDuration } from '@/lib/format'
+import { startAt } from '@/features/player/startAt'
 
 /** Page lecteur focus : lecture, navigation, reprise à la dernière position (CS-19). */
 export function FocusPlayerPage() {
@@ -18,6 +19,8 @@ export function FocusPlayerPage() {
   const setProgress = useSetProgress(id as string)
   // Fige la position de reprise à la 1re ouverture de chaque vidéo (stable malgré les refetch).
   const resumeRef = useRef<{ key: string; seconds: number } | null>(null)
+  const [params] = useSearchParams()
+  const at = startAt(params)
   // Position, study controls and end card, shared with the single video page (YC-61).
   const {
     playerRef,
@@ -39,6 +42,10 @@ export function FocusPlayerPage() {
     studyPlayer,
     onCaptionTracks,
   } = useStudySession(videoId ?? '')
+  // Another ?t= on the video already open (a second line of its note found by the search): go there.
+  useEffect(() => {
+    if (at !== null) seek(at)
+  }, [at, seek])
 
   if (isLoading) return <p className="p-6 text-content-muted">Chargement…</p>
   if (isError || !data) {
@@ -70,9 +77,10 @@ export function FocusPlayerPage() {
     )
   }
 
-  const resumeKey = `${id}:${video.youtubeId}`
+  // A moment asked by the address (?t=, a note found by the search) comes before the resume.
+  const resumeKey = `${id}:${video.youtubeId}:${at}`
   if (resumeRef.current?.key !== resumeKey) {
-    resumeRef.current = { key: resumeKey, seconds: video.watchedSeconds ?? 0 }
+    resumeRef.current = { key: resumeKey, seconds: at ?? video.watchedSeconds ?? 0 }
   }
   const startSeconds = resumeRef.current.seconds
 
