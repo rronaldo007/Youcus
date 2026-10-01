@@ -2569,3 +2569,156 @@
   color: var(--note-ink-muted);
   font-size: 12px;
 }
+
+/*
+ * Table (YC-51), Figma « Bloc de note › Tableau » (65:2071): strong outer border, header row
+ * sunken and semibold, hairlines between cells, the cell of the cursor outlined in the accent.
+ * Active, the table makes room above for its bar and under for « Ajouter une ligne ».
+ */
+.yc-note-page .tableWrapper {
+  overflow-x: auto;
+}
+
+/* Whole steps of the ruling: the bar above, « Ajouter une ligne » under. */
+.yc-note-page .tableWrapper.yc-table-active {
+  margin-top: calc(var(--note-step) * 2);
+  margin-bottom: calc(var(--note-step) * 2);
+}
+
+.yc-note-page table {
+  width: 100%;
+  border: 1px solid var(--note-ink);
+  border-radius: 10px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  table-layout: fixed;
+  background: var(--note-paper);
+}
+
+.yc-note-page th,
+.yc-note-page td {
+  position: relative;
+  min-width: 96px;
+  padding: 6px 14px;
+  border-top: 1px solid var(--note-border);
+  border-left: 1px solid var(--note-border);
+  vertical-align: top;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+}
+
+.yc-note-page tr:first-child > * {
+  border-top: 0;
+}
+
+.yc-note-page tr > *:first-child {
+  border-left: 0;
+}
+
+.yc-note-page th {
+  background: var(--note-sunken);
+  font-weight: 600;
+}
+
+/* Above `.yc-note-page .tiptap p`: the paper's 32 px line would make each row 44 px. */
+.yc-note-page .tiptap :is(th, td) p {
+  margin: 0;
+  line-height: 20px;
+}
+
+/* The cell of the cursor, and the cells of a selection across cells. */
+.yc-note-page td:has(> :focus-within),
+.yc-note-page .selectedCell {
+  outline: 2px solid var(--note-accent);
+  outline-offset: -2px;
+}
+
+.yc-table-bar {
+  position: absolute;
+  z-index: 2;
+}
+
+.yc-table-add {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px dashed var(--note-border);
+  border-radius: 8px;
+  background: var(--note-paper);
+  color: var(--note-ink-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.yc-table-add:hover {
+  background: var(--note-sunken);
+}
+
+.yc-table-add:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+/* A phone shows three columns; more scroll sideways inside the table (YC-20). */
+@media (max-width: 480px) {
+  .yc-note-page table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .yc-note-page th,
+  .yc-note-page td {
+    width: 104px;
+  }
+}
+
+/* « Tableau · Choisis la taille » in « + Insérer » (Figma 63:2024). */
+.yc-table-size {
+  padding: 4px 8px 8px 44px;
+}
+
+.yc-table-size-title {
+  margin: 0 0 6px -36px;
+  padding-left: 0;
+}
+
+.yc-table-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 18px);
+  gap: 3px;
+}
+
+.yc-table-cell {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--note-border);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.yc-table-cell[data-on] {
+  border-color: var(--note-accent);
+  background: var(--note-accent);
+}
+
+.yc-table-cell:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 1px;
+}
+
+.yc-table-size-label {
+  margin: 6px 0 0;
+  color: var(--note-ink-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+}

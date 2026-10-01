@@ -9,7 +9,11 @@ import {
   Packer,
   Paragraph,
   ShadingType,
+  Table,
+  TableCell,
+  TableRow,
   TextRun,
+  WidthType,
   type IParagraphOptions,
   type IRunOptions,
   type ParagraphChild,
@@ -170,8 +174,11 @@ function lineOptions(attrs: Record<string, unknown> | undefined, ctx: Context): 
 }
 
 /** The Word paragraphs of a block, recursively through lists and quotes. */
-function blocks(nodes: NoteNode[] = [], ctx: Context): Paragraph[] {
-  const out: Paragraph[] = []
+/** What a note becomes in Word: paragraphs, and tables (YC-51). */
+type Block = Paragraph | Table
+
+function blocks(nodes: NoteNode[] = [], ctx: Context): Block[] {
+  const out: Block[] = []
   for (const node of nodes) {
     const attrs = node.attrs
     if (node.type === 'paragraph') {
@@ -203,6 +210,8 @@ function blocks(nodes: NoteNode[] = [], ctx: Context): Paragraph[] {
             children: [new TextRun({ text: line || ' ', font: MONO, size: 19 })],
           }),
         )
+    } else if (node.type === 'table') {
+      out.push(tableBlock(node, ctx))
     } else if (node.type === 'noteImage') {
       out.push(...imageBlock(attrs ?? {}, ctx))
     } else if (node.type === 'horizontalRule') {
@@ -246,8 +255,43 @@ function imageBlock(attrs: Record<string, unknown>, ctx: Context): Paragraph[] {
   return out
 }
 
+/**
+ * A table (YC-51) as a Word table: the full width, its columns even, the header row sunken and
+ * bold, and repeated at the top of each page when the table runs over a page break.
+ */
+function tableBlock(node: NoteNode, ctx: Context): Table {
+  const rows = node.content ?? []
+  const columns = Math.max(1, ...rows.map((r) => r.content?.length ?? 0))
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: Array.from({ length: columns }, () => Math.floor(9000 / columns)),
+    rows: rows.map((row) => {
+      const header = row.content?.[0]?.type === 'tableHeader'
+      return new TableRow({
+        tableHeader: header,
+        children: (row.content ?? []).map((cell) => {
+          // A header cell is one line of bold text; a body cell keeps its blocks (lists, code…).
+          const inside = header ? [boldParagraph(cell)] : blocks(cell.content, { ...ctx, list: undefined, task: undefined })
+          return new TableCell({
+            shading: header ? { type: ShadingType.CLEAR, fill: SUNKEN, color: 'auto' } : undefined,
+            margins: { top: 60, bottom: 60, left: 120, right: 120 },
+            // Word refuses a cell without a paragraph.
+            children: inside.length ? inside : [new Paragraph({ children: [] })],
+          })
+        }),
+      })
+    }),
+  })
+}
+
+/** A header cell's text in bold: Word has no « header cell » style of its own. */
+function boldParagraph(cell: NoteNode): Paragraph {
+  const text = (cell.content ?? []).map((n) => (n.content ?? []).map((t) => t.text ?? '').join('')).join(' ')
+  return new Paragraph({ children: text ? [new TextRun({ text, bold: true })] : [] })
+}
+
 /** An item: its first line takes the bullet, number or box; the next lines only its indent. */
-function listItem(item: NoteNode, ctx: Context): Paragraph[] {
+function listItem(item: NoteNode, ctx: Context): Block[] {
   const [first, ...rest] = item.content ?? []
   if (!first) return []
   return [...blocks([first], ctx), ...blocks(rest, { ...ctx, task: undefined, list: ctx.list && { ...ctx.list, continued: true } })]

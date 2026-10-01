@@ -34,6 +34,7 @@ import { canSetMarker } from '@/features/notes/noteMarker'
 import lineSpacingIcon from './icons/line-spacing.svg'
 import insertIconIcon from './icons/insert-icon.svg'
 import imageIcon from './icons/image.svg'
+import tableIcon from './icons/table.svg'
 import closeIcon from './icons/note/fermer.svg'
 import expandIcon from './icons/expand.svg'
 import collapseIcon from './icons/collapse.svg'
@@ -317,6 +318,8 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       canMarker: canSetMarker(e),
       inParagraph: e.isActive('paragraph'),
       inList: e.isActive('listItem') || e.isActive('taskItem'),
+      // No table in a table (YC-51): the server would refuse it.
+      inTable: e.isActive('table'),
       spacing: readSpacing(e.getAttributes('paragraph')),
     }),
   })
@@ -586,6 +589,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
               <Icon src={imageIcon} />
             </SheetButton>
           )}
+          <SheetButton label="Insérer un tableau" disabled={state.inTable} onRun={run(insertDefaultTable)}>
+            <Icon src={tableIcon} />
+          </SheetButton>
           <SheetButton label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
             <Icon src={codeBlockIcon} />
           </SheetButton>
@@ -780,6 +786,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
                 <Icon src={imageIcon} />
               </Tool>
             )}
+            <Tool label="Insérer un tableau" disabled={state.inTable} onRun={run(insertDefaultTable)}>
+              <Icon src={tableIcon} />
+            </Tool>
           </div>
         </div>
         {sheetOpen && (
@@ -1080,12 +1089,15 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       </div>
 
       <div role="group" aria-label="Blocs" className="yc-tool-group">
-        {onImage && <InsertMenu onImage={onImage} onLink={onLink} editor={editor} />}
+        {onImage && <InsertMenu onImage={onImage} onLink={onLink} editor={editor} inTable={state.inTable} />}
         {onImage && (
           <Tool label="Insérer une image" onRun={onImage}>
             <Icon src={imageIcon} />
           </Tool>
         )}
+        <Tool label="Insérer un tableau" disabled={state.inTable} onRun={run(insertDefaultTable)}>
+          <Icon src={tableIcon} />
+        </Tool>
         <Tool label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
           <Icon src={codeBlockIcon} />
         </Tool>
@@ -1127,7 +1139,7 @@ const decimal = (v: number) => v.toFixed(v === 1.15 ? 2 : 1).replace('.', ',')
  * tools also in the bar. Only what exists is offered: table, tabs, diagram and chart come with
  * their tickets (YC-51 to YC-54).
  */
-function InsertMenu({ editor, onImage, onLink }: { editor: Editor; onImage: () => void; onLink: () => void }) {
+function InsertMenu({ editor, onImage, onLink, inTable }: { editor: Editor; onImage: () => void; onLink: () => void; inTable: boolean }) {
   const entry = (label: string, icon: string, onSelect: () => void, close: () => void, hint?: string) => (
     <MenuItem
       ariaLabel={label}
@@ -1163,6 +1175,7 @@ function InsertMenu({ editor, onImage, onLink }: { editor: Editor; onImage: () =
             BLOCS
           </p>
           {entry('Image', imageIcon, onImage, close, 'Téléverser, coller ou glisser · 10 Mo max')}
+          {!inTable && <TableSizePicker onPick={(rows, cols) => editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run()} close={close} />}
           <div aria-hidden="true" className="yc-menu-rule" />
           <p aria-hidden="true" className="yc-menu-label">
             AUSSI DANS LA BARRE
@@ -1174,6 +1187,58 @@ function InsertMenu({ editor, onImage, onLink }: { editor: Editor; onImage: () =
         </>
       )}
     </ToolMenu>
+  )
+}
+
+/** The default table of the bar's tool: a header row and two rows, three columns. */
+const insertDefaultTable = (c: ReturnType<Editor['chain']>) => c.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+
+const GRID_ROWS = 5
+const GRID_COLUMNS = 6
+
+/**
+ * « Tableau · Choisis la taille » (Figma 63:2024): a 6 × 5 grid, the cells under the pointer in
+ * the accent, « 3 lignes × 4 colonnes » under it; a click inserts that table, header row first.
+ */
+function TableSizePicker({ onPick, close }: { onPick: (rows: number, cols: number) => void; close: () => void }) {
+  const [size, setSize] = useState({ rows: 3, cols: 4 })
+  return (
+    <div className="yc-table-size">
+      <p className="yc-insert-text yc-table-size-title">
+        <span className="yc-menu-item-label yc-menu-item-medium">Tableau</span>
+        <span className="yc-insert-hint">Choisis la taille</span>
+      </p>
+      <div className="yc-table-grid" onMouseLeave={() => setSize({ rows: 3, cols: 4 })}>
+        {Array.from({ length: GRID_ROWS }, (_, r) =>
+          Array.from({ length: GRID_COLUMNS }, (_, c) => {
+            const rows = r + 1
+            const cols = c + 1
+            const label = `${rows} ligne${rows > 1 ? 's' : ''} × ${cols} colonne${cols > 1 ? 's' : ''}`
+            return (
+              <button
+                key={`${r}-${c}`}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                aria-label={`Tableau de ${label}`}
+                className="yc-table-cell"
+                data-on={rows <= size.rows && cols <= size.cols ? 'true' : undefined}
+                onMouseEnter={() => setSize({ rows, cols })}
+                onFocus={() => setSize({ rows, cols })}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  close()
+                  onPick(rows, cols)
+                }}
+              />
+            )
+          }),
+        )}
+      </div>
+      <p aria-live="polite" className="yc-table-size-label">
+        {size.rows} ligne{size.rows > 1 ? 's' : ''} × {size.cols} colonne{size.cols > 1 ? 's' : ''}
+      </p>
+    </div>
   )
 }
 
