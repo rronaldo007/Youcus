@@ -174,7 +174,7 @@ describe('images in a note (YC-50)', () => {
     const menu = screen.getByRole('menu', { name: 'Insérer' })
     const items = within(menu).getAllByRole('menuitem').map((i) => i.getAttribute('aria-label'))
     // The table's size grid (YC-51) sits between the image and the tools of the bar.
-    expect(items.filter((l) => !l?.startsWith('Tableau de'))).toEqual(['Image', 'Lien', 'Bloc de code', 'Citation', 'Séparateur'])
+    expect(items.filter((l) => !l?.startsWith('Tableau de'))).toEqual(['Image', 'Onglets', 'Lien', 'Bloc de code', 'Citation', 'Séparateur'])
     expect(items.filter((l) => l?.startsWith('Tableau de'))).toHaveLength(30)
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Image' }))
     expect(click).toHaveBeenCalled()

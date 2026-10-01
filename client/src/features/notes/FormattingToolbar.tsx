@@ -35,6 +35,7 @@ import lineSpacingIcon from './icons/line-spacing.svg'
 import insertIconIcon from './icons/insert-icon.svg'
 import imageIcon from './icons/image.svg'
 import tableIcon from './icons/table.svg'
+import tabsIcon from './icons/tabs.svg'
 import closeIcon from './icons/note/fermer.svg'
 import expandIcon from './icons/expand.svg'
 import collapseIcon from './icons/collapse.svg'
@@ -320,6 +321,8 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       inList: e.isActive('listItem') || e.isActive('taskItem'),
       // No table in a table (YC-51): the server would refuse it.
       inTable: e.isActive('table'),
+      // No tabs in tabs nor in a table (YC-52), same reason.
+      noTabsHere: e.isActive('noteTabs') || e.isActive('table'),
       spacing: readSpacing(e.getAttributes('paragraph')),
     }),
   })
@@ -592,6 +595,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
           <SheetButton label="Insérer un tableau" disabled={state.inTable} onRun={run(insertDefaultTable)}>
             <Icon src={tableIcon} />
           </SheetButton>
+          <SheetButton label="Insérer des onglets" disabled={state.noTabsHere} onRun={run((c) => c.insertNoteTabs())}>
+            <Icon src={tabsIcon} />
+          </SheetButton>
           <SheetButton label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
             <Icon src={codeBlockIcon} />
           </SheetButton>
@@ -788,6 +794,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
             )}
             <Tool label="Insérer un tableau" disabled={state.inTable} onRun={run(insertDefaultTable)}>
               <Icon src={tableIcon} />
+            </Tool>
+            <Tool label="Insérer des onglets" disabled={state.noTabsHere} onRun={run((c) => c.insertNoteTabs())}>
+              <Icon src={tabsIcon} />
             </Tool>
           </div>
         </div>
@@ -1089,7 +1098,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       </div>
 
       <div role="group" aria-label="Blocs" className="yc-tool-group">
-        {onImage && <InsertMenu onImage={onImage} onLink={onLink} editor={editor} inTable={state.inTable} />}
+        {onImage && <InsertMenu onImage={onImage} onLink={onLink} editor={editor} inTable={state.inTable} noTabsHere={state.noTabsHere} />}
         {onImage && (
           <Tool label="Insérer une image" onRun={onImage}>
             <Icon src={imageIcon} />
@@ -1097,6 +1106,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         )}
         <Tool label="Insérer un tableau" disabled={state.inTable} onRun={run(insertDefaultTable)}>
           <Icon src={tableIcon} />
+        </Tool>
+        <Tool label="Insérer des onglets" disabled={state.noTabsHere} onRun={run((c) => c.insertNoteTabs())}>
+          <Icon src={tabsIcon} />
         </Tool>
         <Tool label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
           <Icon src={codeBlockIcon} />
@@ -1136,10 +1148,22 @@ const decimal = (v: number) => v.toFixed(v === 1.15 ? 2 : 1).replace('.', ',')
  */
 /**
  * « + Insérer » (Figma « Menu de l'éditeur › Insérer » 63:2013, YC-50): the blocks, then the
- * tools also in the bar. Only what exists is offered: table, tabs, diagram and chart come with
- * their tickets (YC-51 to YC-54).
+ * tools also in the bar. Only what exists is offered: diagram and chart come with their tickets
+ * (YC-53, YC-54).
  */
-function InsertMenu({ editor, onImage, onLink, inTable }: { editor: Editor; onImage: () => void; onLink: () => void; inTable: boolean }) {
+function InsertMenu({
+  editor,
+  onImage,
+  onLink,
+  inTable,
+  noTabsHere,
+}: {
+  editor: Editor
+  onImage: () => void
+  onLink: () => void
+  inTable: boolean
+  noTabsHere: boolean
+}) {
   const entry = (label: string, icon: string, onSelect: () => void, close: () => void, hint?: string) => (
     <MenuItem
       ariaLabel={label}
@@ -1176,6 +1200,7 @@ function InsertMenu({ editor, onImage, onLink, inTable }: { editor: Editor; onIm
           </p>
           {entry('Image', imageIcon, onImage, close, 'Téléverser, coller ou glisser · 10 Mo max')}
           {!inTable && <TableSizePicker onPick={(rows, cols) => editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run()} close={close} />}
+          {!noTabsHere && entry('Onglets', tabsIcon, () => editor.chain().focus().insertNoteTabs().run(), close, 'Plusieurs pages dans la note')}
           <div aria-hidden="true" className="yc-menu-rule" />
           <p aria-hidden="true" className="yc-menu-label">
             AUSSI DANS LA BARRE

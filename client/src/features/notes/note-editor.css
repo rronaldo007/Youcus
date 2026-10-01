@@ -2761,3 +2761,120 @@
   outline: 2px solid var(--note-ink);
   outline-offset: 2px;
 }
+
+/*
+ * Tabs (YC-52), Figma « Bloc de note › Onglets » (65:2126): a sunken bar of titles, the tab in
+ * front on paper with the accent rule on top, the page of that tab under it. The block hides the
+ * ruling behind it; its height is rounded up to the step by the view, so the text after it falls
+ * on the lines again.
+ */
+.yc-tabs {
+  margin: 0;
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  background: var(--note-paper);
+  overflow: hidden;
+}
+
+.yc-tabs-bar {
+  display: flex;
+  align-items: stretch;
+  min-height: 48px;
+  padding-left: 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--note-border);
+  background: var(--note-sunken);
+}
+
+.yc-tab,
+.yc-tab-add {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-top: 2px solid transparent;
+  background: transparent;
+  color: var(--note-ink-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yc-tab[aria-selected='true'] {
+  border-top-color: var(--note-accent);
+  background: var(--note-paper);
+  color: var(--note-ink);
+  font-weight: 600;
+}
+
+.yc-tab-add {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--note-ink);
+}
+
+.yc-tab:focus-visible,
+.yc-tab-add:focus-visible,
+.yc-tab-edit button:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: -3px;
+}
+
+.yc-tab-edit {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-top: 2px solid var(--note-accent);
+  background: var(--note-paper);
+}
+
+.yc-tab-edit input {
+  width: 140px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--note-border);
+  border-radius: 6px;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.yc-tab-edit button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--note-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.yc-tab-edit button:hover:not(:disabled) {
+  background: var(--note-sunken);
+}
+
+.yc-tab-edit button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.yc-tab-edit .yc-tab-delete {
+  color: var(--note-accent);
+}
+
+/* Only the tab in front shows (rule written by the block, per block). */
+.yc-tabs-panels [data-note-tab] {
+  display: none;
+  /* Figma 65:2139: 16 px above the page, 18 under, 20 on the sides. */
+  padding: 16px 20px 18px;
+}

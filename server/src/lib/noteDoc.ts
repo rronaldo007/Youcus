@@ -228,8 +228,26 @@ const table = z
   .object({ type: z.literal('table'), content: z.array(tableRow).min(1).max(MAX_TABLE_ROWS) })
   .refine((t) => t.content.every((row) => row.content.length === t.content[0].content.length), 'Tableau irrégulier')
 
+/**
+ * Tabs (YC-52), Figma « Bloc de note › Onglets » (65:2126): several pages in one note, each with
+ * a title and its blocks. Which tab is shown is not stored: it is a state of the screen. A tab
+ * holds the blocks of a note except tabs (no tabs in tabs).
+ */
+export const MAX_TABS = 8
+export const MAX_TAB_TITLE = 40
+const noteTab = z.object({
+  type: z.literal('noteTab'),
+  attrs: z.object({ title: z.string().trim().min(1).max(MAX_TAB_TITLE) }),
+  content: z.array(z.lazy(() => tabBlock)).min(1),
+})
+const noteTabs = z.object({ type: z.literal('noteTabs'), content: z.array(noteTab).min(1).max(MAX_TABS) })
+
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
 const block: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteTabs]),
+)
+// What a tab may hold: every block of a note but tabs.
+const tabBlock: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
   z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table]),
 )
 // What a cell may hold: the blocks of a note, except a table (no table in a table) and an image.
@@ -289,6 +307,12 @@ export function docToPlainText(doc: NoteDoc): string {
       // The caption says what the image shows; else its alternative text. Searchable either way.
       const text = (node.attrs?.caption ?? node.attrs?.alt) as string | undefined
       if (text) lines.push(text)
+      return
+    }
+    if (node.type === 'noteTab') {
+      // The title of the tab, then its lines: the search finds a word whichever tab holds it.
+      lines.push(String(node.attrs?.title ?? ''))
+      for (const child of node.content ?? []) walk(child)
       return
     }
     if (node.type === 'tableRow') {
