@@ -21,11 +21,11 @@ const video = {
 let inLibrary: boolean
 const posts: { url: string; body: unknown }[] = []
 
-function renderPage() {
+function renderPage(url = `/videos/${ID}`) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/videos/${ID}`]}>
+      <MemoryRouter initialEntries={[url]}>
         <Routes>
           <Route path="/videos/:youtubeId" element={<SingleVideoPage />} />
         </Routes>
@@ -80,6 +80,28 @@ describe('SingleVideoPage (YC-61)', () => {
     expect((PlayerMock.mock.calls[0][1] as { videoId: string }).videoId).toBe(ID)
     expect(screen.getByRole('button', { name: /Vitesse de lecture/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '← Tableau de bord' })).toHaveAttribute('href', '/')
+  })
+
+  it('starts where it was left; ?t= (a note found by the search, YC-22) starts at that moment', async () => {
+    video.watchedSeconds = 90
+    try {
+      renderPage()
+      await waitFor(() => expect(PlayerMock).toHaveBeenCalled())
+      expect((PlayerMock.mock.calls[0][1] as { playerVars: { start: number } }).playerVars.start).toBe(90)
+    } finally {
+      video.watchedSeconds = 0
+    }
+  })
+
+  it('?t= comes before the resume', async () => {
+    video.watchedSeconds = 90
+    try {
+      renderPage(`/videos/${ID}?t=245`)
+      await waitFor(() => expect(PlayerMock).toHaveBeenCalled())
+      expect((PlayerMock.mock.calls[0][1] as { playerVars: { start: number } }).playerVars.start).toBe(245)
+    } finally {
+      video.watchedSeconds = 0
+    }
   })
 
   it('at the end: the « vidéo seule » end card, and seen, with no playlist named', async () => {

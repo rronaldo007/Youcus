@@ -8,6 +8,7 @@ import { ImportModal } from '@/features/playlists/ImportModal'
 import { LoginPage } from '@/routes/public/LoginPage'
 import { SettingsPage } from '@/routes/settings/SettingsPage'
 import { PrivacyPage } from '@/routes/public/PrivacyPage'
+import { SearchPage } from '@/routes/search/SearchPage'
 
 const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { path: '/playlists/:id', element: <PlaylistDetailPage /> },
       { path: '/playlists/:id/watch/:videoId', element: <FocusPlayerPage /> },
       { path: '/videos/:youtubeId', element: <SingleVideoPage /> },
+      { path: '/recherche', element: <SearchPage /> },
     ],
   },
 ])
