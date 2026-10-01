@@ -91,6 +91,9 @@ export default {
       keyframes: {
         'yc-pulse': { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.55' } },
         'yc-toast-delay': { from: { transform: 'scaleX(1)' }, to: { transform: 'scaleX(0)' } },
+        // Figma « Tiroir de navigation » 108:325: it slides from the left over a veil.
+        'yc-drawer-in': { from: { transform: 'translateX(-100%)' }, to: { transform: 'translateX(0)' } },
+        'yc-fade': { from: { opacity: '0' }, to: { opacity: '1' } },
       },
       animation: {
         'yc-pulse': 'yc-pulse 1.2s ease-in-out infinite',

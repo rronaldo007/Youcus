@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Logo } from '@/components/ui/Logo'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { PublicFooter } from '@/components/layout/PublicFooter'
+import { PublicNav } from '@/components/layout/PublicNav'
 
 const FEATURES = [
   { title: 'Playlists', desc: 'Importe tes playlists YouTube (ou celles de ton compte) en un clic.' },
@@ -13,18 +13,7 @@ const FEATURES = [
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex h-16 items-center justify-between border-b border-line bg-surface px-6 sm:px-7">
-        <Logo />
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <Link
-            to="/login"
-            className="rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-on-purple transition hover:bg-brand-purple-dark"
-          >
-            Continuer avec Google
-          </Link>
-        </div>
-      </header>
+      <PublicNav />
 
       <section className="bg-surface">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-6 py-16 lg:flex-row lg:gap-12 lg:py-24">
@@ -68,11 +57,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="mx-auto max-w-6xl border-t border-line px-6 py-8 text-sm text-content-muted">
-        <Link to="/confidentialite" className="hover:text-content hover:underline">
-          Confidentialité
-        </Link>
-      </footer>
+      <PublicFooter />
     </div>
   )
 }
