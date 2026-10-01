@@ -282,6 +282,8 @@ export function DiagramCanvas({ scene, onChange, height, barEnd }: DiagramCanvas
       e.preventDefault()
       remove(selection)
     } else if (e.key === 'Escape') {
+      // Something to drop: Échap is the drawing's, not the expanded note's (YC-63).
+      if (selection || arrowFrom || tool !== 'select') e.preventDefault()
       setSelection(null)
       setArrowFrom(null)
       setPointer(null)
