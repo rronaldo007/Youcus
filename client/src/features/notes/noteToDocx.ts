@@ -210,6 +210,19 @@ function blocks(nodes: NoteNode[] = [], ctx: Context): Block[] {
             children: [new TextRun({ text: line || ' ', font: MONO, size: 19 })],
           }),
         )
+    } else if (node.type === 'noteTabs') {
+      // Word has no tabs: each tab is a title on a sunken band, then its page, one after the other.
+      for (const tab of node.content ?? []) {
+        out.push(
+          new Paragraph({
+            spacing: { before: 200, after: 80 },
+            shading: { type: ShadingType.CLEAR, fill: SUNKEN, color: 'auto' },
+            border: { top: { style: BorderStyle.SINGLE, size: 12, color: ACCENT, space: 2 } },
+            children: [new TextRun({ text: String(tab.attrs?.title ?? ''), bold: true })],
+          }),
+        )
+        out.push(...blocks(tab.content, ctx))
+      }
     } else if (node.type === 'table') {
       out.push(tableBlock(node, ctx))
     } else if (node.type === 'noteImage') {

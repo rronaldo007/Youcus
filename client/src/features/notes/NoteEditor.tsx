@@ -21,6 +21,7 @@ import { NoteSpacing } from '@/features/notes/noteSpacing'
 import { NoteIcon } from '@/features/notes/noteIcon'
 import { NoteImage } from '@/features/notes/noteImage'
 import { noteTableExtensions } from '@/features/notes/noteTable'
+import { NoteTab, NoteTabs } from '@/features/notes/noteTabs'
 import { NoteTableBar } from '@/features/notes/NoteTableBar'
 import { ACCEPTED_IMAGES, imageProblem, uploadNoteImage } from '@/features/notes/noteImageUpload'
 import { formatTimestamp } from '@/lib/format'
@@ -76,6 +77,9 @@ function buildExtensions(
     NoteImage.configure({ onFiles: onImageFiles }),
     // Tables (YC-51): header row, sort, Tab from cell to cell.
     ...noteTableExtensions,
+    // Tabs (YC-52): several pages in the note.
+    NoteTabs,
+    NoteTab,
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({

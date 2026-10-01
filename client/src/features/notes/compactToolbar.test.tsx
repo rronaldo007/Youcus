@@ -87,9 +87,10 @@ describe('phone toolbar and sheet (YC-47)', () => {
       'Liste de cases (Ctrl+Maj+9)',
       'Insérer une icône',
       'Annuler (Ctrl+Z)',
-      // Figma compact bar 32:291: the image follows « Annuler » (YC-50), then the table (YC-51).
+      // Figma compact bar 32:291: the image follows « Annuler » (YC-50), then the table (YC-51), the tabs (YC-52).
       'Insérer une image',
       'Insérer un tableau',
+      'Insérer des onglets',
     ])
   })
 
@@ -193,12 +194,13 @@ describe('phone toolbar and sheet (YC-47)', () => {
     expect(screen.getByRole('form', { name: 'Lien' })).toBeInTheDocument()
   })
 
-  it('offers no tool that is not built yet (tabs, diagram, chart); the image (YC-50) and the table (YC-51) are', async () => {
+  it('offers no tool that is not built yet (diagram, chart); the image, table and tabs (YC-50 to 52) are', async () => {
     const { toolbar } = await readyEditor()
     const sheet = openSheet(toolbar)
     expect(within(sheet).getByRole('button', { name: 'Insérer une image' })).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Insérer un tableau' })).toBeInTheDocument()
-    for (const name of [/onglets/i, /schéma/i, /graphique/i]) {
+    expect(within(sheet).getByRole('button', { name: 'Insérer des onglets' })).toBeInTheDocument()
+    for (const name of [/schéma/i, /graphique/i]) {
       expect(within(toolbar).queryByRole('button', { name })).not.toBeInTheDocument()
       expect(within(sheet).queryByRole('button', { name })).not.toBeInTheDocument()
     }
