@@ -1668,6 +1668,19 @@
   margin-right: 8px;
 }
 
+/* « / » at the start of a line (YC-64): the « + Insérer » menu (63:2013), under the cursor. */
+.yc-slash-menu {
+  position: relative;
+  z-index: 50;
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+  color: var(--note-ink);
+}
+
+.yc-slash-item[aria-selected='true'] {
+  background: var(--note-sunken);
+}
+
 /* ---- Phone (YC-47): compact bar and « Mise en forme » sheet, Figma 32:291 and 35:3259 ---- */
 
 /* One row that scrolls; the last tools fade out on the right (Figma « Fondu défilement »), and

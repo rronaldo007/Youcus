@@ -178,6 +178,18 @@ describe('expanded view of a note (YC-18)', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
+  it('Échap with the « / » list open closes the list only (YC-64)', async () => {
+    const { el, editor } = await videoNote()
+    open()
+    act(() => {
+      editor.chain().setTextSelection(editor.state.doc.content.size - 1).splitBlock().insertContent('/').run()
+    })
+    await screen.findByRole('listbox', { name: 'Insérer un bloc' })
+    fireEvent.keyDown(el, { key: 'Escape', keyCode: 27 })
+    await waitFor(() => expect(screen.queryByRole('listbox', { name: 'Insérer un bloc' })).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('Échap in the data of a chart closes that table only (YC-54)', async () => {
     storedDoc = { type: 'doc', content: [para('Les hooks essentiels'), { type: 'noteChart', attrs: { chart: { title: 'T', kind: 'bar', rows: [{ label: 'A', value: 1 }] } } }] }
     await videoNote()
