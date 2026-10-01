@@ -74,7 +74,21 @@ const textNode = z.object({
   marks: z.array(markSchema).max(10).optional(),
 })
 const hardBreak = z.object({ type: z.literal('hardBreak') })
-const inline = z.union([textNode, hardBreak])
+/**
+ * An icon in the text (YC-46), Figma « Menu de l'éditeur › Icônes » (33:2705): stored by name,
+ * drawn by the client in the colour and size of the text, so it takes the text's marks. Same list
+ * as client/src/features/notes/noteIcons.ts.
+ */
+export const NOTE_ICONS = [
+  'ampoule', 'etoile', 'question', 'drapeau', 'alerte', 'coche', 'repere', 'horloge',
+  'crayon', 'lien', 'code', 'lecture', 'plus', 'citation', 'fermer',
+] as const
+const noteIcon = z.object({
+  type: z.literal('noteIcon'),
+  attrs: z.object({ name: z.enum(NOTE_ICONS) }),
+  marks: z.array(markSchema).max(10).optional(),
+})
+const inline = z.union([textNode, hardBreak, noteIcon])
 
 /**
  * Alignment (YC-43): the editor sends `textAlign: null` on every block; only a real choice is

@@ -32,6 +32,8 @@ import markerIcon from './icons/marker.svg'
 import clockIcon from './icons/clock.svg'
 import { canSetMarker } from '@/features/notes/noteMarker'
 import lineSpacingIcon from './icons/line-spacing.svg'
+import insertIconIcon from './icons/insert-icon.svg'
+import { searchIcons, type NoteIconId } from '@/features/notes/noteIcons'
 import {
   INDENTS,
   LINE_HEIGHTS,
@@ -646,6 +648,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         <Tool label="Code en ligne (Ctrl+E)" pressed={state.code} onRun={run((c) => c.toggleCode())}>
           <Icon src={codeIcon} />
         </Tool>
+        <IconPicker onPick={(name) => editor.chain().focus().insertNoteIcon(name).run()} />
         <Tool label="Effacer la mise en forme" onRun={run((c) => c.unsetAllMarks().clearNodes())}>
           <Icon src={clearFormatIcon} />
         </Tool>
@@ -853,5 +856,78 @@ function SpacingMenu({
         </>
       )}
     </ToolMenu>
+  )
+}
+
+/**
+ * « Insérer une icône » (Figma 33:2705): a search field over the grid of icons; Entrée in the
+ * field inserts the first one shown.
+ */
+function IconPicker({ onPick }: { onPick: (name: NoteIconId) => void }) {
+  return (
+    <ToolMenu
+      buttonLabel="Insérer une icône"
+      buttonClassName="yc-tool"
+      buttonContent={<Icon src={insertIconIcon} />}
+      menuLabel="Insérer une icône"
+      menuClassName="yc-menu-icons"
+      initialFocus="input"
+    >
+      {(close) => (
+        <IconGrid
+          onPick={(name) => {
+            onPick(name)
+            close()
+          }}
+        />
+      )}
+    </ToolMenu>
+  )
+}
+
+function IconGrid({ onPick }: { onPick: (name: NoteIconId) => void }) {
+  const [query, setQuery] = useState('')
+  const shown = searchIcons(query)
+  return (
+    <>
+      <p aria-hidden="true" className="yc-menu-label">
+        INSÉRER UNE ICÔNE
+      </p>
+      <input
+        type="search"
+        className="yc-icon-search"
+        placeholder="Rechercher une icône"
+        aria-label="Rechercher une icône"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          // The caret moves in the field; the arrows up and down go to the grid (the menu's keys).
+          if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) e.stopPropagation()
+          if (e.key === 'Enter' && shown[0]) {
+            e.preventDefault()
+            onPick(shown[0].id)
+          }
+        }}
+      />
+      <div role="group" aria-label="Icônes" className="yc-icon-grid">
+        {shown.map((icon) => (
+          <button
+            key={icon.id}
+            type="button"
+            role="menuitem"
+            aria-label={icon.label}
+            title={icon.label}
+            tabIndex={-1}
+            className="yc-icon-cell"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(icon.id)}
+          >
+            <span aria-hidden="true" className="yc-icon" data-icon={icon.id} />
+          </button>
+        ))}
+        {!shown.length && <p className="yc-icon-empty">Aucune icône pour « {query} ».</p>}
+      </div>
+      <p className="yc-spacing-help">Taille et couleur suivent le texte. Tape « : » pour chercher.</p>
+    </>
   )
 }
