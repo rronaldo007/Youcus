@@ -4,6 +4,7 @@ import {
   Document,
   ExternalHyperlink,
   HeadingLevel,
+  ImageRun,
   LevelFormat,
   Packer,
   Paragraph,
@@ -16,6 +17,7 @@ import {
 import { formatTimestamp } from '@/lib/format'
 import type { NoteDoc, NoteNode } from '@/features/notes/noteDoc'
 import type { NotePage } from '@/features/notes/notePage'
+import { noteImageUrl } from '@/features/notes/noteImageUpload'
 
 /**
  * A note as a Word document (YC-49), built from the editor's JSON, node by node: no HTML goes
@@ -131,6 +133,8 @@ interface Context {
    */
   list?: { kind: 'bullet' | 'ordered' | 'task'; level: number; instance: number; continued?: boolean }
   quote: boolean
+  /** The images ready for Word, by id (YC-50). */
+  images?: Map<string, DocxImage>
   task?: boolean
 }
 
@@ -199,10 +203,46 @@ function blocks(nodes: NoteNode[] = [], ctx: Context): Paragraph[] {
             children: [new TextRun({ text: line || ' ', font: MONO, size: 19 })],
           }),
         )
+    } else if (node.type === 'noteImage') {
+      out.push(...imageBlock(attrs ?? {}, ctx))
     } else if (node.type === 'horizontalRule') {
       out.push(new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'D8D0BF', space: 1 } }, children: [] }))
     }
   }
+  return out
+}
+
+/** What fits between the margins of an A4 page in Word (6.27 in at 96 px per inch). */
+const PAGE_WIDTH_PX = 600
+
+/**
+ * An image block (YC-50): the picture itself, at its width and alignment, with its alternative
+ * text (Word reads it aloud), then its caption in italics. An image that could not be read for
+ * the export says so in its place rather than vanishing.
+ */
+function imageBlock(attrs: Record<string, unknown>, ctx: Context): Paragraph[] {
+  const id = attrs.id as string | undefined
+  const alt = (attrs.alt as string | undefined) || (attrs.caption as string | undefined) || 'Image sans description'
+  const caption = attrs.caption as string | undefined
+  const align = (attrs.align as string | undefined) ?? 'center'
+  const image = id ? ctx.images?.get(id) : undefined
+  const alignment = align === 'left' ? AlignmentType.LEFT : AlignmentType.CENTER
+  const out: Paragraph[] = []
+  if (image) {
+    const share = align === 'full' ? 1 : typeof attrs.width === 'number' ? attrs.width / 100 : null
+    const width = Math.round(share !== null ? PAGE_WIDTH_PX * share : Math.min(image.width, PAGE_WIDTH_PX))
+    const height = Math.round((width * image.height) / image.width)
+    out.push(
+      new Paragraph({
+        alignment,
+        spacing: { before: 120, after: caption ? 60 : 120 },
+        children: [new ImageRun({ type: 'png', data: image.data, transformation: { width, height }, altText: { name: alt, description: alt, title: alt } })],
+      }),
+    )
+  } else {
+    out.push(new Paragraph({ alignment, children: [new TextRun({ text: `[Image : ${alt}]`, italics: true, color: '5A554A' })] }))
+  }
+  if (caption) out.push(new Paragraph({ alignment, spacing: { after: 120 }, children: [new TextRun({ text: caption, italics: true, color: '5A554A', size: 21 })] }))
   return out
 }
 
@@ -220,11 +260,20 @@ const levels = (formats: { format: (typeof LevelFormat)[keyof typeof LevelFormat
     return { level: i, format: f.format, text: f.text(i), alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: twips(28 * (i + 1)), hanging: twips(18) } } } }
   })
 
+/** An image ready for Word: PNG bytes (Word reads no WebP) and its size in pixels. */
+export interface DocxImage {
+  data: Uint8Array
+  width: number
+  height: number
+}
+
 export interface DocxMeta {
   /** « FULLSTACK · VIDÉO 4 · 14:32 », above the title. */
   eyebrow?: string
   title: string
   page: NotePage
+  /** The images of the note by id (YC-50); one missing is written as its description. */
+  images?: Map<string, DocxImage>
 }
 
 /** The Word document of a note; `noteToDocx` packs it for the browser, the tests for Node. */
@@ -259,14 +308,42 @@ export function buildNoteDocument(doc: NoteDoc, meta: DocxMeta): Document {
         },
       ],
     },
-    sections: [{ children: [...head, ...blocks(doc.content, { base, quote: false })] }],
+    sections: [{ children: [...head, ...blocks(doc.content, { base, quote: false, images: meta.images })] }],
   })
   return document
 }
 
-/** The .docx of a note, as a Blob to download. */
-export function noteToDocx(doc: NoteDoc, meta: DocxMeta): Promise<Blob> {
-  return Packer.toBlob(buildNoteDocument(doc, meta))
+/** The ids of the images of a note, wherever they sit (lists, quotes). */
+export function imageIds(nodes: NoteNode[] = []): string[] {
+  return nodes.flatMap((n) => (n.type === 'noteImage' && typeof n.attrs?.id === 'string' ? [n.attrs.id] : imageIds(n.content)))
+}
+
+/** One image of the note, read from the API and redrawn as PNG; null when it cannot be read. */
+async function loadDocxImage(id: string): Promise<DocxImage | null> {
+  try {
+    const res = await fetch(noteImageUrl(id), { credentials: 'include' })
+    if (!res.ok) return null
+    const bitmap = await createImageBitmap(await res.blob())
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0)
+    const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+    if (!png) return null
+    return { data: new Uint8Array(await png.arrayBuffer()), width: bitmap.width, height: bitmap.height }
+  } catch {
+    return null
+  }
+}
+
+/** The .docx of a note, as a Blob to download, its images inside. */
+export async function noteToDocx(doc: NoteDoc, meta: DocxMeta): Promise<Blob> {
+  const images = new Map<string, DocxImage>()
+  for (const id of new Set(imageIds(doc.content))) {
+    const image = await loadDocxImage(id)
+    if (image) images.set(id, image)
+  }
+  return Packer.toBlob(buildNoteDocument(doc, { ...meta, images }))
 }
 
 /** « useEffect en profondeur » → « useEffect-en-profondeur.docx »: no character a file system refuses. */

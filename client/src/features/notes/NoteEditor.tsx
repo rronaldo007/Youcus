@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react'
-import { EditorContent, Extension, useEditor, useEditorState } from '@tiptap/react'
+import { EditorContent, Extension, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import { Selection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extensions'
@@ -19,6 +19,8 @@ import { NoteCodeBlock } from '@/features/notes/codeBlock'
 import { MAX_MARKER_SECONDS, NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
 import { NoteSpacing } from '@/features/notes/noteSpacing'
 import { NoteIcon } from '@/features/notes/noteIcon'
+import { NoteImage } from '@/features/notes/noteImage'
+import { ACCEPTED_IMAGES, imageProblem, uploadNoteImage } from '@/features/notes/noteImageUpload'
 import { formatTimestamp } from '@/lib/format'
 import { isTyping } from '@/lib/keyboard'
 import './note-editor.css'
@@ -37,6 +39,7 @@ function buildExtensions(
   openLink: { current: () => void },
   addMarker: { current: () => boolean },
   seek: { current: (seconds: number) => void },
+  onImageFiles: { current: (files: File[], at: number | null) => void },
 ) {
   return [
     StarterKit.configure({
@@ -66,6 +69,8 @@ function buildExtensions(
     NoteSpacing,
     // Icons in the text, from the toolbar or « : » (YC-46).
     NoteIcon,
+    // Images pasted, dropped or chosen (YC-50), stored by the API.
+    NoteImage.configure({ onFiles: onImageFiles }),
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({
@@ -210,7 +215,38 @@ export function NoteEditor({
   playerRef.current = player
   const addMarker = useRef<() => boolean>(() => false)
   const seek = useRef((seconds: number) => playerRef.current?.seek(seconds))
-  const extensions = useMemo(() => buildExtensions(openLink, addMarker, seek), [])
+  // Images (YC-50): sent one after the other, each inserted once the server has it.
+  const [imageStatus, setImageStatus] = useState<{ sending: number; error: string | null }>({ sending: 0, error: null })
+  const imageInput = useRef<HTMLInputElement>(null)
+  // The editor alive when a file comes back from the server: useEditor may rebuild its instance
+  // while a file is sent, and the one of an earlier render would then be destroyed.
+  const liveEditor = useRef<Editor | null>(null)
+  // Set ONCE: TipTap's configure() copies the { current } object it is given, so a function put
+  // there later would never reach the extension (seen: a pasted image went nowhere).
+  const onImageFiles = useRef((files: File[], at: number | null) => {
+    const problems = files.map(imageProblem).filter((p): p is string => p !== null)
+    const valid = files.filter((f) => imageProblem(f) === null)
+    setImageStatus({ sending: valid.length, error: problems[0] ?? null })
+    void (async () => {
+      let position = at
+      for (const file of valid) {
+        try {
+          const uploaded = await uploadNoteImage(file)
+          const current = liveEditor.current
+          if (!current || current.isDestroyed) return
+          // The note may have changed while the file was sent: the drop point stays inside it.
+          const where = position === null ? null : Math.min(position, current.state.doc.content.size)
+          current.chain().focus().insertNoteImage({ id: uploaded.id }, where).run()
+          // The next one goes after it, not over it.
+          position = null
+        } catch (err) {
+          setImageStatus((s) => ({ ...s, error: (err as Error).message || `« ${file.name} » n'a pas pu être envoyée.` }))
+        }
+        setImageStatus((s) => ({ ...s, sending: Math.max(0, s.sending - 1) }))
+      }
+    })()
+  })
+  const extensions = useMemo(() => buildExtensions(openLink, addMarker, seek, onImageFiles), [])
 
   const editor = useEditor({
     extensions,
@@ -218,6 +254,8 @@ export function NoteEditor({
     editorProps: { attributes: { 'aria-label': editorLabel, 'aria-multiline': 'true', role: 'textbox' } },
     onUpdate: ({ editor }) => setDraft(editor.getJSON() as NoteDoc),
   })
+
+  liveEditor.current = editor
 
   addMarker.current = () => {
     const current = playerRef.current
@@ -265,7 +303,13 @@ export function NoteEditor({
   // setEditable emits an update by default, which would save a note merely opened (write on
   // read): toggling edition never changes the document, so no update is emitted.
   useEffect(() => {
-    if (editor && !editor.isDestroyed) editor.setEditable(mode === 'edit' && !isLoading, false)
+    if (!editor || editor.isDestroyed) return
+    const editable = mode === 'edit' && !isLoading
+    if (editor.isEditable === editable) return
+    editor.setEditable(editable, false)
+    // An empty transaction (no change, out of the history) tells the blocks drawn by React (image,
+    // code) that editing changed: without it the image bar stayed shown in « Aperçu » (YC-50).
+    editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false).setMeta('editable', editable))
   }, [editor, mode, isLoading])
 
   // Sauvegarde automatique après 1 s sans frappe ; un changement de page s'enregistre de même.
@@ -527,10 +571,36 @@ export function NoteEditor({
                   page={page}
                   onPageChange={choosePage}
                   onMarker={player ? () => addMarker.current() : undefined}
+                  onImage={() => imageInput.current?.click()}
                   onExpand={expanded ? () => closeView() : view.open}
                   expanded={expanded}
                 />
+                <input
+                  ref={imageInput}
+                  type="file"
+                  accept={ACCEPTED_IMAGES}
+                  multiple
+                  hidden
+                  data-testid="note-image-input"
+                  onChange={(e) => {
+                    onImageFiles.current([...(e.target.files ?? [])], null)
+                    e.target.value = ''
+                  }}
+                />
                 {linkOpen && <LinkField editor={editor} onClose={() => setLinkOpen(false)} />}
+                {imageStatus.sending > 0 && (
+                  <p aria-live="polite" className="yc-image-status">
+                    Envoi de {imageStatus.sending > 1 ? `${imageStatus.sending} images` : "l'image"}…
+                  </p>
+                )}
+                {imageStatus.error && (
+                  <p role="alert" className="yc-image-status yc-image-status-error">
+                    {imageStatus.error}{' '}
+                    <button type="button" onClick={() => setImageStatus((s) => ({ ...s, error: null }))}>
+                      OK
+                    </button>
+                  </p>
+                )}
               </div>
             )}
             <div

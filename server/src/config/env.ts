@@ -35,6 +35,15 @@ const schema = z.object({
   SESSION_SAMESITE: z.enum(['lax', 'none']).optional(),
   // Extra origins allowed by CORS only, comma-separated (YC-35): the old front address while
   // public links still point to it. The Google login always returns to CLIENT_ORIGIN.
+  // Object storage of the images of the notes (YC-50): Sevalla object storage in production
+  // (S3 API, Cloudflare R2 underneath), MinIO in docker compose. Unset: images are refused (503).
+  S3_ENDPOINT: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  S3_ACCESS_KEY_ID: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  S3_SECRET_ACCESS_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  // MinIO answers on the path (/bucket/key), R2 on both: 'true' for MinIO.
+  S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('false'),
   CORS_EXTRA_ORIGINS: z
     .string()
     .optional()
@@ -70,4 +79,9 @@ export function isYouTubeConfigured(): boolean {
 /** Vrai si un cache Redis est configuré. L'application fonctionne sans. */
 export function isCacheConfigured(): boolean {
   return Boolean(env.REDIS_URL)
+}
+
+/** True when the object storage of the note images is set (YC-50). The app works without it. */
+export function isImageStorageConfigured(): boolean {
+  return Boolean(env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY)
 }

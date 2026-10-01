@@ -33,6 +33,7 @@ import clockIcon from './icons/clock.svg'
 import { canSetMarker } from '@/features/notes/noteMarker'
 import lineSpacingIcon from './icons/line-spacing.svg'
 import insertIconIcon from './icons/insert-icon.svg'
+import imageIcon from './icons/image.svg'
 import closeIcon from './icons/note/fermer.svg'
 import expandIcon from './icons/expand.svg'
 import collapseIcon from './icons/collapse.svg'
@@ -252,9 +253,11 @@ interface FormattingToolbarProps {
   /** Opens the note in its expanded view, or brings it back (YC-18). */
   onExpand?: () => void
   expanded?: boolean
+  /** Chooses image files to insert (YC-50); absent, no image tool is shown. */
+  onImage?: () => void
 }
 
-export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker, onExpand, expanded = false }: FormattingToolbarProps) {
+export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker, onExpand, expanded = false, onImage }: FormattingToolbarProps) {
   const ref = useRef<HTMLDivElement>(null)
   // The colour tools reapply the last colour chosen in one click (Figma « Outil couleur », 31:88).
   const [lastColor, setLastColor] = useState<TextColor>('rouge')
@@ -571,6 +574,18 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
 
       <SheetSection label="BLOCS">
         <div className="yc-sheet-row">
+          {onImage && (
+            <SheetButton
+              label="Insérer une image"
+              onRun={() => {
+                // The file picker opens over the page: the sheet steps aside for it.
+                setSheetOpen(false)
+                onImage()
+              }}
+            >
+              <Icon src={imageIcon} />
+            </SheetButton>
+          )}
           <SheetButton label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
             <Icon src={codeBlockIcon} />
           </SheetButton>
@@ -760,6 +775,11 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
             <Tool label="Annuler (Ctrl+Z)" disabled={!state.canUndo} onRun={run((c) => c.undo())}>
               <Icon src={undoIcon} />
             </Tool>
+            {onImage && (
+              <Tool label="Insérer une image" onRun={onImage}>
+                <Icon src={imageIcon} />
+              </Tool>
+            )}
           </div>
         </div>
         {sheetOpen && (
@@ -1060,6 +1080,12 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       </div>
 
       <div role="group" aria-label="Blocs" className="yc-tool-group">
+        {onImage && <InsertMenu onImage={onImage} onLink={onLink} editor={editor} />}
+        {onImage && (
+          <Tool label="Insérer une image" onRun={onImage}>
+            <Icon src={imageIcon} />
+          </Tool>
+        )}
         <Tool label="Bloc de code (Ctrl+Alt+C)" pressed={state.codeBlock} onRun={run((c) => c.toggleCodeBlock())}>
           <Icon src={codeBlockIcon} />
         </Tool>
@@ -1096,6 +1122,61 @@ const decimal = (v: number) => v.toFixed(v === 1.15 ? 2 : 1).replace('.', ',')
  * then a row of values for each space. On ruled paper only whole lines are offered, the other
  * values stay visible but unavailable, and the checked value is the one the paper draws.
  */
+/**
+ * « + Insérer » (Figma « Menu de l'éditeur › Insérer » 63:2013, YC-50): the blocks, then the
+ * tools also in the bar. Only what exists is offered: table, tabs, diagram and chart come with
+ * their tickets (YC-51 to YC-54).
+ */
+function InsertMenu({ editor, onImage, onLink }: { editor: Editor; onImage: () => void; onLink: () => void }) {
+  const entry = (label: string, icon: string, onSelect: () => void, close: () => void, hint?: string) => (
+    <MenuItem
+      ariaLabel={label}
+      className="yc-menu-item yc-insert-item"
+      onSelect={() => {
+        close()
+        onSelect()
+      }}
+    >
+      <Icon src={icon} />
+      <span className="yc-insert-text">
+        <span className="yc-menu-item-label yc-menu-item-medium">{label}</span>
+        {hint && <span className="yc-insert-hint">{hint}</span>}
+      </span>
+    </MenuItem>
+  )
+  return (
+    <ToolMenu
+      buttonLabel="Insérer"
+      buttonClassName="yc-select yc-insert-button"
+      buttonContent={
+        <>
+          <span>+ Insérer</span>
+          <Icon src={chevronIcon} size={18} />
+        </>
+      }
+      menuLabel="Insérer"
+      menuClassName="yc-insert-menu"
+    >
+      {(close) => (
+        <>
+          <p aria-hidden="true" className="yc-menu-label">
+            BLOCS
+          </p>
+          {entry('Image', imageIcon, onImage, close, 'Téléverser, coller ou glisser · 10 Mo max')}
+          <div aria-hidden="true" className="yc-menu-rule" />
+          <p aria-hidden="true" className="yc-menu-label">
+            AUSSI DANS LA BARRE
+          </p>
+          {entry('Lien', linkIcon, onLink, close)}
+          {entry('Bloc de code', codeBlockIcon, () => editor.chain().focus().toggleCodeBlock().run(), close)}
+          {entry('Citation', quoteIcon, () => editor.chain().focus().toggleBlockquote().run(), close)}
+          {entry('Séparateur', dividerIcon, () => editor.chain().focus().setHorizontalRule().run(), close)}
+        </>
+      )}
+    </ToolMenu>
+  )
+}
+
 function SpacingMenu({
   disabled,
   inList,

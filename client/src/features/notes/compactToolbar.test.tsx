@@ -87,6 +87,8 @@ describe('phone toolbar and sheet (YC-47)', () => {
       'Liste de cases (Ctrl+Maj+9)',
       'Insérer une icône',
       'Annuler (Ctrl+Z)',
+      // Figma compact bar 32:291: the image follows « Annuler » (YC-50).
+      'Insérer une image',
     ])
   })
 
@@ -190,10 +192,11 @@ describe('phone toolbar and sheet (YC-47)', () => {
     expect(screen.getByRole('form', { name: 'Lien' })).toBeInTheDocument()
   })
 
-  it('offers no tool that is not built yet (image, table, tabs, diagram, chart)', async () => {
+  it('offers no tool that is not built yet (table, tabs, diagram, chart); the image is (YC-50)', async () => {
     const { toolbar } = await readyEditor()
     const sheet = openSheet(toolbar)
-    for (const name of [/image/i, /tableau/i, /onglets/i, /schéma/i, /graphique/i]) {
+    expect(within(sheet).getByRole('button', { name: 'Insérer une image' })).toBeInTheDocument()
+    for (const name of [/tableau/i, /onglets/i, /schéma/i, /graphique/i]) {
       expect(within(toolbar).queryByRole('button', { name })).not.toBeInTheDocument()
       expect(within(sheet).queryByRole('button', { name })).not.toBeInTheDocument()
     }

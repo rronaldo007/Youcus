@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
 import { markdownToDoc } from '@/lib/markdownToDoc'
 import type { NoteDoc } from '@/lib/noteDoc'
+import { deleteUserImageFiles } from '@/services/noteImage.service'
 
 /** Données personnelles exportées (RGPD) — sans les jetons OAuth (sensibles). */
 export interface AccountExport {
@@ -25,6 +26,8 @@ export interface AccountExport {
   progress: { videoId: string; completed: boolean; watchedSeconds: number }[]
   /** Videos kept on their own, outside any playlist (YC-61). */
   libraryVideos: { videoId: string; youtubeId: string; title: string; addedAt: Date }[]
+  /** Images of the notes (YC-50): what was stored, not the files themselves. */
+  noteImages: { id: string; name: string | null; width: number; height: number; bytes: number; createdAt: Date }[]
   // `doc` is the rich-editor document (YC-40); `content` its plain text, or the legacy Markdown.
   notes: { videoId: string | null; playlistId: string | null; content: string; doc: NoteDoc; legacyMarkdown: string | null; updatedAt: Date }[]
 }
@@ -45,6 +48,7 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       progress: true,
       notes: true,
       libraryVideos: { orderBy: { addedAt: 'asc' }, include: { video: { select: { youtubeId: true, title: true } } } },
+      noteImages: { orderBy: { createdAt: 'asc' } },
     },
   })
   if (!user) throw new HttpError(404, 'Compte introuvable')
@@ -81,6 +85,14 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       title: lv.video.title,
       addedAt: lv.addedAt,
     })),
+    noteImages: user.noteImages.map((i) => ({
+      id: i.id,
+      name: i.name,
+      width: i.width,
+      height: i.height,
+      bytes: i.bytes,
+      createdAt: i.createdAt,
+    })),
     notes: user.notes.map((n) => ({
       videoId: n.videoId,
       playlistId: n.playlistId,
@@ -94,9 +106,11 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
 
 /**
  * Supprime définitivement le compte et toutes les données liées.
- * Les relations (playlists, vidéos, progression, notes, bibliothèque) tombent en cascade (onDelete: Cascade).
+ * Les relations (playlists, vidéos, progression, notes, bibliothèque, images) tombent en cascade (onDelete: Cascade).
  */
 export async function deleteAccount(userId: string): Promise<void> {
+  // The image files are not in the database: they leave the bucket first (YC-50).
+  await deleteUserImageFiles(userId)
   try {
     await prisma.user.delete({ where: { id: userId } })
   } catch (err) {

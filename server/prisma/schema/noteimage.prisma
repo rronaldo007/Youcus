@@ -1,0 +1,17 @@
+// An image of a note (YC-50). The file lives in the object storage under `key`, never in the
+// database; the note keeps only this id, and the API serves the file to its owner alone.
+model NoteImage {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  // Object key in the bucket: notes/<userId>/<id>.webp
+  key       String   @unique @db.VarChar(255)
+  width     Int
+  height    Int
+  bytes     Int
+  // The name of the file sent, shown under an image not loaded yet; 200 characters max.
+  name      String?  @db.VarChar(200)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
