@@ -178,6 +178,16 @@ describe('expanded view of a note (YC-18)', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
+  it('Échap in the data of a chart closes that table only (YC-54)', async () => {
+    storedDoc = { type: 'doc', content: [para('Les hooks essentiels'), { type: 'noteChart', attrs: { chart: { title: 'T', kind: 'bar', rows: [{ label: 'A', value: 1 }] } } }] }
+    await videoNote()
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier les données' }))
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Valeur, ligne 1' }), { key: 'Escape', keyCode: 27 })
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Données du graphique' })).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('the veil and « Réduire » close it too', async () => {
     await videoNote()
     open()
