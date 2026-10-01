@@ -87,19 +87,31 @@ const withAlign = <T extends Record<string, unknown>>(attrs: T & { textAlign?: s
   return align && align !== 'left' ? { ...rest, textAlign: align } : rest
 }
 
+/**
+ * Timestamped marker (YC-56): the second of the video a line was written at, shown in the
+ * margin and clicked to jump there. The editor sends `marker: null` on every line; only a real
+ * marker is kept. 100 hours covers the longest YouTube videos.
+ */
+export const MAX_MARKER_SECONDS = 360_000
+const marker = z.number().int().min(0).max(MAX_MARKER_SECONDS).nullable().optional()
+const withMarker = <T extends Record<string, unknown>>(attrs: T & { marker?: number | null }) => {
+  const { marker: seconds, ...rest } = attrs
+  return typeof seconds === 'number' ? { ...rest, marker: seconds } : rest
+}
+
 const paragraph = z
-  .object({ type: z.literal('paragraph'), attrs: z.object({ textAlign }).optional(), content: z.array(inline).optional() })
+  .object({ type: z.literal('paragraph'), attrs: z.object({ textAlign, marker }).optional(), content: z.array(inline).optional() })
   .transform(({ attrs, ...node }) => {
-    const kept = attrs ? withAlign(attrs) : {}
+    const kept = attrs ? withMarker(withAlign(attrs)) : {}
     return Object.keys(kept).length ? { ...node, attrs: kept } : node
   })
 const heading = z
   .object({
     type: z.literal('heading'),
-    attrs: z.object({ level: z.union([z.literal(1), z.literal(2), z.literal(3)]), textAlign }),
+    attrs: z.object({ level: z.union([z.literal(1), z.literal(2), z.literal(3)]), textAlign, marker }),
     content: z.array(inline).optional(),
   })
-  .transform((node) => ({ ...node, attrs: withAlign(node.attrs) }))
+  .transform((node) => ({ ...node, attrs: withMarker(withAlign(node.attrs)) }))
 
 const horizontalRule = z.object({ type: z.literal('horizontalRule') })
 

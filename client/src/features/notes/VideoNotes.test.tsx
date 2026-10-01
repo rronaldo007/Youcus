@@ -75,10 +75,10 @@ describe('VideoNotes (YC-40, rich editor)', () => {
     expect(body).toEqual({
       doc: {
         type: 'doc',
-        // `textAlign: null` comes from the editor (YC-43); the server drops it on save.
+        // `textAlign: null` (YC-43) and `marker: null` (YC-56) come from the editor; the server drops them on save.
         content: [
-          { type: 'heading', attrs: { level: 1, textAlign: null }, content: [{ type: 'text', text: 'Mon titre' }] },
-          { type: 'paragraph', attrs: { textAlign: null } },
+          { type: 'heading', attrs: { level: 1, textAlign: null, marker: null }, content: [{ type: 'text', text: 'Mon titre' }] },
+          { type: 'paragraph', attrs: { textAlign: null, marker: null } },
         ],
       },
     })
@@ -150,7 +150,7 @@ describe('VideoNotes (YC-40, rich editor)', () => {
       expect(page).toHaveAttribute('data-margin', 'false')
       expect(await screen.findByText('Modifié')).toBeInTheDocument()
       await waitFor(() => expect(puts()).toHaveLength(1), { timeout: 2500 })
-      expect(puts()[0].page).toEqual({ paper: 'seyes', tint: 'bleu', margin: false })
+      expect(puts()[0].page).toEqual({ paper: 'seyes', tint: 'bleu', margin: false, timestamps: true })
       expect(JSON.stringify(puts()[0].doc)).toContain('note initiale')
       // Still shown after the save, never back to the old page.
       expect(page).toHaveAttribute('data-paper', 'seyes')
@@ -162,7 +162,7 @@ describe('VideoNotes (YC-40, rich editor)', () => {
       await waitFor(() => expect(el).toHaveTextContent('note initiale'))
       fireEvent.click(screen.getByRole('button', { name: 'Colonne de marge' }))
       expect(container.querySelector('.yc-note-page')).toHaveAttribute('data-margin', 'false')
-      await waitFor(() => expect(puts()[0]?.page).toEqual({ paper: 'lignes', tint: 'creme', margin: false }), { timeout: 2500 })
+      await waitFor(() => expect(puts()[0]?.page).toEqual({ paper: 'lignes', tint: 'creme', margin: false, timestamps: true }), { timeout: 2500 })
     })
 
     it('a text edit alone never sends a page, so the stored one is kept', async () => {

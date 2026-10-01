@@ -11,6 +11,7 @@
 @import '@fontsource/instrument-serif/400.css';
 @import '@fontsource/instrument-serif/400-italic.css';
 @import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/700.css';
 @import '@fontsource/lora/400.css';
 @import '@fontsource/atkinson-hyperlegible/400.css';
 @import '@fontsource/caveat/400.css';
@@ -49,6 +50,9 @@
   --note-paper-bleu: #eef3f8;
   --note-paper-vert: #eff4ec;
   --note-margin: #e2a597;
+  /* Markers (YC-56), Figma « bg/accent » and « text/on-accent ». */
+  --note-accent: #b0311c;
+  --note-on-accent: #fffdf8;
 }
 
 .dark .yc-note {
@@ -80,6 +84,8 @@
   --note-paper-bleu: #1a2029;
   --note-paper-vert: #1b221c;
   --note-margin: #6b3a30;
+  --note-accent: #e86a55;
+  --note-on-accent: #121110;
 }
 
 .yc-note-page {
@@ -1223,4 +1229,102 @@
   .yc-papers {
     flex-wrap: wrap;
   }
+}
+
+/* ---- Timestamped markers (YC-56), Figma « Horodatage » 5:315 in the margin of 34:217 ---- */
+
+.yc-note-page .yc-marker {
+  position: relative;
+  display: inline-block;
+  margin-right: 8px;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--note-accent);
+  color: var(--note-on-accent);
+  font: 700 12px/16px 'JetBrains Mono', ui-monospace, monospace;
+  font-style: normal;
+  letter-spacing: 0;
+  text-align: left;
+  text-decoration: none;
+  vertical-align: 1px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* The pill is 22 px, its target 44 (Figma: « la zone cliquable s'étend à 44 px »). */
+.yc-note-page .yc-marker::after {
+  content: '';
+  position: absolute;
+  inset: -11px -4px;
+}
+
+.yc-note-page .yc-marker:hover {
+  filter: brightness(1.08);
+}
+
+.yc-note-page .yc-marker:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+/* With the margin column, the pill sits in it, 8 px before the red rule, on its line: an
+   absolute box with no top stays at the height of its line. */
+.yc-note-page[data-margin='true'] .yc-marker {
+  position: absolute;
+  right: calc(100% - var(--margin-x) + 8px);
+  margin: 5px 0 0;
+}
+
+.yc-note-page[data-margin='true'] h1 > .yc-marker {
+  margin-top: 9px;
+}
+
+/* « Horodatages » off hides the pills; the markers stay in the note. */
+.yc-note-page[data-timestamps='false'] .yc-marker {
+  display: none;
+}
+
+.yc-marker-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.yc-marker-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--note-accent);
+  color: var(--note-on-accent);
+  font: 600 15px/20px 'Hanken Grotesk', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yc-marker-add:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.yc-marker-add:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-marker-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yc-marker-hint {
+  color: var(--note-ink-muted);
+  font: 500 13px/18px 'Hanken Grotesk', system-ui, sans-serif;
 }

@@ -154,3 +154,39 @@ describe('parseNoteDoc (YC-40)', () => {
     expect(res.ok && docToPlainText(res.doc)).toBe('Titre\na\nb')
   })
 })
+
+describe('timestamped markers (YC-56)', () => {
+  it('keeps a marker on a paragraph and a heading, and drops the null the editor sends', () => {
+    const res = parseNoteDoc({
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 2, textAlign: null, marker: 245 }, content: [t('Les hooks')] },
+        { type: 'paragraph', attrs: { textAlign: 'center', marker: 0 }, content: [t('au début')] },
+        { type: 'paragraph', attrs: { textAlign: null, marker: null }, content: [t('sans repère')] },
+      ],
+    })
+    expect(res.ok && res.doc.content.map((n) => n.attrs ?? null)).toEqual([
+      { level: 2, marker: 245 },
+      { textAlign: 'center', marker: 0 },
+      null,
+    ])
+  })
+
+  it('keeps a marker on a line inside a list', () => {
+    const item = { type: 'listItem', content: [{ type: 'paragraph', attrs: { marker: 61 }, content: [t('point')] }] }
+    const res = parseNoteDoc({ type: 'doc', content: [{ type: 'bulletList', content: [item] }] })
+    expect(res.ok && res.doc.content[0].content?.[0].content?.[0].attrs).toEqual({ marker: 61 })
+  })
+
+  it.each([
+    ['a negative second', -1],
+    ['a fraction', 12.5],
+    ['a string', '04:05'],
+    ['more than 100 hours', 360_001],
+  ])('refuses %s as marker', (_name, value) => {
+    expect(parseNoteDoc({ type: 'doc', content: [{ type: 'paragraph', attrs: { marker: value }, content: [t('x')] }] })).toMatchObject({
+      ok: false,
+      status: 400,
+    })
+  })
+})

@@ -121,7 +121,7 @@ export function FocusPlayerPage() {
             playlistChannel={data.channelTitle}
           />
 
-          <VideoNotes videoId={video.id} />
+          <VideoNotes videoId={video.id} player={{ seconds: currentSeconds, seek }} />
         </div>
 
         <VideoSidebar playlistId={id as string} videos={videos} currentVideoId={video.youtubeId} />

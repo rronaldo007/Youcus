@@ -61,7 +61,16 @@ describe('PUT /api/videos/:videoId/note (YC-40)', () => {
     expect(upsert.mock.calls[0][0].update).not.toHaveProperty('page')
   })
 
+  it('stores whether the markers are shown with the page (YC-56)', async () => {
+    const page = { paper: 'lignes', tint: 'creme', margin: true, timestamps: false }
+    upsert.mockResolvedValue({ content: 'ok', doc, page, updatedAt: new Date('2026-10-01') })
+    const res = await request(await loadApp()).put('/api/videos/v1/note').set('Cookie', session()).send({ doc, page })
+    expect(res.status).toBe(200)
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ update: { doc, content: 'ok', page } }))
+  })
+
   it.each([
+    ['a timestamps switch that is not a boolean', { paper: 'uni', tint: 'creme', margin: true, timestamps: 'non' }],
     ['an unknown paper', { paper: 'papyrus', tint: 'creme', margin: true }],
     ['a CSS tint', { paper: 'uni', tint: '#ff0000', margin: true }],
     ['a missing key', { paper: 'uni', tint: 'creme' }],

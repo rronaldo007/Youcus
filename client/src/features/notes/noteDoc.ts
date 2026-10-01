@@ -22,7 +22,7 @@ export const EMPTY_DOC: NoteDoc = { type: 'doc', content: [] }
 export interface NoteData {
   doc: NoteDoc
   /** Paper, tint and margin (YC-45); null = never chosen, the defaults apply. */
-  page?: NotePage | null
+  page?: Partial<NotePage> | null
   updatedAt: string
 }
 
