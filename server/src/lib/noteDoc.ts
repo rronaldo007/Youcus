@@ -229,6 +229,37 @@ const table = z
   .refine((t) => t.content.every((row) => row.content.length === t.content[0].content.length), 'Tableau irrégulier')
 
 /**
+ * A diagram (YC-53), Figma « Dessin de schéma » 64:2007: shapes, and arrows naming two of them.
+ * Numbers are bounded, colours are names (drawn with the note tokens), an arrow must point at
+ * shapes of the same diagram. Same rules as client/src/features/notes/diagram/scene.ts.
+ */
+export const DIAGRAM_COLORS = ['bleu', 'rouge', 'vert', 'orange', 'violet', 'gris'] as const
+export const MAX_SHAPES = 100
+export const MAX_ARROWS = 200
+const COORD = z.number().finite().min(-10_000).max(10_000)
+const SIZE = z.number().finite().min(8).max(4_000)
+const diagramId = z.string().regex(/^[a-z0-9]{1,12}$/)
+const shape = z.object({
+  id: diagramId,
+  kind: z.enum(['rect', 'ellipse', 'diamond', 'text']),
+  x: COORD,
+  y: COORD,
+  w: SIZE,
+  h: SIZE,
+  text: z.string().max(200),
+  color: z.enum(DIAGRAM_COLORS),
+})
+const arrow = z.object({ id: diagramId, from: diagramId, to: diagramId, label: z.string().max(200) })
+const scene = z
+  .object({ shapes: z.array(shape).max(MAX_SHAPES), arrows: z.array(arrow).max(MAX_ARROWS) })
+  .refine((sc) => {
+    const ids = [...sc.shapes.map((x) => x.id), ...sc.arrows.map((a) => a.id)]
+    const shapes = new Set(sc.shapes.map((x) => x.id))
+    return new Set(ids).size === ids.length && sc.arrows.every((a) => a.from !== a.to && shapes.has(a.from) && shapes.has(a.to))
+  }, 'Schéma incohérent')
+const noteDiagram = z.object({ type: z.literal('noteDiagram'), attrs: z.object({ scene }) })
+
+/**
  * Tabs (YC-52), Figma « Bloc de note › Onglets » (65:2126): several pages in one note, each with
  * a title and its blocks. Which tab is shown is not stored: it is a state of the screen. A tab
  * holds the blocks of a note except tabs (no tabs in tabs).
@@ -244,11 +275,11 @@ const noteTabs = z.object({ type: z.literal('noteTabs'), content: z.array(noteTa
 
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
 const block: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteTabs]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteTabs, noteDiagram]),
 )
 // What a tab may hold: every block of a note but tabs.
 const tabBlock: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table, noteDiagram]),
 )
 // What a cell may hold: the blocks of a note, except a table (no table in a table) and an image.
 const cellBlock: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
@@ -307,6 +338,14 @@ export function docToPlainText(doc: NoteDoc): string {
       // The caption says what the image shows; else its alternative text. Searchable either way.
       const text = (node.attrs?.caption ?? node.attrs?.alt) as string | undefined
       if (text) lines.push(text)
+      return
+    }
+    if (node.type === 'noteDiagram') {
+      // The words of the drawing, for search and export: its shapes, then its arrows.
+      const sc = node.attrs?.scene as { shapes: { text: string }[]; arrows: { label: string }[] } | undefined
+      for (const text of [...(sc?.shapes ?? []).map((x) => x.text), ...(sc?.arrows ?? []).map((a) => a.label)]) {
+        if (text) lines.push(text)
+      }
       return
     }
     if (node.type === 'noteTab') {

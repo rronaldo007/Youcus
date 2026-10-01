@@ -10,7 +10,7 @@ export const MAX_TAB_TITLE = 40
 export const DEFAULT_TABS = ['Théorie', 'Exemple', 'Exercices']
 
 /** What a tab may hold: every block of a note but tabs. Same list as the server's `tabBlock`. */
-const TAB_CONTENT = '(paragraph | heading | blockquote | bulletList | orderedList | taskList | codeBlock | horizontalRule | noteImage | table)+'
+const TAB_CONTENT = '(paragraph | heading | blockquote | bulletList | orderedList | taskList | codeBlock | horizontalRule | noteImage | table | noteDiagram)+'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
