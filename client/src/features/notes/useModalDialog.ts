@@ -28,8 +28,9 @@ export function useModalDialog(active: boolean, ref: RefObject<HTMLElement>, onC
     if (!active) return
     if (e.key === 'Escape') {
       // In the note's text, ProseMirror marks every Échap as handled (Chrome, keyCode 27, seen in
-      // the proof): there only an explicit mark counts. Elsewhere, a field that used it says so.
-      const inText = !!(e.target as HTMLElement).closest('[contenteditable="true"]')
+      // the proof): there only an explicit mark counts. Elsewhere, a field that used it says so,
+      // including the fields of a block inside the note (contenteditable="false", YC-63).
+      const inText = (e.target as HTMLElement).closest('[contenteditable]')?.getAttribute('contenteditable') === 'true'
       const used = (e.nativeEvent as unknown as Record<string, unknown>)[HANDLED] === true || (!inText && e.defaultPrevented)
       if (used || (e.target as HTMLElement).closest('[role="menu"]')) return
       e.stopPropagation()

@@ -188,6 +188,34 @@ describe('expanded view of a note (YC-18)', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
+  it('Échap in a diagram drops the tool first, then closes the view (YC-63)', async () => {
+    storedDoc = { type: 'doc', content: [para('Les hooks essentiels'), { type: 'noteDiagram', attrs: { scene: { shapes: [], arrows: [] } } }] }
+    await videoNote()
+    open()
+    const rect = screen.getByRole('button', { name: 'Rectangle' })
+    fireEvent.click(rect)
+    expect(rect).toHaveAttribute('aria-pressed', 'true')
+    const drawing = document.querySelector('.yc-diagram') as HTMLElement
+    fireEvent.keyDown(drawing, { key: 'Escape', keyCode: 27 })
+    expect(rect).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    // Nothing left to drop: the next Échap is the view's.
+    fireEvent.keyDown(drawing, { key: 'Escape', keyCode: 27 })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('Échap while renaming a tab cancels the name only (YC-63)', async () => {
+    const tab = (title: string) => ({ type: 'noteTab', attrs: { title }, content: [para(`Dans ${title}`)] })
+    storedDoc = { type: 'doc', content: [para('Les hooks essentiels'), { type: 'noteTabs', content: [tab('Théorie'), tab('Exemples')] }] }
+    await videoNote()
+    open()
+    fireEvent.click(screen.getByRole('tab', { selected: true }))
+    const field = screen.getByRole('textbox', { name: "Nom de l'onglet" })
+    fireEvent.keyDown(field, { key: 'Escape', keyCode: 27 })
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: "Nom de l'onglet" })).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('the veil and « Réduire » close it too', async () => {
     await videoNote()
     open()
