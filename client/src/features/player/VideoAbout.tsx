@@ -1,10 +1,20 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { datedContentYears } from '@/lib/datedContent'
 import { formatCompactCount, formatDuration, formatLongDate } from '@/lib/format'
+import clockIcon from './icons/clock-16.svg'
 import { LinkifiedText } from './LinkifiedText'
 import { VideoChapters } from './VideoChapters'
 import { useVideo } from './useVideo'
 
 const pill = 'rounded-xl bg-surface-2 px-2.5 py-1 text-xs font-medium text-content'
+
+// The icon is a mask painted with currentColor, so it follows the text colour in both themes.
+const clockMask = {
+  WebkitMaskImage: `url("${clockIcon}")`,
+  maskImage: `url("${clockIcon}")`,
+  WebkitMaskSize: '100% 100%',
+  maskSize: '100% 100%',
+} as CSSProperties
 
 /**
  * "À propos" card under the player (YC-5, Figma « Focus + Description », 150:1073): metadata
@@ -50,12 +60,21 @@ export function VideoAbout({
   if (!video) return null
 
   const snapshot = video.syncedAt ? `Chiffres relevés le ${formatLongDate(video.syncedAt)}` : undefined
+  const datedYears = datedContentYears(video.publishedAt, video.categoryId)
 
   return (
     <section
       aria-label="À propos de la vidéo"
       className="mt-4 flex flex-col gap-3 rounded-xl border border-line bg-surface px-[18px] py-4"
     >
+      {datedYears !== null && (
+        // Figma « Fiche YouTube » (24:68), Alerte ancienne: an Info message, never blocking (YC-15).
+        <p className="flex items-center gap-2 text-[13px] font-medium leading-[18px] text-content-muted">
+          <span aria-hidden="true" className="size-4 shrink-0 bg-current" style={clockMask} />
+          Publiée il y a {datedYears} ans : contenu peut-être daté.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         {video.viewCount !== null && (
           <span className={pill} title={snapshot}>

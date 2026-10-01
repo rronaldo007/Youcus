@@ -127,7 +127,7 @@ describe('fetchVideoDetails (YC-1)', () => {
           items: [
             {
               id: 'ok',
-              snippet: { description: 'Intro', channelId: 'UC1', publishedAt: '2024-05-01T10:00:00Z', liveBroadcastContent: 'none' },
+              snippet: { description: 'Intro', channelId: 'UC1', publishedAt: '2024-05-01T10:00:00Z', categoryId: '28', liveBroadcastContent: 'none' },
               contentDetails: { duration: 'PT10M', definition: 'hd', caption: 'true', regionRestriction: { blocked: ['FR'] } },
               statistics: { viewCount: '3000000000' },
               status: { privacyStatus: 'public', uploadStatus: 'processed', embeddable: false },
@@ -147,6 +147,7 @@ describe('fetchVideoDetails (YC-1)', () => {
       description: 'Intro',
       channelYoutubeId: 'UC1',
       publishedAt: '2024-05-01T10:00:00Z',
+      categoryId: '28',
       viewCount: 3000000000,
       likeCount: null,
       status: 'AVAILABLE',
@@ -161,6 +162,7 @@ describe('fetchVideoDetails (YC-1)', () => {
     expect(details.get('priv')?.status).toBe('PRIVATE')
     // Asked for but not returned: YouTube no longer serves it.
     expect(details.get('gone')?.status).toBe('DELETED')
+    expect(details.get('gone')?.categoryId).toBeNull()
   })
 })
 

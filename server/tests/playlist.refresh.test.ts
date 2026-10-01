@@ -123,6 +123,7 @@ describe('refreshPlaylist', () => {
             description: 'Intro',
             channelYoutubeId: 'UC1',
             publishedAt: '2024-05-01T10:00:00Z',
+            categoryId: '28',
             viewCount: 3000000000,
             likeCount: null,
             status: 'AVAILABLE',
@@ -159,6 +160,7 @@ describe('refreshPlaylist', () => {
       likeCount: null,
       status: 'AVAILABLE',
       topics: ['t'],
+      categoryId: '28',
     })
     expect(create.publishedAt).toEqual(new Date('2024-05-01T10:00:00Z'))
     expect(create.blockedRegions).toBe(Prisma.DbNull)
@@ -192,6 +194,7 @@ describe('refreshPlaylist', () => {
             description: '0:00 Intro\n1:00 Hooks\n5:00 Effects',
             channelYoutubeId: null,
             publishedAt: null,
+            categoryId: null,
             viewCount: null,
             likeCount: null,
             status: 'AVAILABLE',
