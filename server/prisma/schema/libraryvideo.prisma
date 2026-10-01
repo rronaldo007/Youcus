@@ -1,0 +1,13 @@
+// A video added on its own to a user's library (YC-61), outside any playlist. The Video row stays
+// shared (CS-70): this table only says « this user keeps it ». Progress and Note already belong
+// to a user and a video, so they work the same for these videos.
+model LibraryVideo {
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  video   Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId String
+  addedAt DateTime @default(now())
+
+  @@id([userId, videoId])
+  @@index([videoId])
+}

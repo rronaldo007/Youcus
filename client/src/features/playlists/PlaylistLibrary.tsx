@@ -2,16 +2,21 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { PlaylistCard } from '@/components/ui/PlaylistCard'
+import { LibraryVideoCard } from '@/components/ui/LibraryVideoCard'
+import { libraryVideoState } from '@/features/library/libraryVideoState'
 import { SkeletonGrid } from '@/components/ui/Skeletons'
 import { MergePlaylistsModal } from '@/features/playlists/MergePlaylistsModal'
 import { useDeletePlaylist, usePlaylists } from '@/features/playlists/usePlaylists'
-import type { Playlist } from '@/types'
+import { useLibraryVideos, useRemoveLibraryVideo } from '@/features/library/useLibrary'
+import type { LibraryVideo, Playlist } from '@/types'
 
-type Filter = 'all' | 'progress' | 'done'
+type Filter = 'all' | 'progress' | 'done' | 'videos'
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'Toutes' },
   { key: 'progress', label: 'En cours' },
   { key: 'done', label: 'Terminées' },
+  // Figma « Tableau de bord » 11:5 (YC-61): the videos kept on their own.
+  { key: 'videos', label: 'Vidéos seules' },
 ]
 
 function isDone(pl: Playlist): boolean {
@@ -20,10 +25,24 @@ function isDone(pl: Playlist): boolean {
   return base > 0 && (pl.completedCount ?? 0) >= base
 }
 
-/** Bibliothèque des playlists (grille design system, chips de filtre, carte d'import — cf. CS-59). */
+/** The same filters for a video kept on its own (YC-61). */
+function videoMatches(video: LibraryVideo, filter: Filter): boolean {
+  const state = libraryVideoState(video)
+  if (filter === 'done') return state === 'seen'
+  if (filter === 'progress') return state === 'progress'
+  return true
+}
+
+/**
+ * Bibliothèque des playlists (grille design system, chips de filtre, carte d'import — cf. CS-59),
+ * et des vidéos gardées seules (YC-61), après les playlists dans la même grille.
+ */
 export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
   const { data: playlists, isLoading, isError } = usePlaylists()
   const del = useDeletePlaylist()
+  const library = useLibraryVideos()
+  const remove = useRemoveLibraryVideo()
+  const videos = library.data ?? []
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [merging, setMerging] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
@@ -36,7 +55,7 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
       </p>
     )
   }
-  if (!playlists || playlists.length === 0) {
+  if ((!playlists || playlists.length === 0) && videos.length === 0) {
     return (
       <button
         type="button"
@@ -45,7 +64,7 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
       >
         <span className="text-3xl text-content-muted">+</span>
         <span className="font-medium text-content">Aucune playlist — importer une playlist</span>
-        <span className="text-sm text-content-muted">Colle une URL YouTube pour commencer.</span>
+        <span className="text-sm text-content-muted">Colle le lien d'une playlist ou d'une vidéo YouTube pour commencer.</span>
       </button>
     )
   }
@@ -63,12 +82,18 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
     if (window.confirm(`Supprimer la playlist « ${title} » ?`)) del.mutate(id)
   }
 
-  const visible = playlists.filter((pl) => {
+  function onRemove(video: LibraryVideo) {
+    if (window.confirm(`Retirer « ${video.title} » de ta bibliothèque ? Sa note est gardée.`)) remove.mutate(video.id)
+  }
+
+  const visible = (playlists ?? []).filter((pl) => {
+    if (filter === 'videos') return false
     if (filter === 'done') return isDone(pl)
     if (filter === 'progress') return !isDone(pl) && (pl.completedCount ?? 0) > 0
     return true
   })
-  const selectedPlaylists = playlists.filter((pl) => selected.has(pl.id))
+  const visibleVideos = videos.filter((v) => videoMatches(v, filter))
+  const selectedPlaylists = (playlists ?? []).filter((pl) => selected.has(pl.id))
 
   return (
     <>
@@ -86,6 +111,17 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
           </button>
         ))}
       </div>
+
+      {library.isError && (
+        <p role="alert" className="mb-4 text-sm text-accent-red">
+          Impossible de charger tes vidéos seules. Tes playlists, elles, sont là.
+        </p>
+      )}
+      {filter === 'videos' && visibleVideos.length === 0 && !library.isError && (
+        <p className="mb-4 text-sm text-content-muted">
+          Aucune vidéo seule. Colle le lien d'une vidéo dans « + Importer une playlist » pour la garder ici.
+        </p>
+      )}
 
       {selected.size > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-2">
@@ -124,6 +160,24 @@ export function PlaylistLibrary({ onImport }: { onImport?: () => void }) {
                 className="text-sm text-accent-red transition hover:underline disabled:opacity-60"
               >
                 Supprimer
+              </button>
+            </div>
+          </li>
+        ))}
+
+        {visibleVideos.map((video) => (
+          <li key={`video-${video.id}`} className="overflow-hidden rounded-card border border-line bg-surface text-left">
+            <Link to={`/videos/${video.youtubeId}`} className="block transition hover:opacity-95">
+              <LibraryVideoCard video={video} />
+            </Link>
+            <div className="flex items-center justify-end border-t border-line px-3.5 py-2">
+              <button
+                type="button"
+                onClick={() => onRemove(video)}
+                disabled={remove.isPending}
+                className="text-sm text-accent-red transition hover:underline disabled:opacity-60"
+              >
+                Retirer
               </button>
             </div>
           </li>

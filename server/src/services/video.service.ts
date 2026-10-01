@@ -1,5 +1,6 @@
 import type { VideoStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { accessibleBy } from '@/lib/videoAccess'
 import { HttpError } from '@/middleware/errorHandler'
 
 export interface VideoChapter {
@@ -45,12 +46,12 @@ function asStringArray(value: unknown): string[] | null {
 }
 
 /**
- * Detail of a video for the signed-in user. Scoping: the video must belong to one of the
- * user's playlists, otherwise 404 (same rule as notes and progress; no hint that it exists).
+ * Detail of a video for the signed-in user. Scoping: the video must be in one of the user's
+ * playlists or in their library (YC-61), otherwise 404 (same rule as notes and progress).
  */
 export async function getVideo(userId: string, videoId: string): Promise<VideoDetail> {
   const video = await prisma.video.findFirst({
-    where: { id: videoId, playlists: { some: { playlist: { ownerId: userId } } } },
+    where: { id: videoId, ...accessibleBy(userId) },
     include: {
       channel: { select: { youtubeId: true, title: true, handle: true, avatarUrl: true } },
       chapters: { orderBy: { position: 'asc' }, select: { position: true, startSeconds: true, title: true } },

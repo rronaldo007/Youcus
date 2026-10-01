@@ -5,6 +5,7 @@ import { playlistRouter } from '@/routes/playlist.route'
 import { accountRouter } from '@/routes/account.route'
 import { noteRouter } from '@/routes/note.route'
 import { videoRouter } from '@/routes/video.route'
+import { libraryRouter } from '@/routes/library.route'
 
 export const apiRouter = Router()
 
@@ -14,3 +15,4 @@ apiRouter.use(playlistRouter)
 apiRouter.use(accountRouter)
 apiRouter.use(noteRouter)
 apiRouter.use(videoRouter)
+apiRouter.use(libraryRouter)

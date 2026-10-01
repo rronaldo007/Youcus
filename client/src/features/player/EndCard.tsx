@@ -18,15 +18,24 @@ export interface EndCardNext {
 /** Sends the sentence to the note: false when the note cannot take it yet; `done` tells what the server said. */
 export type SaveSentence = (text: string, done: { onSuccess: () => void; onError: () => void }) => boolean
 
+/** Where the video was watched: the two contexts of Figma « Fin de vidéo » 102:168. */
+export type EndCardContext =
+  | {
+      kind: 'playlist'
+      /** 1-based position of the video that ended, and the length of the playlist. */
+      number: number
+      total: number
+      /** null on the last video of the playlist. */
+      next: EndCardNext | null
+      playlistTo: string
+    }
+  /** A video kept on its own (YC-61): nothing comes next, the dashboard is where it lives. */
+  | { kind: 'single'; homeTo: string }
+
 interface EndCardProps {
-  /** 1-based position of the video that ended, and the length of the playlist. */
-  number: number
-  total: number
+  context: EndCardContext
   /** Where the sentence is timestamped: the end of the video. */
   seconds: number
-  /** null on the last video of the playlist. */
-  next: EndCardNext | null
-  playlistTo: string
   onSave: SaveSentence
   onReplay: () => void
 }
@@ -38,7 +47,7 @@ type Status = 'idle' | 'saving' | 'saved' | 'failed' | 'unavailable'
  * YouTube's end screen. « Une phrase pour retenir ? » goes into the note as a line timestamped at
  * the end of the video; the next video waits for a click, never a countdown. Always dark.
  */
-export function EndCard({ number, total, seconds, next, playlistTo, onSave, onReplay }: EndCardProps) {
+export function EndCard({ context, seconds, onSave, onReplay }: EndCardProps) {
   const [text, setText] = useState('')
   const [status, setStatus] = useState<Status>('idle')
   const [skipped, setSkipped] = useState(false)
@@ -78,7 +87,7 @@ export function EndCard({ number, total, seconds, next, playlistTo, onSave, onRe
     <section className="yc-end-wrap" aria-label="Fin de la vidéo">
       <div className="yc-end">
         <p className="yc-end-eyebrow">
-          VIDÉO {number} / {total} · TERMINÉE ✓
+          {context.kind === 'single' ? 'VIDÉO SEULE' : `VIDÉO ${context.number} / ${context.total}`} · TERMINÉE ✓
         </p>
 
         {asking && (
@@ -134,27 +143,43 @@ export function EndCard({ number, total, seconds, next, playlistTo, onSave, onRe
 
         <div className="yc-end-gap" aria-hidden="true" />
 
-        {next ? (
+        {context.kind === 'single' ? (
+          <>
+            {/* « Voir le catalogue » of 104:212 waits for the catalogue (Sprint 5). */}
+            <div className="yc-end-after">
+              <p className="yc-end-after-text">Cette vidéo n'appartient à aucune playlist. Sa note reste avec elle.</p>
+              <div className="yc-end-actions">
+                <button type="button" className="yc-end-btn yc-end-ghost" onClick={onReplay}>
+                  Revoir
+                </button>
+                <Link ref={nextRef} to={context.homeTo} className="yc-end-btn yc-end-secondary">
+                  Retour au tableau de bord
+                </Link>
+              </div>
+            </div>
+            <p className="yc-end-note">Pas de lecture automatique : c'est toi qui décides quand continuer.</p>
+          </>
+        ) : context.next ? (
           <>
             <div className="yc-end-next">
-              {next.thumbnailUrl ? (
-                <img className="yc-end-thumb" src={next.thumbnailUrl} alt="" loading="lazy" />
+              {context.next.thumbnailUrl ? (
+                <img className="yc-end-thumb" src={context.next.thumbnailUrl} alt="" loading="lazy" />
               ) : (
                 <div className="yc-end-thumb" aria-hidden="true" />
               )}
               <div className="yc-end-next-text">
                 <p className="yc-end-next-eyebrow">
-                  SUIVANTE · {next.number} / {total}
+                  SUIVANTE · {context.next.number} / {context.total}
                 </p>
-                <p className="yc-end-next-title">{next.title}</p>
+                <p className="yc-end-next-title">{context.next.title}</p>
                 {/* Figma adds the channel: the playlist only knows its own, not the video's. */}
-                <p className="yc-end-next-meta">{formatDuration(next.durationSeconds)}</p>
+                <p className="yc-end-next-meta">{formatDuration(context.next.durationSeconds)}</p>
               </div>
               <div className="yc-end-actions">
                 <button type="button" className="yc-end-btn yc-end-ghost" onClick={onReplay}>
                   Revoir
                 </button>
-                <Link ref={nextRef} to={next.to} state={{ autoplay: true }} className="yc-end-btn yc-end-secondary">
+                <Link ref={nextRef} to={context.next.to} state={{ autoplay: true }} className="yc-end-btn yc-end-secondary">
                   Lire la suivante →
                 </Link>
               </div>
@@ -166,7 +191,7 @@ export function EndCard({ number, total, seconds, next, playlistTo, onSave, onRe
             <button type="button" className="yc-end-btn yc-end-ghost" onClick={onReplay}>
               Revoir
             </button>
-            <Link ref={nextRef} to={playlistTo} className="yc-end-btn yc-end-secondary">
+            <Link ref={nextRef} to={context.playlistTo} className="yc-end-btn yc-end-secondary">
               Retour à la playlist →
             </Link>
           </div>

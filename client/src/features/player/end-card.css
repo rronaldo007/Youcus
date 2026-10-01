@@ -222,6 +222,28 @@
   outline-offset: 2px;
 }
 
+/* « Et après » of the single video (104:220). */
+.yc-end-after {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 600px;
+  padding: 12px 14px;
+  border: 1px solid var(--end-border);
+  border-radius: 12px;
+  background: var(--end-surface);
+  text-align: left;
+}
+
+.yc-end-after-text {
+  color: var(--end-muted);
+  font-size: 14px;
+}
+
+.yc-end-after .yc-end-actions {
+  flex-wrap: wrap;
+}
+
 .yc-end-note {
   color: var(--end-muted);
   font-size: 12px;

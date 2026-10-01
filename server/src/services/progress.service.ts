@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { accessibleBy } from '@/lib/videoAccess'
 import { HttpError } from '@/middleware/errorHandler'
 
 export interface SetProgressInput {
@@ -18,18 +19,16 @@ export interface ProgressResult {
 /**
  * Crée/met à jour la progression d'une vidéo pour l'utilisateur (upsert sur userId+videoId).
  * La progression est GLOBALE (CS-70) : vue dans une playlist = vue partout.
- * Scoping : la vidéo doit appartenir à au moins une playlist de l'utilisateur.
+ * Scoping: the video must be in one of the user's playlists or in their library (YC-61); with a
+ * `playlistId`, in that playlist of the user.
  */
 export async function setProgress(userId: string, input: SetProgressInput): Promise<ProgressResult> {
   const video = await prisma.video.findFirst({
     where: {
       id: input.videoId,
-      playlists: {
-        some: {
-          ...(input.playlistId ? { playlistId: input.playlistId } : {}),
-          playlist: { ownerId: userId },
-        },
-      },
+      ...(input.playlistId
+        ? { playlists: { some: { playlistId: input.playlistId, playlist: { ownerId: userId } } } }
+        : accessibleBy(userId)),
     },
     select: { id: true },
   })

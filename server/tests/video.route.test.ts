@@ -56,15 +56,15 @@ describe('GET /api/videos/:id (YC-4)', () => {
     expect(res.status).toBe(401)
   })
 
-  it('answers 404 when the video is not in one of the user\'s playlists', async () => {
+  it('answers 404 when the video is neither in a playlist nor in the library of the user', async () => {
     const { app, SESSION_COOKIE } = await loadApp()
     findFirst.mockResolvedValue(null as never)
     const res = await request(app).get('/api/videos/vid1').set('Cookie', signedCookie(SESSION_COOKIE, 'user-42'))
     expect(res.status).toBe(404)
-    // Scoped by ownership through the playlists, for THIS user.
+    // Scoped for THIS user: through their playlists, or their library (YC-61).
     expect(findFirst.mock.calls[0][0]?.where).toEqual({
       id: 'vid1',
-      playlists: { some: { playlist: { ownerId: 'user-42' } } },
+      OR: [{ playlists: { some: { playlist: { ownerId: 'user-42' } } } }, { libraryEntries: { some: { userId: 'user-42' } } }],
     })
   })
 

@@ -79,6 +79,29 @@ export function extractPlaylistId(input: string): string {
   throw new HttpError(400, 'URL ou identifiant de playlist invalide')
 }
 
+const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/
+
+/**
+ * The id of a video from a YouTube link (watch, youtu.be, shorts, embed, live) or a bare
+ * 11-character id (YC-61); null when the input names no video. A link carrying `list=` is a
+ * playlist for the import, whatever video it also points at: the caller checks that first.
+ */
+export function extractVideoId(input: string): string | null {
+  const trimmed = input.trim()
+  if (VIDEO_ID.test(trimmed)) return trimmed
+  let url: URL
+  try {
+    url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
+  } catch {
+    return null
+  }
+  const valid = (id: string | null | undefined) => (id && VIDEO_ID.test(id) ? id : null)
+  const host = url.hostname.replace(/^(www\.|m\.|music\.)/, '')
+  if (host === 'youtu.be') return valid(url.pathname.split('/')[1])
+  if (host !== 'youtube.com' && host !== 'youtube-nocookie.com') return null
+  return valid(url.searchParams.get('v')) ?? valid(url.pathname.match(/^\/(?:shorts|embed|live|v)\/([^/]+)/)?.[1])
+}
+
 interface YouTubeThumbnails {
   default?: { url: string }
   medium?: { url: string }
@@ -163,7 +186,14 @@ function toCount(value: string | undefined): number | null {
 
 interface VideoResource {
   id: string
-  snippet?: { description?: string; channelId?: string; publishedAt?: string; liveBroadcastContent?: string }
+  snippet?: {
+    title?: string
+    thumbnails?: YouTubeThumbnails
+    description?: string
+    channelId?: string
+    publishedAt?: string
+    liveBroadcastContent?: string
+  }
   contentDetails?: {
     duration?: string
     definition?: string
@@ -247,6 +277,34 @@ export async function fetchVideoDetails(
     }
   }
   return out
+}
+
+/**
+ * One video with its full metadata and its channel, for the library (YC-61): 2 quota units.
+ * The server key reads public and unlisted videos; a private one is « introuvable ».
+ */
+export async function fetchVideo(
+  videoId: string,
+  accessToken?: string,
+): Promise<{ video: YouTubeVideo; channels: YouTubeChannel[] }> {
+  const page = await youtubeGet(
+    'videos?part=snippet,contentDetails,statistics,status,topicDetails,paidProductPlacementDetails' + `&id=${videoId}`,
+    accessToken,
+  )
+  const item = (page.items as VideoResource[] | undefined)?.[0]
+  if (!item?.snippet) throw new HttpError(404, 'Vidéo introuvable ou privée')
+  const details = toDetails(item)
+  const channels = details.channelYoutubeId ? await fetchChannels([details.channelYoutubeId], accessToken) : []
+  return {
+    video: {
+      youtubeId: item.id,
+      title: item.snippet.title ?? '',
+      thumbnailUrl: pickThumbnail(item.snippet.thumbnails),
+      position: 0,
+      details,
+    },
+    channels,
+  }
 }
 
 interface ChannelResource {

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { EndCard, type EndCardNext, type SaveSentence } from './EndCard'
+import { EndCard, type EndCardContext, type EndCardNext, type SaveSentence } from './EndCard'
 
 const NEXT: EndCardNext = {
   title: 'useMemo et useCallback',
@@ -11,17 +11,22 @@ const NEXT: EndCardNext = {
   to: '/playlists/p1/watch/next1',
 }
 
-function renderCard(props: { onSave?: SaveSentence; next?: EndCardNext | null; onReplay?: () => void } = {}) {
+function renderCard(props: { onSave?: SaveSentence; next?: EndCardNext | null; onReplay?: () => void; context?: EndCardContext } = {}) {
   const onSave = props.onSave ?? vi.fn<SaveSentence>(() => true)
   const onReplay = props.onReplay ?? vi.fn()
   render(
     <MemoryRouter>
       <EndCard
-        number={4}
-        total={17}
+        context={
+          props.context ?? {
+            kind: 'playlist',
+            number: 4,
+            total: 17,
+            next: props.next === undefined ? NEXT : props.next,
+            playlistTo: '/playlists/p1',
+          }
+        }
         seconds={872}
-        next={props.next === undefined ? NEXT : props.next}
-        playlistTo="/playlists/p1"
         onSave={onSave}
         onReplay={onReplay}
       />
@@ -111,5 +116,28 @@ describe('EndCard (YC-60, Figma « Fin de vidéo » 102:168)', () => {
     renderCard({ next: null })
     expect(screen.queryByText(/SUIVANTE/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Retour à la playlist →' })).toHaveAttribute('href', '/playlists/p1')
+  })
+
+  describe('a video kept on its own (YC-61, Figma 104:212)', () => {
+    const single: EndCardContext = { kind: 'single', homeTo: '/' }
+
+    it('says so, asks the sentence, and leads back to the dashboard', () => {
+      renderCard({ context: single })
+      expect(screen.getByText('VIDÉO SEULE · TERMINÉE ✓')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Une phrase pour retenir ?' })).toBeInTheDocument()
+      expect(screen.getByText(/n'appartient à aucune playlist/)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Retour au tableau de bord' })).toHaveAttribute('href', '/')
+      expect(screen.queryByText(/SUIVANTE/)).not.toBeInTheDocument()
+      // The catalogue does not exist yet: no button towards it.
+      expect(screen.queryByText('Voir le catalogue')).not.toBeInTheDocument()
+    })
+
+    it('Revoir starts it again, Échap goes to the dashboard link', async () => {
+      const { onReplay, input } = renderCard({ context: single })
+      fireEvent.click(screen.getByRole('button', { name: 'Revoir' }))
+      expect(onReplay).toHaveBeenCalled()
+      fireEvent.keyDown(input, { key: 'Escape' })
+      await waitFor(() => expect(screen.getByRole('link', { name: 'Retour au tableau de bord' })).toHaveFocus())
+    })
   })
 })
