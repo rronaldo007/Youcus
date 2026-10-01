@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EditorContent, Extension, useEditor } from '@tiptap/react'
+import { EditorContent, Extension, useEditor, useEditorState } from '@tiptap/react'
+import { Selection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extensions'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
@@ -7,9 +8,11 @@ import TextAlign from '@tiptap/extension-text-align'
 import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
 import { LinkField } from '@/features/notes/LinkField'
 import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc, type NoteSave } from '@/features/notes/noteDoc'
-import { DEFAULT_PAGE, type NotePage } from '@/features/notes/notePage'
+import { readPage, type NotePage } from '@/features/notes/notePage'
 import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/features/notes/noteMarks'
 import { NoteCodeBlock } from '@/features/notes/codeBlock'
+import { NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
+import { formatTimestamp } from '@/lib/format'
 import './note-editor.css'
 
 export type { NoteData } from '@/features/notes/noteDoc'
@@ -20,9 +23,13 @@ type Mode = 'edit' | 'preview'
 /**
  * The editor may only produce what the server accepts, or a save would fail: StarterKit's code
  * block is replaced by NoteCodeBlock (YC-44), headings stop at level 3, links are http(s) or mailto. Ctrl+K calls `openLink`
- * through a ref, so the extensions are built once per editor.
+ * and Ctrl+Alt+M `addMarker` through refs, so the extensions are built once per editor.
  */
-function buildExtensions(openLink: { current: () => void }) {
+function buildExtensions(
+  openLink: { current: () => void },
+  addMarker: { current: () => boolean },
+  seek: { current: (seconds: number) => void },
+) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
@@ -45,6 +52,8 @@ function buildExtensions(openLink: { current: () => void }) {
     HighlightMark,
     TextFontMark,
     TextSizeMark,
+    // Timestamped markers on the lines, clicked to jump in the video (YC-56).
+    NoteMarker.configure({ onSeek: seek }),
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({
@@ -52,6 +61,7 @@ function buildExtensions(openLink: { current: () => void }) {
           openLink.current()
           return true
         },
+        'Mod-Alt-m': () => addMarker.current(),
       }),
     }),
   ]
@@ -72,6 +82,17 @@ interface NoteEditorProps {
   isSaving: boolean
   /** Change quand la cible change (videoId / playlistId) → ré-amorce le brouillon. */
   resetKey: string
+  /**
+   * The player of the video this note is about (YC-56): its position, and how to move it. Without
+   * it (playlist notes) markers are shown but none can be added.
+   */
+  player?: { seconds: number; seek: (seconds: number) => void }
+}
+
+/** M adds a marker only outside a field: in one, it is a letter. */
+function isTyping(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || !!target.closest('[contenteditable]:not([contenteditable="false"])')
 }
 
 /** Formate une date ISO en HH:MM (locale FR), ou '' si invalide. */
@@ -86,13 +107,13 @@ function formatTime(iso: string | undefined): string {
  * (debounce) et lecture seule.
  * Utilisé pour les notes de vidéo et de playlist. La page suit la maquette « Éditeur de notes ».
  */
-export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey }: NoteEditorProps) {
+export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey, player }: NoteEditorProps) {
   const [draft, setDraft] = useState<NoteDoc | null>(null)
   // The page chosen here (YC-45) stays shown while it is saved; otherwise the stored one, or the
   // defaults. `pageDirty` only says an autosave is due.
   const [chosenPage, setChosenPage] = useState<NotePage | null>(null)
   const [pageDirty, setPageDirty] = useState(false)
-  const page = chosenPage ?? note?.page ?? DEFAULT_PAGE
+  const page = chosenPage ?? readPage(note?.page)
   const choosePage = (next: NotePage) => {
     setChosenPage(next)
     setPageDirty(true)
@@ -103,7 +124,13 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
   const seeded = useRef<{ editor: unknown; key: string } | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const openLink = useRef(() => setLinkOpen(true))
-  const extensions = useMemo(() => buildExtensions(openLink), [])
+  // Markers (YC-56) read the player at the moment they are used, through refs: the editor and its
+  // extensions are built once, the position changes every second.
+  const playerRef = useRef(player)
+  playerRef.current = player
+  const addMarker = useRef<() => boolean>(() => false)
+  const seek = useRef((seconds: number) => playerRef.current?.seek(seconds))
+  const extensions = useMemo(() => buildExtensions(openLink, addMarker, seek), [])
 
   const editor = useEditor({
     extensions,
@@ -112,13 +139,42 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
     onUpdate: ({ editor }) => setDraft(editor.getJSON() as NoteDoc),
   })
 
+  addMarker.current = () => {
+    const current = playerRef.current
+    if (!current || !editor || editor.isDestroyed || mode !== 'edit') return false
+    return editor.chain().focus().setMarker(current.seconds).run()
+  }
+  const canMark = useEditorState({ editor, selector: ({ editor: e }) => !!e && canSetMarker(e) }) ?? false
+
+  // M outside any field adds a marker at the line the cursor was left on (Figma 34:510).
+  const hasPlayer = player !== undefined
+  useEffect(() => {
+    if (!hasPlayer) return
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'm' || e.ctrlKey || e.altKey || e.metaKey || e.repeat || isTyping(e.target)) return
+      if (addMarker.current()) e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [hasPlayer])
+
   // Amorce l'éditeur quand la note de CETTE cible est chargée (une fois par cible et par instance).
   useEffect(() => {
     if (!editor || editor.isDestroyed || note === undefined) return
     if (seeded.current?.editor === editor && seeded.current.key === resetKey) return
     // Out of the history too: loading a note is not an edit the user can undo (the « Annuler »
     // tool was enabled on a note just opened, found by the YC-41 tests).
-    editor.chain().setMeta('addToHistory', false).setContent(note?.doc ?? EMPTY_DOC, { emitUpdate: false }).run()
+    // The cursor then goes to the end of the note, where writing goes on: setContent leaves the
+    // whole document selected, on no line, and a marker (YC-56) needs one.
+    editor
+      .chain()
+      .setMeta('addToHistory', false)
+      .setContent(note?.doc ?? EMPTY_DOC, { emitUpdate: false })
+      .command(({ tr }) => {
+        tr.setSelection(Selection.atEnd(tr.doc))
+        return true
+      })
+      .run()
     seeded.current = { editor, key: resetKey }
     setDraft(null)
     setChosenPage(null)
@@ -180,13 +236,40 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
       <div className="yc-note mt-3">
         {editor && mode === 'edit' && (
           <div className="yc-note-tools">
-            <FormattingToolbar editor={editor} onLink={() => setLinkOpen(true)} page={page} onPageChange={choosePage} />
+            <FormattingToolbar
+              editor={editor}
+              onLink={() => setLinkOpen(true)}
+              page={page}
+              onPageChange={choosePage}
+              onMarker={player ? () => addMarker.current() : undefined}
+            />
             {linkOpen && <LinkField editor={editor} onClose={() => setLinkOpen(false)} />}
           </div>
         )}
-        <div className="yc-note-page" data-paper={page.paper} data-tint={page.tint} data-margin={page.margin ? 'true' : 'false'}>
+        <div
+          className="yc-note-page"
+          data-paper={page.paper}
+          data-tint={page.tint}
+          data-margin={page.margin ? 'true' : 'false'}
+          data-timestamps={page.timestamps ? 'true' : 'false'}
+        >
           <EditorContent editor={editor} />
         </div>
+        {player && mode === 'edit' && (
+          <div className="yc-marker-bar">
+            <button
+              type="button"
+              className="yc-marker-add"
+              disabled={!canMark}
+              title={canMark ? undefined : 'Place le curseur sur une ligne de texte'}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => addMarker.current()}
+            >
+              + Repère à {formatTimestamp(player.seconds)}
+            </button>
+            {page.margin && <span className="yc-marker-hint">Dans la marge · touche M</span>}
+          </div>
+        )}
       </div>
     </section>
   )

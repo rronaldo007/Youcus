@@ -27,9 +27,14 @@ export interface NotePage {
   tint: Tint
   /** The margin column on the left, with its red rule (timestamps go there, YC-56). */
   margin: boolean
+  /** Whether the timestamped markers are shown (YC-56); hiding them deletes none. */
+  timestamps: boolean
 }
 
 /** A note never given a page: lined cream paper with its margin, as in the mockup (34:217). */
-export const DEFAULT_PAGE: NotePage = { paper: 'lignes', tint: 'creme', margin: true }
+export const DEFAULT_PAGE: NotePage = { paper: 'lignes', tint: 'creme', margin: true, timestamps: true }
+
+/** A stored page with what it lacks taken from the defaults: pages saved before YC-56 have no `timestamps`. */
+export const readPage = (stored: Partial<NotePage> | null | undefined): NotePage => ({ ...DEFAULT_PAGE, ...stored })
 
 export const paperLabel = (id: Paper) => PAPERS.find((p) => p.id === id)?.label ?? 'Lignes'
