@@ -201,9 +201,40 @@ const noteImage = z
     return { ...node, attrs: kept }
   })
 
+/**
+ * A table (YC-51), Figma « Bloc de note › Tableau » (65:2071): rows of cells, the first row of
+ * header cells when « En-tête » is on. No merged cells (the editor offers none): colspan and
+ * rowspan are 1 and are not stored. A cell holds blocks, never another table.
+ */
+export const MAX_TABLE_ROWS = 100
+export const MAX_TABLE_COLUMNS = 20
+const cellAttrs = z
+  .object({
+    colspan: z.literal(1).optional(),
+    rowspan: z.literal(1).optional(),
+    colwidth: z.null().optional(),
+  })
+  .optional()
+const cellOf = (type: 'tableCell' | 'tableHeader') =>
+  z
+    .object({ type: z.literal(type), attrs: cellAttrs, content: z.array(z.lazy(() => cellBlock)).min(1) })
+    // colspan / rowspan 1 and colwidth null are the defaults: nothing to store.
+    .transform((cell) => ({ type: cell.type, content: cell.content }))
+const tableRow = z.object({
+  type: z.literal('tableRow'),
+  content: z.array(z.union([cellOf('tableHeader'), cellOf('tableCell')])).min(1).max(MAX_TABLE_COLUMNS),
+})
+const table = z
+  .object({ type: z.literal('table'), content: z.array(tableRow).min(1).max(MAX_TABLE_ROWS) })
+  .refine((t) => t.content.every((row) => row.content.length === t.content[0].content.length), 'Tableau irrégulier')
+
 // Lists and quotes contain blocks, which contain lists: the schema is recursive.
 const block: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage]),
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock, horizontalRule, noteImage, table]),
+)
+// What a cell may hold: the blocks of a note, except a table (no table in a table) and an image.
+const cellBlock: z.ZodType<NoteNode, z.ZodTypeDef, unknown> = z.lazy(() =>
+  z.union([paragraph, heading, blockquote, bulletList, orderedList, taskList, codeBlock]),
 )
 const listItem = z.object({ type: z.literal('listItem'), content: z.array(block).min(1) })
 const blockquote = z.object({ type: z.literal('blockquote'), content: z.array(block).min(1) })
@@ -258,6 +289,18 @@ export function docToPlainText(doc: NoteDoc): string {
       // The caption says what the image shows; else its alternative text. Searchable either way.
       const text = (node.attrs?.caption ?? node.attrs?.alt) as string | undefined
       if (text) lines.push(text)
+      return
+    }
+    if (node.type === 'tableRow') {
+      // One line per row, its cells separated by tabs, as a spreadsheet pastes them.
+      const cells = (node.content ?? []).map((cell) => {
+        const inner: string[] = []
+        const before = lines.length
+        for (const child of cell.content ?? []) walk(child)
+        inner.push(...lines.splice(before))
+        return inner.join(' ')
+      })
+      lines.push(cells.join('\t'))
       return
     }
     if (node.type === 'codeBlock') {

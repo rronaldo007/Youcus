@@ -20,6 +20,8 @@ import { MAX_MARKER_SECONDS, NoteMarker, canSetMarker } from '@/features/notes/n
 import { NoteSpacing } from '@/features/notes/noteSpacing'
 import { NoteIcon } from '@/features/notes/noteIcon'
 import { NoteImage } from '@/features/notes/noteImage'
+import { noteTableExtensions } from '@/features/notes/noteTable'
+import { NoteTableBar } from '@/features/notes/NoteTableBar'
 import { ACCEPTED_IMAGES, imageProblem, uploadNoteImage } from '@/features/notes/noteImageUpload'
 import { formatTimestamp } from '@/lib/format'
 import { isTyping } from '@/lib/keyboard'
@@ -71,6 +73,8 @@ function buildExtensions(
     NoteIcon,
     // Images pasted, dropped or chosen (YC-50), stored by the API.
     NoteImage.configure({ onFiles: onImageFiles }),
+    // Tables (YC-51): header row, sort, Tab from cell to cell.
+    ...noteTableExtensions,
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({
@@ -613,6 +617,7 @@ export function NoteEditor({
               data-base-size={page.size}
             >
               <EditorContent editor={editor} />
+              {editor && mode === 'edit' && <NoteTableBar editor={editor} />}
             </div>
             {player && mode === 'edit' && (
               <div className="yc-marker-bar">
