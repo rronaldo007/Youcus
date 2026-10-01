@@ -1,0 +1,270 @@
+/*
+ * End of a video (YC-60), Figma « Fin de vidéo » 102:168: Large (102:102) and Compacte (102:138).
+ * Always dark, whatever the app's theme: its tokens are the Figma dark values, scoped here.
+ * The size follows the room the player has (container query), not the window.
+ */
+
+.yc-end-wrap {
+  container-type: inline-size;
+}
+
+.yc-end {
+  --end-stage: #0c0b0a;
+  --end-surface: #1d1b18;
+  --end-sunken: #262420;
+  --end-ink: #ede8dd;
+  --end-muted: #a39d90;
+  --end-border: #3a3732;
+  --end-focus: #e86a55;
+  --end-inverse: #f3efe6;
+  --end-on-inverse: #17150f;
+  --end-success: #6cc48f;
+  color-scheme: dark;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  /* Over the player, at its size; taller when its content needs it (a phone). */
+  aspect-ratio: 16 / 9;
+  padding: 48px 64px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: var(--end-stage);
+  color: var(--end-ink);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  text-align: center;
+}
+
+.yc-end p,
+.yc-end h2 {
+  margin: 0;
+}
+
+.yc-end-eyebrow {
+  color: var(--end-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.yc-end-title {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.yc-end-answer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 600px;
+  min-height: 56px;
+  padding: 6px 6px 6px 16px;
+  border: 2px solid var(--end-border);
+  border-radius: 12px;
+  background: var(--end-surface);
+}
+
+.yc-end-answer:focus-within {
+  border-color: var(--end-focus);
+}
+
+.yc-end-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--end-ink);
+  font: inherit;
+  font-size: 15px;
+}
+
+.yc-end-input::placeholder {
+  color: var(--end-muted);
+}
+
+.yc-end-save {
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--end-inverse);
+  color: var(--end-on-inverse);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yc-end-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.yc-end-save-short {
+  display: none;
+}
+
+.yc-end-help {
+  color: var(--end-muted);
+  font-size: 13px;
+}
+
+.yc-end-error {
+  color: var(--end-focus);
+}
+
+.yc-end-done {
+  color: var(--end-success);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.yc-end-gap {
+  height: 8px;
+}
+
+.yc-end-next {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 600px;
+  padding: 12px 14px;
+  border: 1px solid var(--end-border);
+  border-radius: 12px;
+  background: var(--end-surface);
+  text-align: left;
+}
+
+.yc-end-thumb {
+  flex-shrink: 0;
+  width: 112px;
+  height: 63px;
+  border-radius: 8px;
+  background: var(--end-sunken);
+  object-fit: cover;
+}
+
+.yc-end-next-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.yc-end-next-eyebrow {
+  color: var(--end-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.yc-end-next-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.yc-end-next-meta {
+  color: var(--end-muted);
+  font-size: 13px;
+}
+
+.yc-end-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.yc-end-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--end-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.yc-end-ghost:hover {
+  background: var(--end-sunken);
+}
+
+.yc-end-secondary {
+  border-color: var(--end-ink);
+}
+
+.yc-end-secondary:hover {
+  background: var(--end-sunken);
+}
+
+.yc-end-btn:focus-visible,
+.yc-end-save:focus-visible {
+  outline: 2px solid var(--end-focus);
+  outline-offset: 2px;
+}
+
+.yc-end-note {
+  color: var(--end-muted);
+  font-size: 12px;
+}
+
+/* Compacte (102:138): the next video stacks, the thumbnail on top. */
+@container (max-width: 640px) {
+  .yc-end {
+    gap: 14px;
+    padding: 24px 16px;
+  }
+
+  .yc-end-title {
+    font-size: 28px;
+  }
+
+  .yc-end-save-long {
+    display: none;
+  }
+
+  .yc-end-save-short {
+    display: inline;
+  }
+
+  .yc-end-gap {
+    height: 2px;
+  }
+
+  .yc-end-next {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .yc-end-thumb {
+    width: 100%;
+    height: 120px;
+  }
+
+  .yc-end-actions {
+    width: 100%;
+  }
+
+  .yc-end-actions .yc-end-secondary {
+    flex: 1;
+  }
+}

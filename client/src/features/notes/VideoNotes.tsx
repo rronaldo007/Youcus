@@ -1,4 +1,6 @@
+import type { MutableRefObject } from 'react'
 import { LazyNoteEditor as NoteEditor } from '@/features/notes/LazyNoteEditor'
+import type { NoteActions } from '@/features/notes/NoteEditor'
 import { useSaveVideoNote, useVideoNote } from '@/features/notes/useVideoNote'
 
 /**
@@ -9,11 +11,14 @@ export function VideoNotes({
   videoId,
   player,
   context,
+  actions,
 }: {
   videoId: string
   player?: { seconds: number; seek: (seconds: number) => void }
   /** Shown above the note in its expanded view (YC-18). */
   context?: { eyebrow?: string; heading: string }
+  /** What the player page can do to the note (the end card, YC-60). */
+  actions?: MutableRefObject<NoteActions | null>
 }) {
   const { data: note, isLoading } = useVideoNote(videoId)
   const save = useSaveVideoNote(videoId)
@@ -30,6 +35,7 @@ export function VideoNotes({
         resetKey={videoId}
         player={player}
         context={context}
+        actions={actions}
       />
     </div>
   )

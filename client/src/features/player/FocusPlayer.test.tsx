@@ -1,5 +1,5 @@
 import { createRef } from 'react'
-import { render, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FocusPlayer, type FocusPlayerHandle } from './FocusPlayer'
 
@@ -153,5 +153,48 @@ describe('FocusPlayer', () => {
     expect(() => ref.current?.setCaptions('fr')).not.toThrow()
     events.onApiChange()
     expect(onCaptionTracks).toHaveBeenLastCalledWith(null, null)
+  })
+
+  describe('end of the video (YC-60)', () => {
+    type StateEvents = { onStateChange: (e: { data: number }) => void }
+
+    it('says when it plays and when it ends', async () => {
+      const onPlay = vi.fn()
+      const onEnded = vi.fn()
+      await ready({ onPlay, onEnded })
+      const events = (PlayerMock.mock.calls[0][1] as { events: StateEvents }).events
+      events.onStateChange({ data: 1 })
+      expect(onPlay).toHaveBeenCalledTimes(1)
+      events.onStateChange({ data: 0 })
+      expect(onEnded).toHaveBeenCalledTimes(1)
+      expect(onPlay).toHaveBeenCalledTimes(1)
+    })
+
+    it('plays at once when asked (« Lire la suivante »), not otherwise', async () => {
+      const asked = await ready({ autoplay: true })
+      expect(asked.instance.playVideo).toHaveBeenCalled()
+    })
+
+    it('does not play by itself', async () => {
+      const { instance } = await ready()
+      expect(instance.playVideo).not.toHaveBeenCalled()
+    })
+
+    it('Revoir starts again from 0', async () => {
+      const onTimeUpdate = vi.fn()
+      const { ref, instance } = await ready({ onTimeUpdate })
+      ref.current?.restart()
+      expect(instance.seekTo).toHaveBeenLastCalledWith(0, true)
+      expect(instance.playVideo).toHaveBeenCalled()
+      expect(onTimeUpdate).toHaveBeenLastCalledWith(0)
+    })
+
+    it('an overlay takes the place of the video, which stays mounted but hidden', async () => {
+      const { container } = render(<FocusPlayer youtubeId="abc123" title="Ma vidéo" overlay={<p>Fin</p>} />)
+      expect(screen.getByText('Fin')).toBeInTheDocument()
+      const frame = container.querySelector('[title="Ma vidéo"]')?.parentElement
+      expect(frame).toHaveAttribute('aria-hidden', 'true')
+      expect(frame).toHaveClass('invisible')
+    })
   })
 })
