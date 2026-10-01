@@ -1658,3 +1658,202 @@
 .yc-icon-suggest-item .yc-icon {
   margin-right: 8px;
 }
+
+/* ---- Phone (YC-47): compact bar and « Mise en forme » sheet, Figma 32:291 and 35:3259 ---- */
+
+/* One row that scrolls; the last tools fade out on the right (Figma « Fondu défilement »), and
+   can scroll clear of the fade. The fade is laid OVER the bar: a mask on the bar would erase
+   whatever leaves it, its floating menus included (measured: the colour menu was invisible). */
+.yc-toolbar-compact-wrap {
+  position: relative;
+}
+
+.yc-toolbar-compact-wrap::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 40px;
+  border-radius: 0 11px 11px 0;
+  background: linear-gradient(to right, transparent, var(--note-paper));
+  pointer-events: none;
+}
+
+.yc-toolbar-compact {
+  /* Its row of tools must not size the page: in the grid of the watch page it widened the whole
+     layout to 634 px on a 390 px phone (measured, the same trap as the code block of YC-44). */
+  contain: inline-size;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding-right: 40px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.yc-toolbar-compact::-webkit-scrollbar {
+  display: none;
+}
+
+.yc-toolbar-compact > * {
+  flex-shrink: 0;
+}
+
+.yc-glyph-aa {
+  font-weight: 600;
+}
+
+.yc-toolbar-separator {
+  width: 1px;
+  height: 24px;
+  margin: 0 2px;
+  background: var(--note-border);
+}
+
+.yc-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.yc-sheet-veil {
+  position: absolute;
+  inset: 0;
+  background: rgb(18 17 16 / 0.55);
+}
+
+.yc-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100dvh - 80px);
+  padding: 8px 16px 28px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 20px 20px 0 0;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-sheet-handle {
+  flex-shrink: 0;
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--note-border);
+}
+
+.yc-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.yc-sheet-title {
+  margin: 0;
+  font: 400 26px/1.2 'Instrument Serif', Georgia, serif;
+}
+
+.yc-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yc-sheet-label {
+  margin: 0;
+  color: var(--note-ink-muted);
+  font: 400 11px/15px 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.88px;
+}
+
+.yc-sheet-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.yc-sheet-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.yc-sheet-chip {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--note-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--note-ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yc-sheet-chip[aria-checked='true'] {
+  border-color: var(--note-ink);
+  background: var(--note-ink);
+  color: var(--note-paper);
+}
+
+.yc-sheet-chip:focus-visible,
+.yc-sheet .yc-swatch:focus-visible,
+.yc-sheet .yc-paper-choice:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-chip-h1 {
+  font: 400 22px/1 'Instrument Serif', Georgia, serif;
+}
+
+.yc-chip-h2 {
+  font: 400 18px/1 'Instrument Serif', Georgia, serif;
+}
+
+.yc-chip-h3 {
+  font: 600 15px/1 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-chip-paragraph {
+  font: 400 15px/1 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-chip-quote {
+  font: italic 400 17px/1 'Instrument Serif', Georgia, serif;
+}
+
+.yc-sheet .yc-swatch {
+  width: 44px;
+  height: 44px;
+}
+
+.yc-sheet .yc-size-value {
+  min-width: 24px;
+  text-align: center;
+  font-size: 15px;
+}
+
+/* The 8 colours on one row, as the 7 of the mockup: touching 44 px targets (8 × 44 = 352 px in the
+   358 px of a 390 px phone); with their 4 px gaps the last one fell alone on a second row. */
+.yc-sheet .yc-swatches {
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+@media (max-width: 420px) {
+  .yc-menu-colors .yc-swatches {
+    gap: 0;
+  }
+}

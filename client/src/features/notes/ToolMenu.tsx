@@ -15,6 +15,11 @@ interface ToolMenuProps {
   initialFocus?: string
   /** In the formatting toolbar (one roving tab stop), or on its own (a normal tab stop). */
   inToolbar?: boolean
+  /**
+   * Placed on the screen rather than under its button (YC-47): a button in a scrolling bar would
+   * have its menu cut by the bar. It closes when the page scrolls, not to float away from it.
+   */
+  floating?: boolean
   children: (close: () => void) => ReactNode
 }
 
@@ -33,6 +38,7 @@ export function ToolMenu({
   menuClassName = '',
   initialFocus,
   inToolbar = true,
+  floating = false,
   children,
 }: ToolMenuProps) {
   const [open, setOpen] = useState(false)
@@ -51,12 +57,27 @@ export function ToolMenu({
     const menu = menuRef.current
     if (!open || !menu) return
     menu.style.left = ''
+    if (floating && buttonRef.current) {
+      const button = buttonRef.current.getBoundingClientRect()
+      menu.style.position = 'fixed'
+      menu.style.top = `${button.bottom + 4}px`
+      menu.style.left = `${button.left}px`
+    }
     const rect = menu.getBoundingClientRect()
     const limit = document.documentElement.clientWidth - EDGE
     if (rect.right <= limit) return
     const shift = Math.min(rect.right - limit, rect.left - EDGE)
-    if (shift > 0) menu.style.left = `${-shift}px`
-  }, [open])
+    if (shift > 0) menu.style.left = `${(parseFloat(menu.style.left) || 0) - shift}px`
+  }, [open, floating])
+
+  useEffect(() => {
+    if (!open || !floating) return
+    const onScroll = (e: Event) => {
+      if (!menuRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
+  }, [open, floating])
 
   useEffect(() => {
     if (!open) return
