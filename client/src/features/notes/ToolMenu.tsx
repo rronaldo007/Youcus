@@ -1,4 +1,7 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+
+/** Space kept between an open menu and the edge of the screen. */
+const EDGE = 8
 
 interface ToolMenuProps {
   /** Accessible name of the button, e.g. « Police : Lora ». */
@@ -41,6 +44,19 @@ export function ToolMenu({
     setOpen(false)
     if (focusButton) buttonRef.current?.focus()
   }
+
+  // Opened under its button, a menu near the right edge would leave the screen on a phone (the
+  // whole page then scrolled sideways, measured at 390 px, YC-46): it moves left to stay in view.
+  useLayoutEffect(() => {
+    const menu = menuRef.current
+    if (!open || !menu) return
+    menu.style.left = ''
+    const rect = menu.getBoundingClientRect()
+    const limit = document.documentElement.clientWidth - EDGE
+    if (rect.right <= limit) return
+    const shift = Math.min(rect.right - limit, rect.left - EDGE)
+    if (shift > 0) menu.style.left = `${-shift}px`
+  }, [open])
 
   useEffect(() => {
     if (!open) return

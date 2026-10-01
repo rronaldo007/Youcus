@@ -346,6 +346,8 @@
   flex-direction: column;
   gap: 4px;
   width: 280px;
+  /* Never wider than the screen (ToolMenu moves it left when it would leave it). */
+  max-width: calc(100vw - 16px);
   padding: 8px;
   border: 1px solid var(--note-border);
   border-radius: 12px;
@@ -1482,4 +1484,177 @@
   padding: 4px 8px 6px;
   color: var(--note-ink-muted);
   font: 400 12px/17px 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+/* ---- Icons in the text (YC-46), Figma « Menu de l'éditeur › Icônes » 33:2705 ---- */
+
+/* Drawn as a mask in currentColor, at 1.25 em: « Taille et couleur suivent le texte ». */
+.yc-icon {
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.25em;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.yc-note-page .yc-icon.ProseMirror-selectednode {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+.yc-icon[data-icon='ampoule'] {
+  -webkit-mask-image: url('./icons/note/ampoule.svg');
+  mask-image: url('./icons/note/ampoule.svg');
+}
+
+.yc-icon[data-icon='etoile'] {
+  -webkit-mask-image: url('./icons/note/etoile.svg');
+  mask-image: url('./icons/note/etoile.svg');
+}
+
+.yc-icon[data-icon='question'] {
+  -webkit-mask-image: url('./icons/note/question.svg');
+  mask-image: url('./icons/note/question.svg');
+}
+
+.yc-icon[data-icon='drapeau'] {
+  -webkit-mask-image: url('./icons/note/drapeau.svg');
+  mask-image: url('./icons/note/drapeau.svg');
+}
+
+.yc-icon[data-icon='alerte'] {
+  -webkit-mask-image: url('./icons/note/alerte.svg');
+  mask-image: url('./icons/note/alerte.svg');
+}
+
+.yc-icon[data-icon='coche'] {
+  -webkit-mask-image: url('./icons/note/coche.svg');
+  mask-image: url('./icons/note/coche.svg');
+}
+
+.yc-icon[data-icon='repere'] {
+  -webkit-mask-image: url('./icons/note/repere.svg');
+  mask-image: url('./icons/note/repere.svg');
+}
+
+.yc-icon[data-icon='horloge'] {
+  -webkit-mask-image: url('./icons/note/horloge.svg');
+  mask-image: url('./icons/note/horloge.svg');
+}
+
+.yc-icon[data-icon='crayon'] {
+  -webkit-mask-image: url('./icons/note/crayon.svg');
+  mask-image: url('./icons/note/crayon.svg');
+}
+
+.yc-icon[data-icon='lien'] {
+  -webkit-mask-image: url('./icons/note/lien.svg');
+  mask-image: url('./icons/note/lien.svg');
+}
+
+.yc-icon[data-icon='code'] {
+  -webkit-mask-image: url('./icons/note/code.svg');
+  mask-image: url('./icons/note/code.svg');
+}
+
+.yc-icon[data-icon='lecture'] {
+  -webkit-mask-image: url('./icons/note/lecture.svg');
+  mask-image: url('./icons/note/lecture.svg');
+}
+
+.yc-icon[data-icon='plus'] {
+  -webkit-mask-image: url('./icons/note/plus.svg');
+  mask-image: url('./icons/note/plus.svg');
+}
+
+.yc-icon[data-icon='citation'] {
+  -webkit-mask-image: url('./icons/note/citation.svg');
+  mask-image: url('./icons/note/citation.svg');
+}
+
+.yc-icon[data-icon='fermer'] {
+  -webkit-mask-image: url('./icons/note/fermer.svg');
+  mask-image: url('./icons/note/fermer.svg');
+}
+
+.yc-menu-icons {
+  width: 280px;
+}
+
+.yc-icon-search {
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 4px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--note-sunken);
+  color: var(--note-ink);
+  font: 400 14px/18px 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-icon-search::placeholder {
+  color: var(--note-ink-muted);
+}
+
+.yc-icon-search:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 1px;
+}
+
+.yc-icon-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 2px;
+}
+
+.yc-icon-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--note-ink);
+  font-size: 19.2px; /* the icon at 1.25 em = 24 px, as in the grid of the mockup */
+  cursor: pointer;
+}
+
+.yc-icon-cell:hover,
+.yc-icon-cell:focus-visible {
+  background: var(--note-sunken);
+  outline: none;
+}
+
+.yc-icon-empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--note-ink-muted);
+  font: 400 13px/18px 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+/* The list under « :amp », mounted in the page body. */
+.yc-icon-suggest {
+  position: relative;
+  z-index: 50;
+  width: 220px;
+  color: var(--note-ink);
+}
+
+.yc-icon-suggest-item[aria-selected='true'] {
+  background: var(--note-sunken);
+}
+
+.yc-icon-suggest-item .yc-icon {
+  margin-right: 8px;
 }

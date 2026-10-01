@@ -225,3 +225,27 @@ describe('paragraph spacing (YC-55)', () => {
     expect(parseNoteDoc({ type: 'doc', content: [para(attrs)] })).toMatchObject({ ok: false, status: 400 })
   })
 })
+
+describe('icons in the text (YC-46)', () => {
+  const icon = (name: unknown, extra: Record<string, unknown> = {}) => ({ type: 'noteIcon', attrs: { name, ...extra } })
+
+  it('keeps an icon by name, with the marks of the text around it', () => {
+    const red = [{ type: 'textColor', attrs: { color: 'rouge' } }]
+    const res = parseNoteDoc({ type: 'doc', content: [p(icon('ampoule', { size: 99 }), t(' une idée')), p({ ...icon('alerte'), marks: red }, t('Pièges', red))] })
+    expect(res.ok && res.doc.content[0].content?.[0]).toEqual({ type: 'noteIcon', attrs: { name: 'ampoule' } })
+    expect(res.ok && res.doc.content[1].content?.[0]).toEqual({ type: 'noteIcon', attrs: { name: 'alerte' }, marks: red })
+  })
+
+  it('reads as nothing in the plain text', () => {
+    const res = parseNoteDoc({ type: 'doc', content: [p(icon('ampoule'), t(' une idée'))] })
+    expect(res.ok && docToPlainText(res.doc)).toBe(' une idée')
+  })
+
+  it.each([
+    ['an unknown icon', icon('licorne')],
+    ['an icon without a name', { type: 'noteIcon' }],
+    ['a picture address', icon('https://example.com/x.svg')],
+  ])('refuses %s', (_name, node) => {
+    expect(parseNoteDoc({ type: 'doc', content: [p(node)] })).toMatchObject({ ok: false, status: 400 })
+  })
+})

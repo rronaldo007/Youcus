@@ -13,6 +13,7 @@ import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/feat
 import { NoteCodeBlock } from '@/features/notes/codeBlock'
 import { NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
 import { NoteSpacing } from '@/features/notes/noteSpacing'
+import { NoteIcon } from '@/features/notes/noteIcon'
 import { formatTimestamp } from '@/lib/format'
 import './note-editor.css'
 
@@ -57,6 +58,8 @@ function buildExtensions(
     NoteMarker.configure({ onSeek: seek }),
     // Line height, space before and after, first-line indent of the paragraphs (YC-55).
     NoteSpacing,
+    // Icons in the text, from the toolbar or « : » (YC-46).
+    NoteIcon,
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({
