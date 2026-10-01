@@ -1,41 +1,92 @@
 import type { Config } from 'tailwindcss'
 
-// Tokens du design system Youcus (identite YouTube x Udemy, cf. docs/design).
+// Youcus design system (Figma « Youcus · Design System »): paper, ink, one red signal.
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Couleurs de marque pilotées par variables CSS : elles changent en mode sombre (cf. Figma).
-        brand: {
-          purple: 'rgb(var(--yc-purple) / <alpha-value>)',
-          'purple-dark': 'rgb(var(--yc-purple-hover) / <alpha-value>)',
-        },
-        'on-purple': 'rgb(var(--yc-on-purple) / <alpha-value>)',
+        // Design system tokens (YC-66), light and dark through CSS variables (styles/tokens.css).
+        page: 'var(--yc-bg-page)',
+        app: 'var(--yc-bg-app)',
+        sunken: 'var(--yc-bg-sunken)',
+        inverse: 'var(--yc-bg-inverse)',
+        stage: 'var(--yc-bg-stage)',
+        mark: 'var(--yc-bg-mark)',
         accent: {
-          red: 'rgb(var(--yc-red) / <alpha-value>)',
+          DEFAULT: 'rgb(var(--yc-accent-rgb) / <alpha-value>)',
+          hover: 'rgb(var(--yc-accent-hover-rgb) / <alpha-value>)',
+          text: 'var(--yc-text-accent)',
+          // First theme's name, now the red signal.
+          red: 'rgb(var(--yc-accent-rgb) / <alpha-value>)',
         },
-        success: 'rgb(var(--yc-success) / <alpha-value>)',
-        // Tokens semantiques pilotes par variables CSS (light/dark), cf. styles/index.css.
-        canvas: 'var(--yc-canvas)',
+        'on-accent': 'rgb(var(--yc-on-accent-rgb) / <alpha-value>)',
+        error: { DEFAULT: 'var(--yc-text-error)', bg: 'var(--yc-bg-error)' },
+        success: 'rgb(var(--yc-success-rgb) / <alpha-value>)',
+        'success-bg': 'var(--yc-bg-success)',
+        status: {
+          'success-bg': 'var(--yc-status-success-bg)',
+          'success-text': 'var(--yc-status-success-text)',
+          'warning-bg': 'var(--yc-status-warning-bg)',
+          'warning-text': 'var(--yc-status-warning-text)',
+          'error-bg': 'var(--yc-status-error-bg)',
+          'error-text': 'var(--yc-status-error-text)',
+        },
+        'line-strong': 'var(--yc-border-strong)',
+        focus: 'var(--yc-border-focus)',
+        // First theme's names, pointing at the design system (each page ticket moves to the names above).
+        brand: {
+          purple: 'rgb(var(--yc-accent-rgb) / <alpha-value>)',
+          'purple-dark': 'rgb(var(--yc-accent-hover-rgb) / <alpha-value>)',
+        },
+        'on-purple': 'rgb(var(--yc-on-accent-rgb) / <alpha-value>)',
+        canvas: 'var(--yc-bg-page)',
         surface: {
-          DEFAULT: 'var(--yc-surface)',
-          2: 'var(--yc-surface-2)',
+          DEFAULT: 'var(--yc-bg-surface)',
+          2: 'var(--yc-bg-sunken)',
         },
-        line: 'var(--yc-line)',
+        line: 'var(--yc-border-default)',
         content: {
-          DEFAULT: 'var(--yc-content)',
-          muted: 'var(--yc-content-muted)',
+          DEFAULT: 'var(--yc-text-primary)',
+          muted: 'var(--yc-text-muted)',
+          inverse: 'var(--yc-text-inverse)',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+        serif: ['"Instrument Serif"', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
+      // Figma text styles: [size, { lineHeight, letterSpacing }].
+      fontSize: {
+        display: ['104px', { lineHeight: '96px', letterSpacing: '-0.03em' }],
+        'title-56': ['56px', { lineHeight: '58px', letterSpacing: '-0.01em' }],
+        'title-34': ['34px', { lineHeight: '38px' }],
+        'title-24': ['24px', { lineHeight: '28px' }],
+        lead: ['20px', { lineHeight: '32px' }],
+        'body-16': ['16px', { lineHeight: '26px' }],
+        'body-15': ['15px', { lineHeight: '24px' }],
+        'label-14': ['14px', { lineHeight: '20px' }],
+        'small-13': ['13px', { lineHeight: '18px' }],
+        'mono-12': ['12px', { lineHeight: '16px', letterSpacing: '0.04em' }],
       },
       borderRadius: {
         card: '12px',
+        // Prefixed: Tailwind's own rounded-lg and the others keep their size until a page moves.
+        'yc-sm': 'var(--yc-radius-sm)',
+        'yc-md': 'var(--yc-radius-md)',
+        'yc-lg': 'var(--yc-radius-lg)',
+        'yc-xl': 'var(--yc-radius-xl)',
       },
+      // A bare `border` takes the design's line, not Tailwind's grey.
+      borderColor: { DEFAULT: 'var(--yc-border-default)' },
+      boxShadow: {
+        modal: 'var(--yc-shadow-modal)',
+        toast: 'var(--yc-shadow-toast)',
+      },
+      minHeight: { touch: 'var(--yc-size-touch-min)' },
+      minWidth: { touch: 'var(--yc-size-touch-min)' },
     },
   },
   plugins: [],
