@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/react'
+import { Plugin, type EditorState, type Transaction } from '@tiptap/pm/state'
 import type { Paper } from '@/features/notes/notePage'
 
 /**
@@ -51,6 +52,8 @@ declare module '@tiptap/core' {
     noteSpacing: {
       /** Sets spacing values on every paragraph of the selection; a default value is removed. */
       setParagraphSpacing: (values: Partial<ParagraphSpacing>) => ReturnType
+      /** Moves the first-line indent of the paragraphs of the selection one step (YC-57). */
+      stepIndent: (direction: 1 | -1) => ReturnType
     }
   }
 }
@@ -64,8 +67,36 @@ const attribute = (key: keyof ParagraphSpacing, data: string) => ({
   renderHTML: (attrs: Record<string, unknown>) => (typeof attrs[key] === 'number' ? { [`data-${data}`]: attrs[key] } : {}),
 })
 
-export const NoteSpacing = Extension.create({
+/** The paragraphs of the selection that take an indent: a list item keeps its own Tab (sink, lift). */
+function indentable(state: EditorState) {
+  const found: { pos: number; indent: Indent }[] = []
+  const { from, to } = state.selection
+  state.doc.nodesBetween(from, to, (node, pos, parent) => {
+    if (node.type.name !== 'paragraph') return true
+    if (parent && ['listItem', 'taskItem'].includes(parent.type.name)) return false
+    found.push({ pos, indent: readSpacing(node.attrs).indent })
+    return false
+  })
+  return found
+}
+
+function stepIndentIn(tr: Transaction, found: { pos: number; indent: Indent }[], direction: 1 | -1) {
+  let changed = false
+  for (const { pos, indent } of found) {
+    const next = INDENTS[Math.min(INDENTS.length - 1, Math.max(0, INDENTS.indexOf(indent) + direction))]
+    if (next === indent) continue
+    tr.setNodeAttribute(pos, 'indent', next === 0 ? null : next)
+    changed = true
+  }
+  return changed
+}
+
+export const NoteSpacing = Extension.create<Record<string, never>, { escaped: boolean }>({
   name: 'noteSpacing',
+
+  addStorage() {
+    return { escaped: false }
+  },
 
   addGlobalAttributes() {
     return [
@@ -92,7 +123,45 @@ export const NoteSpacing = Extension.create({
           }
           return commands.updateAttributes('paragraph', attrs)
         },
+      stepIndent:
+        (direction) =>
+        ({ state, tr, dispatch }) => {
+          const found = indentable(state)
+          if (!found.length) return false
+          if (dispatch) stepIndentIn(tr, found, direction)
+          return true
+        },
     }
+  },
+
+  addKeyboardShortcuts() {
+    // In a paragraph Tab is the indent, at its last step too: the note keeps the focus, and Échap
+    // then Tab leaves it, as in a code block, so the keyboard is never trapped.
+    const tab = (direction: 1 | -1) => () => {
+      if (this.storage.escaped) {
+        this.storage.escaped = false
+        return false
+      }
+      if (!indentable(this.editor.state).length) return false
+      this.editor.commands.stepIndent(direction)
+      return true
+    }
+    return { Tab: tab(1), 'Shift-Tab': tab(-1) }
+  },
+
+  addProseMirrorPlugins() {
+    const storage = this.storage
+    return [
+      new Plugin({
+        props: {
+          handleKeyDown(_view, event) {
+            if (event.key === 'Escape') storage.escaped = true
+            else if (event.key !== 'Tab' && !['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) storage.escaped = false
+            return false
+          },
+        },
+      }),
+    ]
   },
 })
 
