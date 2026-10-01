@@ -243,6 +243,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       canRedo: e.can().redo(),
       canMarker: canSetMarker(e),
       inParagraph: e.isActive('paragraph'),
+      inList: e.isActive('listItem') || e.isActive('taskItem'),
       spacing: readSpacing(e.getAttributes('paragraph')),
     }),
   })
@@ -687,6 +688,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         </ToolMenu>
         <SpacingMenu
           disabled={!state.inParagraph}
+          inList={state.inList}
           spacing={state.spacing}
           ruled={isRuled(page.paper)}
           drawn={drawnSpacing(state.spacing, page.paper)}
@@ -732,12 +734,15 @@ const decimal = (v: number) => v.toFixed(v === 1.15 ? 2 : 1).replace('.', ',')
  */
 function SpacingMenu({
   disabled,
+  inList,
   spacing,
   drawn,
   ruled,
   onChange,
 }: {
   disabled: boolean
+  /** In a list, the list's own indent replaces the first-line indent (YC-58). */
+  inList: boolean
   spacing: ParagraphSpacing
   drawn: ParagraphSpacing
   ruled: boolean
@@ -763,15 +768,19 @@ function SpacingMenu({
       </p>
       <div className="yc-spacing-values">
         {list.map((v) => {
-          const unavailable = ruled && key !== 'indent' && !allowedOnRuled.space(v as 0 | 8 | 16 | 32)
+          const why =
+            key === 'indent'
+              ? inList && 'pas dans une liste'
+              : ruled && !allowedOnRuled.space(v as 0 | 8 | 16 | 32) && 'papier Uni seulement'
+          const unavailable = !!why
           return (
             <button
               key={v}
               type="button"
               role="menuitemradio"
-              aria-checked={drawn[key] === v}
+              aria-checked={drawn[key] === v && !(key === 'indent' && inList)}
               aria-disabled={unavailable || undefined}
-              aria-label={`${title} : ${show(v)}${unavailable ? ' (papier Uni seulement)' : ''}`}
+              aria-label={`${title} : ${show(v)}${why ? ` (${why})` : ''}`}
               tabIndex={-1}
               className="yc-spacing-value"
               onMouseDown={(e) => e.preventDefault()}
@@ -832,6 +841,7 @@ function SpacingMenu({
           {values('spaceBefore', 'Espace avant', PARAGRAPH_SPACES, String)}
           {values('spaceAfter', 'Espace après', PARAGRAPH_SPACES, String)}
           {values('indent', 'Retrait de première ligne', INDENTS, (v) => (v === 0 ? 'aucun' : String(v)))}
+          {inList && <p className="yc-spacing-help">Dans une liste, Tab et Maj+Tab décalent le point : pas de retrait de première ligne.</p>}
           {ruled && (
             <p className="yc-spacing-help">
               Papier réglé : le texte reste sur les lignes. Les valeurs en pointillé sont réservées au papier Uni.
