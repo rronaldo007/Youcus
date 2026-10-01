@@ -25,6 +25,8 @@ export interface VideoDetail {
   durationSeconds: number
   description: string | null
   publishedAt: string | null
+  /** YouTube category id (snippet.categoryId), e.g. "28" for Science & Technology. */
+  categoryId: string | null
   /** Numbers, not BigInt: JSON has no BigInt, and every real count fits in 2^53. */
   viewCount: number | null
   likeCount: number | null
@@ -67,6 +69,7 @@ export async function getVideo(userId: string, videoId: string): Promise<VideoDe
     durationSeconds: video.durationSeconds,
     description: video.description,
     publishedAt: video.publishedAt?.toISOString() ?? null,
+    categoryId: video.categoryId,
     viewCount: video.viewCount === null ? null : Number(video.viewCount),
     likeCount: video.likeCount === null ? null : Number(video.likeCount),
     status: video.status,

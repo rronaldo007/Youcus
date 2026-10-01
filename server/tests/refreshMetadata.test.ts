@@ -21,6 +21,7 @@ const available = {
   description: '0:00 Intro\n1:00 Hooks\n5:00 Effects',
   channelYoutubeId: 'UC1',
   publishedAt: '2024-05-01T10:00:00Z',
+  categoryId: '28',
   viewCount: 1200,
   likeCount: null,
   status: 'AVAILABLE' as const,
@@ -31,7 +32,7 @@ const available = {
   definition: 'hd',
   hasCaptions: false,
 }
-const gone = { ...available, durationSeconds: 0, description: null, channelYoutubeId: null, publishedAt: null, viewCount: null, status: 'DELETED' as const, embeddable: false, definition: null }
+const gone = { ...available, durationSeconds: 0, description: null, channelYoutubeId: null, publishedAt: null, categoryId: null, viewCount: null, status: 'DELETED' as const, embeddable: false, definition: null }
 
 describe('refreshStaleVideos (YC-8)', () => {
   const now = new Date('2026-09-30T02:00:00Z')
@@ -75,7 +76,7 @@ describe('refreshStaleVideos (YC-8)', () => {
     await refreshStaleVideos({ now })
 
     const data = vi.mocked(prisma.video.update).mock.calls[0][0].data
-    expect(data).toMatchObject({ durationSeconds: 600, channelId: 'ch1', viewCount: 1200n, likeCount: null, syncedAt: now })
+    expect(data).toMatchObject({ durationSeconds: 600, channelId: 'ch1', viewCount: 1200n, likeCount: null, categoryId: '28', syncedAt: now })
     expect(prisma.chapter.deleteMany).toHaveBeenCalledWith({ where: { videoId: 'id1' } })
     expect(prisma.chapter.createMany).toHaveBeenCalled()
   })
@@ -88,7 +89,7 @@ describe('refreshStaleVideos (YC-8)', () => {
 
     expect(fetchChannels).not.toHaveBeenCalled()
     const data = vi.mocked(prisma.video.update).mock.calls[0][0].data
-    expect(data).toMatchObject({ description: null, viewCount: null, likeCount: null, publishedAt: null, status: 'DELETED', syncedAt: now })
+    expect(data).toMatchObject({ description: null, viewCount: null, likeCount: null, publishedAt: null, categoryId: null, status: 'DELETED', syncedAt: now })
     // Chapters come from the description: gone with it.
     expect(prisma.chapter.deleteMany).toHaveBeenCalledWith({ where: { videoId: 'id1' } })
     expect(prisma.chapter.createMany).not.toHaveBeenCalled()

@@ -12,6 +12,7 @@ const base: VideoDetail = {
   durationSeconds: 10957,
   description: 'Learn backend. Code: https://github.com/pedro/repo. Bye',
   publishedAt: '2025-12-02T13:01:32.000Z',
+  categoryId: '27',
   viewCount: 319915,
   likeCount: 6713,
   status: 'AVAILABLE',
@@ -122,5 +123,16 @@ describe('VideoAbout (YC-5)', () => {
     const figure = (await screen.findByText('Commence ici.')).closest('figure') as HTMLElement
     expect(text(figure)).toContain('Note de la playlist')
     expect(text(figure)).not.toContain('·')
+  })
+
+  it('warns that content may be dated after three years, in Education (YC-15)', async () => {
+    renderWith({ publishedAt: '2019-03-12T10:00:00.000Z', categoryId: '27' })
+    expect(await screen.findByText(/Publiée il y a \d+ ans : contenu peut-être daté\./)).toBeInTheDocument()
+  })
+
+  it('stays silent for a recent video or another category (YC-15)', async () => {
+    renderWith({ publishedAt: '2019-03-12T10:00:00.000Z', categoryId: '10' })
+    await screen.findByRole('region', { name: 'À propos de la vidéo' })
+    expect(screen.queryByText(/contenu peut-être daté/)).not.toBeInTheDocument()
   })
 })

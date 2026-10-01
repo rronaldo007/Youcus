@@ -86,6 +86,8 @@ export interface VideoDetail {
   durationSeconds: number
   description: string | null
   publishedAt: string | null
+  /** YouTube category id, e.g. "28" for Science & Technology (YC-15). */
+  categoryId: string | null
   viewCount: number | null
   /** null when the uploader hides likes. */
   likeCount: number | null

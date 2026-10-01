@@ -16,6 +16,8 @@ export interface VideoDetails {
   description: string | null
   channelYoutubeId: string | null
   publishedAt: string | null
+  /** snippet.categoryId, e.g. "27" (Education) or "28" (Science & Technology). */
+  categoryId: string | null
   viewCount: number | null
   /** null when the uploader hides likes: never a fake 0. */
   likeCount: number | null
@@ -192,6 +194,7 @@ interface VideoResource {
     description?: string
     channelId?: string
     publishedAt?: string
+    categoryId?: string
     liveBroadcastContent?: string
   }
   contentDetails?: {
@@ -225,6 +228,7 @@ function toDetails(v: VideoResource): VideoDetails {
     description,
     channelYoutubeId: v.snippet?.channelId ?? null,
     publishedAt: v.snippet?.publishedAt ?? null,
+    categoryId: v.snippet?.categoryId ?? null,
     viewCount: toCount(v.statistics?.viewCount),
     likeCount: toCount(v.statistics?.likeCount),
     status: toAvailability(v),
@@ -264,6 +268,7 @@ export async function fetchVideoDetails(
         description: null,
         channelYoutubeId: null,
         publishedAt: null,
+        categoryId: null,
         viewCount: null,
         likeCount: null,
         status: 'DELETED',

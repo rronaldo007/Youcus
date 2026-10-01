@@ -27,6 +27,7 @@ export function videoMetadata(
     description: d.description,
     channelId: d.channelYoutubeId ? (channelIds.get(d.channelYoutubeId) ?? null) : null,
     publishedAt: d.publishedAt ? new Date(d.publishedAt) : null,
+    categoryId: d.categoryId,
     viewCount: d.viewCount === null ? null : BigInt(d.viewCount),
     likeCount: d.likeCount === null ? null : BigInt(d.likeCount),
     status: d.status,

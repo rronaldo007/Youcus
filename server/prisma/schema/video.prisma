@@ -20,6 +20,8 @@ model Video {
   channel          Channel?        @relation(fields: [channelId], references: [id], onDelete: SetNull)
   channelId        String?
   publishedAt      DateTime?
+  // snippet.categoryId (YC-15): "27" Education, "28" Science & Technology.
+  categoryId       String?         @db.VarChar(8)
   viewCount        BigInt?
   // Counters are BigInt: the most viewed videos exceed the 32-bit INT ceiling.
   // Likes can be hidden by the uploader: null, never 0.
