@@ -12,6 +12,7 @@ import { readPage, type NotePage } from '@/features/notes/notePage'
 import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/features/notes/noteMarks'
 import { NoteCodeBlock } from '@/features/notes/codeBlock'
 import { NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
+import { NoteSpacing } from '@/features/notes/noteSpacing'
 import { formatTimestamp } from '@/lib/format'
 import './note-editor.css'
 
@@ -54,6 +55,8 @@ function buildExtensions(
     TextSizeMark,
     // Timestamped markers on the lines, clicked to jump in the video (YC-56).
     NoteMarker.configure({ onSeek: seek }),
+    // Line height, space before and after, first-line indent of the paragraphs (YC-55).
+    NoteSpacing,
     Extension.create({
       name: 'linkShortcut',
       addKeyboardShortcuts: () => ({

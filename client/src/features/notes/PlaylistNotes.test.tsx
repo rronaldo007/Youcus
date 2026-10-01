@@ -47,9 +47,9 @@ describe('PlaylistNotes', () => {
 
     const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PUT')
     expect(putCall?.[0]).toContain('/playlists/p1/note')
-    // The editor adds `textAlign: null` (YC-43) and `marker: null` (YC-56) to every block; the server drops them on save.
+    // The editor adds `textAlign` (YC-43), `marker` (YC-56) and the spacing (YC-55) as null to every paragraph; the server drops them.
     expect(JSON.parse((putCall?.[1] as RequestInit).body as string)).toEqual({
-      doc: { type: 'doc', content: [{ type: 'paragraph', attrs: { textAlign: null, marker: null }, content: [{ type: 'text', text: 'mes prérequis' }] }] },
+      doc: { type: 'doc', content: [{ type: 'paragraph', attrs: { textAlign: null, marker: null, lineHeight: null, spaceBefore: null, spaceAfter: null, indent: null }, content: [{ type: 'text', text: 'mes prérequis' }] }] },
     })
   })
 })

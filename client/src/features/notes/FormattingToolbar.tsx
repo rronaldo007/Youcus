@@ -31,6 +31,17 @@ import marginColumnIcon from './icons/margin-column.svg'
 import markerIcon from './icons/marker.svg'
 import clockIcon from './icons/clock.svg'
 import { canSetMarker } from '@/features/notes/noteMarker'
+import lineSpacingIcon from './icons/line-spacing.svg'
+import {
+  INDENTS,
+  LINE_HEIGHTS,
+  PARAGRAPH_SPACES,
+  allowedOnRuled,
+  drawnSpacing,
+  isRuled,
+  readSpacing,
+  type ParagraphSpacing,
+} from '@/features/notes/noteSpacing'
 import { PAPERS, TINTS, paperLabel, type NotePage } from '@/features/notes/notePage'
 import textColorIcon from './icons/text-color.svg'
 import highlighterIcon from './icons/highlighter.svg'
@@ -231,6 +242,8 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
       canMarker: canSetMarker(e),
+      inParagraph: e.isActive('paragraph'),
+      spacing: readSpacing(e.getAttributes('paragraph')),
     }),
   })
 
@@ -672,6 +685,13 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
             </>
           )}
         </ToolMenu>
+        <SpacingMenu
+          disabled={!state.inParagraph}
+          spacing={state.spacing}
+          ruled={isRuled(page.paper)}
+          drawn={drawnSpacing(state.spacing, page.paper)}
+          onChange={(values) => editor.chain().focus().setParagraphSpacing(values).run()}
+        />
       </div>
 
       <div role="group" aria-label="Blocs" className="yc-tool-group">
@@ -700,5 +720,128 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         </Tool>
       </div>
     </div>
+  )
+}
+
+const decimal = (v: number) => v.toFixed(v === 1.15 ? 2 : 1).replace('.', ',')
+
+/**
+ * « Interligne et espacement » (Figma 33:2680, adapted on 01/10 with Ronaldo): the line heights,
+ * then a row of values for each space. On ruled paper only whole lines are offered, the other
+ * values stay visible but unavailable, and the checked value is the one the paper draws.
+ */
+function SpacingMenu({
+  disabled,
+  spacing,
+  drawn,
+  ruled,
+  onChange,
+}: {
+  disabled: boolean
+  spacing: ParagraphSpacing
+  drawn: ParagraphSpacing
+  ruled: boolean
+  onChange: (values: Partial<ParagraphSpacing>) => void
+}) {
+  if (disabled) {
+    return (
+      <Tool label="Interligne et espacement (paragraphes seulement)" disabled onRun={() => {}}>
+        <Icon src={lineSpacingIcon} />
+      </Tool>
+    )
+  }
+  const values = (
+    key: 'spaceBefore' | 'spaceAfter' | 'indent',
+    title: string,
+    list: readonly number[],
+    show: (v: number) => string,
+  ) => (
+    <div role="group" aria-label={title} className="yc-spacing-row">
+      <p aria-hidden="true" className="yc-spacing-head">
+        <span>{title}</span>
+        <span className="yc-spacing-unit">px</span>
+      </p>
+      <div className="yc-spacing-values">
+        {list.map((v) => {
+          const unavailable = ruled && key !== 'indent' && !allowedOnRuled.space(v as 0 | 8 | 16 | 32)
+          return (
+            <button
+              key={v}
+              type="button"
+              role="menuitemradio"
+              aria-checked={drawn[key] === v}
+              aria-disabled={unavailable || undefined}
+              aria-label={`${title} : ${show(v)}${unavailable ? ' (papier Uni seulement)' : ''}`}
+              tabIndex={-1}
+              className="yc-spacing-value"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                if (!unavailable) onChange({ [key]: v })
+              }}
+            >
+              {show(v)}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+  return (
+    <ToolMenu
+      buttonLabel="Interligne et espacement"
+      buttonClassName="yc-tool"
+      buttonContent={<Icon src={lineSpacingIcon} />}
+      menuLabel="Interligne et espacement"
+      menuClassName="yc-menu-spacing"
+    >
+      {() => (
+        <>
+          <p aria-hidden="true" className="yc-menu-label">
+            INTERLIGNE
+          </p>
+          {LINE_HEIGHTS.map((v) => {
+            const unavailable = ruled && !allowedOnRuled.lineHeight(v)
+            return (
+              <button
+                key={v}
+                type="button"
+                role="menuitemradio"
+                aria-checked={drawn.lineHeight === v}
+                aria-disabled={unavailable || undefined}
+                aria-label={`Interligne ${decimal(v)}${unavailable ? ' (papier Uni seulement)' : ''}`}
+                tabIndex={-1}
+                className="yc-menu-item"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (!unavailable) onChange({ lineHeight: v })
+                }}
+              >
+                <span className="yc-menu-item-label yc-menu-item-medium">{decimal(v)}</span>
+                {unavailable ? (
+                  <span className="yc-menu-shortcut">Uni seulement</span>
+                ) : (
+                  drawn.lineHeight === v && <Icon src={checkIcon} size={18} />
+                )}
+              </button>
+            )
+          })}
+          <div aria-hidden="true" className="yc-menu-rule" />
+          <p aria-hidden="true" className="yc-menu-label">
+            ESPACEMENT DU PARAGRAPHE
+          </p>
+          {values('spaceBefore', 'Espace avant', PARAGRAPH_SPACES, String)}
+          {values('spaceAfter', 'Espace après', PARAGRAPH_SPACES, String)}
+          {values('indent', 'Retrait de première ligne', INDENTS, (v) => (v === 0 ? 'aucun' : String(v)))}
+          {ruled && (
+            <p className="yc-spacing-help">
+              Papier réglé : le texte reste sur les lignes. Les valeurs en pointillé sont réservées au papier Uni.
+              {spacing.lineHeight !== drawn.lineHeight || spacing.spaceBefore !== drawn.spaceBefore || spacing.spaceAfter !== drawn.spaceAfter
+                ? ' Ce paragraphe garde son réglage Uni, arrondi ici.'
+                : ''}
+            </p>
+          )}
+        </>
+      )}
+    </ToolMenu>
   )
 }

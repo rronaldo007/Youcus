@@ -1274,7 +1274,8 @@
 .yc-note-page[data-margin='true'] .yc-marker {
   position: absolute;
   right: calc(100% - var(--margin-x) + 8px);
-  margin: 5px 0 0;
+  /* Centred on the line, whatever its height (YC-55): 22 px pill. */
+  margin: calc((var(--line, var(--note-step)) - 22px) / 2) 0 0;
 }
 
 .yc-note-page[data-margin='true'] h1 > .yc-marker {
@@ -1327,4 +1328,152 @@
 .yc-marker-hint {
   color: var(--note-ink-muted);
   font: 500 13px/18px 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+/* ---- Paragraph spacing (YC-55), Figma « Menu de l'éditeur › Interligne » 33:2680 ---- */
+
+/* Every paragraph reads its spacing from variables set by its data attributes below. --shift
+   moves a double-spaced paragraph up half a line (and gives it back below), so that each of its
+   lines is centred on a row of the 32 px rule, like single-spaced text. The spaces are padding,
+   not margin: margins collapse, and the half line given back would swallow the next space
+   (measured: the next paragraph fell 16 px off the rule). */
+.yc-note-page .tiptap p {
+  margin: calc(0px - var(--shift, 0px)) 0 var(--shift, 0px);
+  padding-top: var(--before, 0px);
+  padding-bottom: var(--after, 0px);
+  line-height: var(--line, var(--note-step));
+  text-indent: var(--indent, 0px);
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-line='1.15'] {
+  --line: calc(var(--note-step) * 1.15);
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-line='1.5'] {
+  --line: calc(var(--note-step) * 1.5);
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-line='2'] {
+  --line: calc(var(--note-step) * 2);
+}
+
+/* Ruled paper draws whole lines only: 1,15 stays one line, 1,5 and 2,0 are two. */
+.yc-note-page:not([data-paper='uni']) .tiptap p:is([data-line='1.5'], [data-line='2']) {
+  --line: calc(var(--note-step) * 2);
+  --shift: calc(var(--note-step) / 2);
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-before='8'] {
+  --before: 8px;
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-before='16'] {
+  --before: 16px;
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-before='32'],
+.yc-note-page:not([data-paper='uni']) .tiptap p:is([data-before='16'], [data-before='32']) {
+  --before: var(--note-step);
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-after='8'] {
+  --after: 8px;
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-after='16'] {
+  --after: 16px;
+}
+
+.yc-note-page[data-paper='uni'] .tiptap p[data-after='32'],
+.yc-note-page:not([data-paper='uni']) .tiptap p:is([data-after='16'], [data-after='32']) {
+  --after: var(--note-step);
+}
+
+.yc-note-page .tiptap p[data-indent='32'] {
+  --indent: 32px;
+}
+
+.yc-note-page .tiptap p[data-indent='64'] {
+  --indent: 64px;
+}
+
+/* The menu. */
+.yc-menu-spacing {
+  width: 280px;
+}
+
+.yc-spacing-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.yc-spacing-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  color: var(--note-ink);
+  font: 400 14px/18px 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+.yc-spacing-unit {
+  color: var(--note-ink-muted);
+  font: 400 12px/16px 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.yc-spacing-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.yc-spacing-value {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--note-ink);
+  font: 500 14px/18px 'Hanken Grotesk', system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.yc-spacing-value:hover:not([aria-disabled='true']) {
+  background: var(--note-sunken);
+}
+
+.yc-spacing-value[aria-checked='true'] {
+  border-color: var(--note-ink);
+  background: var(--note-sunken);
+}
+
+.yc-spacing-value[aria-disabled='true'] {
+  border-style: dashed;
+  color: var(--note-ink-muted);
+  cursor: not-allowed;
+}
+
+.yc-spacing-value:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-menu-item[aria-disabled='true'] {
+  color: var(--note-ink-muted);
+  cursor: not-allowed;
+}
+
+.yc-menu-item[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.yc-spacing-help {
+  margin: 0;
+  padding: 4px 8px 6px;
+  color: var(--note-ink-muted);
+  font: 400 12px/17px 'Hanken Grotesk', system-ui, sans-serif;
 }
