@@ -1,5 +1,13 @@
 import type { CSSProperties } from 'react'
 import alert from './icons/alert.svg'
+import bookmark from './icons/bookmark.svg'
+import download from './icons/download.svg'
+import grid from './icons/grid.svg'
+import logout from './icons/logout.svg'
+import moon from './icons/moon.svg'
+import settings from './icons/settings.svg'
+import star from './icons/star.svg'
+import sun from './icons/sun.svg'
 import check from './icons/check.svg'
 import clock from './icons/clock.svg'
 import close from './icons/close.svg'
@@ -11,7 +19,7 @@ import plus from './icons/plus.svg'
 import search from './icons/search.svg'
 
 /** The design system's icons (Figma page « Icônes » 3:103), 24 × 24, 2 px stroke. */
-const ICONS = { alert, check, clock, close, gauge, menu, offline, play, plus, search }
+const ICONS = { alert, bookmark, check, clock, close, download, gauge, grid, logout, menu, moon, offline, play, plus, search, settings, star, sun }
 
 export type IconName = keyof typeof ICONS
 

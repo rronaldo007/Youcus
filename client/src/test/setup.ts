@@ -1,5 +1,9 @@
 import '@testing-library/jest-dom/vitest'
-import { vi } from 'vitest'
+import { afterEach, vi } from 'vitest'
+import { resetThemeStore } from '@/features/theme/useTheme'
+
+// The theme is one store for the whole app (YC-68): each test starts from what storage says.
+afterEach(() => resetThemeStore())
 
 // jsdom n'implémente pas matchMedia ; stub minimal pour useTheme.
 if (!window.matchMedia) {

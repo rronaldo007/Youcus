@@ -1,5 +1,5 @@
-import { Suspense, lazy, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useState } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { useDeleteAccount, useExportData } from '@/features/account/useAccount'
@@ -25,6 +25,12 @@ export function SettingsPage() {
   const exportData = useExportData()
   const deleteAccount = useDeleteAccount()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const { hash } = useLocation()
+
+  // « Mes données » in the account menu (YC-68) lands on the export: the router does not scroll to a hash.
+  useEffect(() => {
+    if (hash && user) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
+  }, [hash, user])
 
   if (isLoading) return null
   if (!user) return <Navigate to="/login" replace />
@@ -44,7 +50,7 @@ export function SettingsPage() {
           Profil
         </h2>
         <div className="mt-4 flex items-center gap-4">
-          <Avatar user={user} />
+          <Avatar user={user} size="menu" />
           <div className="min-w-0">
             <p className="truncate font-medium text-content">{user.displayName}</p>
             <p className="truncate text-sm text-content-muted">{user.email}</p>
@@ -98,7 +104,7 @@ export function SettingsPage() {
       </section>
 
       {/* Données personnelles (RGPD) — héberge CS-22 */}
-      <section aria-labelledby="settings-rgpd" className="mt-6 rounded-card border border-line bg-canvas p-6">
+      <section id="donnees" aria-labelledby="settings-rgpd" className="mt-6 scroll-mt-6 rounded-card border border-line bg-canvas p-6">
         <h2 id="settings-rgpd" className="text-sm font-semibold uppercase tracking-wide text-content-muted">
           Données personnelles
         </h2>

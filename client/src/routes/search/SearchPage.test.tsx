@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SearchPage } from './SearchPage'
-import { TopNav } from '@/components/layout/TopNav'
+import { AppBar } from '@/components/layout/AppNav'
 import { matches, type SearchResults } from '@/features/search/search'
 import { useSearchShortcut } from '@/features/search/useSearchShortcut'
 import { startAt } from '@/features/player/startAt'
@@ -46,7 +46,7 @@ function open(url: string, withNav = false) {
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[url]}>
         <Shortcut />
-        {withNav && <TopNav user={{ id: 'u1', email: 'a@b.fr', displayName: 'Alice', avatarUrl: null }} />}
+        {withNav && <AppBar user={{ id: 'u1', email: 'a@b.fr', displayName: 'Alice', avatarUrl: null }} />}
         <Routes>
           <Route path="/recherche" element={<SearchPage />} />
           <Route path="*" element={<p>ailleurs</p>} />
