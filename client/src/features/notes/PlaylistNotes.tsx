@@ -2,7 +2,7 @@ import { LazyNoteEditor as NoteEditor } from '@/features/notes/LazyNoteEditor'
 import { usePlaylistNote, useSavePlaylistNote } from '@/features/notes/usePlaylistNote'
 
 /** Panneau de note attachée à une playlist entière (distincte des notes de vidéo). */
-export function PlaylistNotes({ playlistId }: { playlistId: string }) {
+export function PlaylistNotes({ playlistId, context }: { playlistId: string; context?: { eyebrow?: string; heading: string } }) {
   const { data: note, isLoading } = usePlaylistNote(playlistId)
   const save = useSavePlaylistNote(playlistId)
 
@@ -16,6 +16,7 @@ export function PlaylistNotes({ playlistId }: { playlistId: string }) {
       onSave={save.mutate}
       isSaving={save.isPending}
       resetKey={playlistId}
+      context={context}
     />
   )
 }

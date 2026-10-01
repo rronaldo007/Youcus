@@ -75,6 +75,7 @@ describe('phone toolbar and sheet (YC-47)', () => {
       .map((b) => b.getAttribute('aria-label'))
     expect(names).toEqual([
       'Toute la mise en forme',
+      'Agrandir la note',
       'Gras (Ctrl+B)',
       'Italique (Ctrl+I)',
       'Souligné (Ctrl+U)',
@@ -189,10 +190,10 @@ describe('phone toolbar and sheet (YC-47)', () => {
     expect(screen.getByRole('form', { name: 'Lien' })).toBeInTheDocument()
   })
 
-  it('offers no tool that is not built yet (image, table, tabs, diagram, chart, enlarge)', async () => {
+  it('offers no tool that is not built yet (image, table, tabs, diagram, chart)', async () => {
     const { toolbar } = await readyEditor()
     const sheet = openSheet(toolbar)
-    for (const name of [/image/i, /tableau/i, /onglets/i, /schéma/i, /graphique/i, /agrandir la note/i]) {
+    for (const name of [/image/i, /tableau/i, /onglets/i, /schéma/i, /graphique/i]) {
       expect(within(toolbar).queryByRole('button', { name })).not.toBeInTheDocument()
       expect(within(sheet).queryByRole('button', { name })).not.toBeInTheDocument()
     }

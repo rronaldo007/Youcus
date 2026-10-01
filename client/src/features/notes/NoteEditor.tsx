@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { EditorContent, Extension, useEditor, useEditorState } from '@tiptap/react'
 import { Selection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extensions'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import TextAlign from '@tiptap/extension-text-align'
-import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
+import { FormattingToolbar, Icon } from '@/features/notes/FormattingToolbar'
+import { useModalDialog } from '@/features/notes/useModalDialog'
+import collapseIcon from './icons/collapse.svg'
+import closeIcon from './icons/note/fermer.svg'
+import checkIcon from './icons/check.svg'
 import { LinkField } from '@/features/notes/LinkField'
 import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc, type NoteSave } from '@/features/notes/noteDoc'
 import { readPage, type NotePage } from '@/features/notes/notePage'
@@ -94,6 +98,49 @@ interface NoteEditorProps {
    * it (playlist notes) markers are shown but none can be added.
    */
   player?: { seconds: number; seek: (seconds: number) => void }
+  /** What the expanded view shows above the note (YC-18): « FULLSTACK · VIDÉO 4 · 14:32 » and a title. */
+  context?: { eyebrow?: string; heading: string }
+}
+
+/**
+ * The expanded view of a note (YC-18) lives in the address, `?note=agrandie`: Retour closes it and
+ * a shared link opens it. The history entry is pushed here, so closing goes back to it.
+ */
+const EXPANDED = 'agrandie'
+const readExpanded = () => new URLSearchParams(window.location.search).get('note') === EXPANDED
+
+function useExpandedView() {
+  const [expanded, setExpanded] = useState(readExpanded)
+  useEffect(() => {
+    const onPop = () => setExpanded(readExpanded())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  const open = () => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('note', EXPANDED)
+    window.history.pushState({ ...window.history.state, ycNote: true }, '', url)
+    setExpanded(true)
+  }
+  /** `after` runs once the address is back: the browser restores the scroll of that entry first. */
+  const close = (after?: () => void) => {
+    if (window.history.state?.ycNote) {
+      if (after) window.addEventListener('popstate', () => after(), { once: true })
+      window.history.back()
+    } else {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('note')
+      window.history.replaceState(window.history.state, '', url)
+      after?.()
+    }
+    setExpanded(false)
+  }
+  return { expanded, open, close }
+}
+
+interface Marker {
+  seconds: number
+  text: string
 }
 
 /** M adds a marker only outside a field: in one, it is a letter. */
@@ -114,7 +161,7 @@ function formatTime(iso: string | undefined): string {
  * (debounce) et lecture seule.
  * Utilisé pour les notes de vidéo et de playlist. La page suit la maquette « Éditeur de notes ».
  */
-export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey, player }: NoteEditorProps) {
+export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, isSaving, resetKey, player, context }: NoteEditorProps) {
   const [draft, setDraft] = useState<NoteDoc | null>(null)
   // The page chosen here (YC-45) stays shown while it is saved; otherwise the stored one, or the
   // defaults. `pageDirty` only says an autosave is due.
@@ -209,6 +256,59 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
     return () => clearTimeout(timer)
   }, [draft, pageDirty, page, onSave, editor])
 
+  // The expanded view (YC-18): the same editor, in a modal; nothing below is mounted twice.
+  const view = useExpandedView()
+  const expanded = view.expanded
+  const sectionRef = useRef<HTMLElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  const onDialogKeyDown = useModalDialog(expanded, dialogRef, () => closeView())
+  const wasExpanded = useRef(expanded)
+  useEffect(() => {
+    if (expanded === wasExpanded.current) return
+    wasExpanded.current = expanded
+    if (!editor || editor.isDestroyed) return
+    // Synchronous focus: TipTap's focus() lands a frame later, and would take the focus back
+    // from « Agrandir » if the view is closed at once (seen in the tests).
+    if (expanded) editor.view.focus()
+    else sectionRef.current?.querySelector<HTMLElement>('.yc-tool-expand')?.focus({ preventScroll: true })
+  }, [expanded, editor])
+  // Back to the note at its normal size, at the same place of the text; or, after a marker or
+  // « Reprendre », up to the player. By hand: TipTap's scrollIntoView takes the focus back.
+  const closeView = (revealPlayer = false) =>
+    // A frame later: the browser restores the scroll of the history entry after « popstate » (seen
+    // in Chrome: a scroll done in the handler itself was undone).
+    view.close(() => requestAnimationFrame(() => afterClose(revealPlayer)))
+  const afterClose = (revealPlayer: boolean) => {
+    if (revealPlayer) return window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (!editor || editor.isDestroyed) return
+    try {
+      const caret = editor.view.coordsAtPos(editor.state.selection.from)
+      window.scrollBy({ top: caret.top - window.innerHeight / 2 })
+    } catch {
+      sectionRef.current?.scrollIntoView({ block: 'nearest' })
+    }
+  }
+  // The markers of the note, in time order, for the side panel.
+  const markers =
+    useEditorState({
+      editor,
+      selector: ({ editor: e }) => {
+        const found: Marker[] = []
+        e?.state.doc.descendants((node) => {
+          if (typeof node.attrs.marker === 'number') found.push({ seconds: node.attrs.marker, text: node.textContent.trim() })
+          return true
+        })
+        return found.sort((a, b) => a.seconds - b.seconds)
+      },
+    }) ?? []
+  const playing = player ? markers.reduce((at, m, i) => (m.seconds <= player.seconds ? i : at), -1) : -1
+  // A marker or « Reprendre » closes the view and plays the video there (Ronaldo, 01/10).
+  const jump = (seconds: number) => {
+    closeView(true)
+    player?.seek(seconds)
+  }
+
   const savedTime = formatTime(note?.updatedAt)
   const status = isSaving ? 'Enregistrement…' : draft || pageDirty ? 'Modifié' : savedTime ? `Enregistré à ${savedTime}` : ''
 
@@ -225,63 +325,148 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
     </button>
   )
 
-  return (
-    <section aria-label={title} className="rounded-card border border-line bg-canvas p-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-content-muted">
-          {icon ? `${icon} ` : ''}
-          {title}
-        </h2>
-        <div className="flex items-center gap-3">
-          <div role="group" aria-label="Mode des notes" className="flex rounded-lg border border-line p-0.5">
-            {tab('edit', 'Éditer')}
-            {tab('preview', 'Aperçu')}
-          </div>
-          <span aria-live="polite" className="text-xs text-content-muted">
-            {status}
-          </span>
+  const smallHeader = (
+    <div className="flex items-center justify-between gap-4">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-content-muted">
+        {icon ? `${icon} ` : ''}
+        {title}
+      </h2>
+      <div className="flex items-center gap-3">
+        <div role="group" aria-label="Mode des notes" className="flex rounded-lg border border-line p-0.5">
+          {tab('edit', 'Éditer')}
+          {tab('preview', 'Aperçu')}
         </div>
+        <span aria-live="polite" className="text-xs text-content-muted">
+          {status}
+        </span>
       </div>
+    </div>
+  )
 
-      <div className="yc-note mt-3">
-        {editor && mode === 'edit' && (
-          <div className="yc-note-tools">
-            <FormattingToolbar
-              editor={editor}
-              onLink={() => setLinkOpen(true)}
-              page={page}
-              onPageChange={choosePage}
-              onMarker={player ? () => addMarker.current() : undefined}
-            />
-            {linkOpen && <LinkField editor={editor} onClose={() => setLinkOpen(false)} />}
-          </div>
-        )}
-        <div
-          className="yc-note-page"
-          data-paper={page.paper}
-          data-tint={page.tint}
-          data-margin={page.margin ? 'true' : 'false'}
-          data-timestamps={page.timestamps ? 'true' : 'false'}
-          data-font={page.font}
-          data-base-size={page.size}
-        >
-          <EditorContent editor={editor} />
+  // Figma « Note agrandie » 53:705: where the note comes from, its title, the save status.
+  const bigHeader = (
+    <div className="yc-x-head">
+      <div className="yc-x-title">
+        {context?.eyebrow && <p className="yc-x-eyebrow">{context.eyebrow}</p>}
+        <h2 id={titleId} className="yc-x-heading">
+          {context?.heading ?? title}
+        </h2>
+        <p aria-live="polite" className="yc-x-status" data-saved={status.startsWith('Enregistré à') || undefined}>
+          {/* The tick says « saved »: never in front of « Modifié » or « Enregistrement… ». */}
+          {status.startsWith('Enregistré à') && <Icon src={checkIcon} size={16} />}
+          {[status, player ? `${markers.length} repère${markers.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')}
+        </p>
+      </div>
+      <div className="yc-x-actions">
+        <div role="group" aria-label="Lire ou modifier" className="yc-x-segment">
+          <button type="button" aria-pressed={mode === 'preview'} onClick={() => setMode('preview')}>
+            Lire
+          </button>
+          <button type="button" aria-pressed={mode === 'edit'} onClick={() => setMode('edit')}>
+            Modifier
+          </button>
         </div>
-        {player && mode === 'edit' && (
-          <div className="yc-marker-bar">
-            <button
-              type="button"
-              className="yc-marker-add"
-              disabled={!canMark}
-              title={canMark ? undefined : 'Place le curseur sur une ligne de texte'}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => addMarker.current()}
-            >
-              + Repère à {formatTimestamp(player.seconds)}
-            </button>
-            {page.margin && <span className="yc-marker-hint">Dans la marge · touche M</span>}
-          </div>
+        <button type="button" className="yc-x-icon" aria-label="Réduire (revenir à la note)" title="Réduire" onClick={() => closeView()}>
+          <Icon src={collapseIcon} size={20} />
+        </button>
+        <button type="button" className="yc-x-icon" aria-label="Fermer (Échap)" title="Fermer" onClick={() => closeView()}>
+          <Icon src={closeIcon} size={20} />
+        </button>
+      </div>
+    </div>
+  )
+
+  // Figma 53:1007: the markers to jump to, which are seen, which one is playing; « Reprendre ».
+  const side = player && (
+    <aside aria-label="Repères" className="yc-x-side">
+      <div className="yc-x-markers-card">
+        <h3 className="yc-x-side-title">Repères</h3>
+        {markers.length ? (
+          <ul className="yc-x-markers">
+            {markers.map((m, i) => {
+              const state = i < playing ? 'vu' : i === playing ? 'en-cours' : undefined
+              return (
+                <li key={`${m.seconds}-${i}`}>
+                  <button type="button" className="yc-x-marker" data-state={state} onClick={() => jump(m.seconds)}>
+                    <span className="yc-x-pill">{formatTimestamp(m.seconds)}</span>
+                    <span className="yc-x-marker-text">{m.text || 'Ligne vide'}</span>
+                    {state === 'vu' && <span className="yc-x-marker-state">✓ vu</span>}
+                    {state === 'en-cours' && <span className="yc-x-marker-state">● en cours</span>}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="yc-x-empty">Aucun repère : M ou « + Repère » en pose un sur la ligne du curseur.</p>
         )}
+      </div>
+      <button type="button" className="yc-x-resume" onClick={() => jump(player.seconds)}>
+        Reprendre à {formatTimestamp(player.seconds)}
+      </button>
+      <p className="yc-x-help">Un clic sur un repère ouvre la vidéo à cet instant. Échap ferme.</p>
+    </aside>
+  )
+
+  // The same tree open or not (wrappers in `display: contents` when inline): the editor is never
+  // remounted, so a text typed less than a second ago, not saved yet, is never lost.
+  return (
+    <section ref={sectionRef} aria-label={title} className={expanded ? 'yc-x-layer' : 'rounded-card border border-line bg-canvas p-4'}>
+      {expanded && <div className="yc-x-veil" aria-hidden="true" onClick={() => closeView()} />}
+      <div
+        ref={dialogRef}
+        role={expanded ? 'dialog' : undefined}
+        aria-modal={expanded || undefined}
+        aria-labelledby={expanded ? titleId : undefined}
+        className={expanded ? 'yc-x-dialog yc-note' : 'yc-x-inline'}
+        onKeyDown={onDialogKeyDown}
+      >
+        {expanded ? bigHeader : smallHeader}
+        <div className={expanded ? 'yc-x-body' : 'yc-x-inline'}>
+          <div className="yc-note mt-3">
+            {editor && mode === 'edit' && (
+              <div className="yc-note-tools">
+                <FormattingToolbar
+                  editor={editor}
+                  onLink={() => setLinkOpen(true)}
+                  page={page}
+                  onPageChange={choosePage}
+                  onMarker={player ? () => addMarker.current() : undefined}
+                  onExpand={expanded ? () => closeView() : view.open}
+                  expanded={expanded}
+                />
+                {linkOpen && <LinkField editor={editor} onClose={() => setLinkOpen(false)} />}
+              </div>
+            )}
+            <div
+              className="yc-note-page"
+              data-paper={page.paper}
+              data-tint={page.tint}
+              data-margin={page.margin ? 'true' : 'false'}
+              data-timestamps={page.timestamps ? 'true' : 'false'}
+              data-font={page.font}
+              data-base-size={page.size}
+            >
+              <EditorContent editor={editor} />
+            </div>
+            {player && mode === 'edit' && (
+              <div className="yc-marker-bar">
+                <button
+                  type="button"
+                  className="yc-marker-add"
+                  disabled={!canMark}
+                  title={canMark ? undefined : 'Place le curseur sur une ligne de texte'}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => addMarker.current()}
+                >
+                  + Repère à {formatTimestamp(player.seconds)}
+                </button>
+                {page.margin && <span className="yc-marker-hint">Dans la marge · touche M</span>}
+              </div>
+            )}
+          </div>
+          {expanded && side}
+        </div>
       </div>
     </section>
   )

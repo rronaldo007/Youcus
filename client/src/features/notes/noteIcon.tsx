@@ -3,6 +3,7 @@ import { Node, ReactRenderer, mergeAttributes } from '@tiptap/react'
 import { PluginKey } from '@tiptap/pm/state'
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion'
 import { NOTE_ICONS, iconLabel, searchIcons, type NoteIconId } from '@/features/notes/noteIcons'
+import { HANDLED } from '@/features/notes/useModalDialog'
 
 /**
  * An icon in the text (YC-46), Figma « Menu de l'éditeur › Icônes » (33:2705): « Taille et couleur
@@ -129,7 +130,11 @@ export const NoteIcon = Node.create({
             },
             onUpdate: (props) => renderer?.updateProps(props),
             onKeyDown: (props) => {
-              if (props.event.key === 'Escape') return false
+              if (props.event.key === 'Escape') {
+                // The list takes this Échap: a dialog around the note must not close too (YC-18).
+                Object.assign(props.event, { [HANDLED]: true })
+                return false
+              }
               return renderer?.ref?.onKeyDown(props) ?? false
             },
             onExit: () => {

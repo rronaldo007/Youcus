@@ -34,7 +34,10 @@ import { canSetMarker } from '@/features/notes/noteMarker'
 import lineSpacingIcon from './icons/line-spacing.svg'
 import insertIconIcon from './icons/insert-icon.svg'
 import closeIcon from './icons/note/fermer.svg'
+import expandIcon from './icons/expand.svg'
+import collapseIcon from './icons/collapse.svg'
 import { usePhone } from '@/features/notes/usePhone'
+import { useModalDialog } from '@/features/notes/useModalDialog'
 import { searchIcons, type NoteIconId } from '@/features/notes/noteIcons'
 import {
   INDENTS,
@@ -66,7 +69,7 @@ import alignJustifyIcon from './icons/align-justify.svg'
  */
 
 /** An icon drawn with the Figma SVG as a mask, so it follows the text colour (light and dark). */
-function Icon({ src, size = 24 }: { src: string; size?: number }) {
+export function Icon({ src, size = 24 }: { src: string; size?: number }) {
   return <span aria-hidden="true" className="yc-tool-icon" style={{ '--icon': `url("${src}")`, '--size': `${size}px` } as CSSProperties} />
 }
 
@@ -246,9 +249,12 @@ interface FormattingToolbarProps {
   onPageChange: (page: NotePage) => void
   /** Timestamps the current line at the player's position (YC-56); absent without a player, and so are the timestamp tools. */
   onMarker?: () => void
+  /** Opens the note in its expanded view, or brings it back (YC-18). */
+  onExpand?: () => void
+  expanded?: boolean
 }
 
-export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker }: FormattingToolbarProps) {
+export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker, onExpand, expanded = false }: FormattingToolbarProps) {
   const ref = useRef<HTMLDivElement>(null)
   // The colour tools reapply the last colour chosen in one click (Figma « Outil couleur », 31:88).
   const [lastColor, setLastColor] = useState<TextColor>('rouge')
@@ -331,6 +337,13 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
     tools[next].tabIndex = 0
     tools[next].focus()
   }
+
+  // « Agrandir la note » (Figma 58:11787) becomes « Réduire la note » in the expanded view (YC-18).
+  const expandTool = onExpand && (
+    <Tool label={expanded ? 'Réduire la note' : 'Agrandir la note'} className="yc-tool yc-tool-expand" onRun={onExpand}>
+      <Icon src={expanded ? collapseIcon : expandIcon} />
+    </Tool>
+  )
 
   // The focused tool becomes the tab stop.
   const rovingFocus = (e: { target: EventTarget }) => {
@@ -708,6 +721,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
             >
               <span className="yc-glyph yc-glyph-aa">Aa</span>
             </button>
+            {expandTool}
             <span aria-hidden="true" className="yc-toolbar-separator" />
             <Tool label="Gras (Ctrl+B)" pressed={state.bold} onRun={run((c) => c.toggleBold())}>
               <span className="yc-glyph yc-glyph-bold">B</span>
@@ -1069,6 +1083,7 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
         <Tool label="Colonne de marge" pressed={page.margin} onRun={() => onPageChange({ ...page, margin: !page.margin })}>
           <Icon src={marginColumnIcon} />
         </Tool>
+        {expandTool}
       </div>
     </div>
   )
@@ -1296,8 +1311,6 @@ function SheetSection({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-const FOCUSABLE = 'button:not([disabled]), input, select, textarea, [href], [tabindex]:not([tabindex="-1"])'
-
 /**
  * The bottom sheet of the phone editor (Figma 35:3259): a modal dialog over a veil. The focus goes
  * to « Fermer » and stays inside; Échap, the veil and « Fermer » close it; the page under it does
@@ -1308,37 +1321,11 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   const titleId = useId()
   const close = useRef(onClose)
   close.current = onClose
+  const onKeyDown = useModalDialog(true, ref, onClose)
 
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('.yc-sheet-close')?.focus()
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = overflow
-    }
   }, [])
-
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      // A menu open in the sheet closes first (its own Échap stops here).
-      if ((e.target as HTMLElement).closest('[role="menu"]')) return
-      e.stopPropagation()
-      close.current()
-      return
-    }
-    if (e.key !== 'Tab') return
-    const items = Array.from(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter((el) => !el.closest('[role="menu"]'))
-    if (!items.length) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault()
-      last.focus()
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault()
-      first.focus()
-    }
-  }
 
   return (
     <div className="yc-sheet-layer">
