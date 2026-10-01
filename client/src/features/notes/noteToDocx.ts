@@ -22,6 +22,7 @@ import { formatTimestamp } from '@/lib/format'
 import type { NoteDoc, NoteNode } from '@/features/notes/noteDoc'
 import type { NotePage } from '@/features/notes/notePage'
 import { noteImageUrl } from '@/features/notes/noteImageUpload'
+import { readScene, sceneToSvg } from '@/features/notes/diagram/scene'
 
 /**
  * A note as a Word document (YC-49), built from the editor's JSON, node by node: no HTML goes
@@ -139,6 +140,8 @@ interface Context {
   quote: boolean
   /** The images ready for Word, by id (YC-50). */
   images?: Map<string, DocxImage>
+  /** The diagrams drawn as pictures (YC-53). */
+  diagrams?: Map<NoteNode, DocxImage>
   task?: boolean
 }
 
@@ -210,6 +213,8 @@ function blocks(nodes: NoteNode[] = [], ctx: Context): Block[] {
             children: [new TextRun({ text: line || ' ', font: MONO, size: 19 })],
           }),
         )
+    } else if (node.type === 'noteDiagram') {
+      out.push(...diagramBlock(node, ctx))
     } else if (node.type === 'noteTabs') {
       // Word has no tabs: each tab is a title on a sunken band, then its page, one after the other.
       for (const tab of node.content ?? []) {
@@ -303,6 +308,27 @@ function boldParagraph(cell: NoteNode): Paragraph {
   return new Paragraph({ children: text ? [new TextRun({ text, bold: true })] : [] })
 }
 
+/**
+ * A diagram (YC-53) as a PNG picture, which every Word reads, drawn in the light colours, at its
+ * size up to the page width; when it could not be drawn, its words take its place.
+ */
+function diagramBlock(node: NoteNode, ctx: Context): Paragraph[] {
+  const image = ctx.diagrams?.get(node)
+  const scene = readScene(node.attrs?.scene)
+  const words = [...scene.shapes.map((s) => s.text), ...scene.arrows.map((a) => a.label)].filter(Boolean).join(', ')
+  if (!image) return [new Paragraph({ children: [new TextRun({ text: `[Schéma : ${words || 'vide'}]`, italics: true, color: '5A554A' })] })]
+  const width = Math.min(image.width, PAGE_WIDTH_PX)
+  const height = Math.round((width * image.height) / image.width)
+  const alt = words ? `Schéma : ${words}` : 'Schéma'
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 120, after: 120 },
+      children: [new ImageRun({ type: 'png', data: image.data, transformation: { width, height }, altText: { name: alt, description: alt, title: alt } })],
+    }),
+  ]
+}
+
 /** An item: its first line takes the bullet, number or box; the next lines only its indent. */
 function listItem(item: NoteNode, ctx: Context): Block[] {
   const [first, ...rest] = item.content ?? []
@@ -331,6 +357,8 @@ export interface DocxMeta {
   page: NotePage
   /** The images of the note by id (YC-50); one missing is written as its description. */
   images?: Map<string, DocxImage>
+  /** The diagrams drawn as pictures, by their node (YC-53). */
+  diagrams?: Map<NoteNode, DocxImage>
 }
 
 /** The Word document of a note; `noteToDocx` packs it for the browser, the tests for Node. */
@@ -365,7 +393,7 @@ export function buildNoteDocument(doc: NoteDoc, meta: DocxMeta): Document {
         },
       ],
     },
-    sections: [{ children: [...head, ...blocks(doc.content, { base, quote: false, images: meta.images })] }],
+    sections: [{ children: [...head, ...blocks(doc.content, { base, quote: false, images: meta.images, diagrams: meta.diagrams })] }],
   })
   return document
 }
@@ -393,14 +421,50 @@ async function loadDocxImage(id: string): Promise<DocxImage | null> {
   }
 }
 
-/** The .docx of a note, as a Blob to download, its images inside. */
+/** The diagrams of a note, wherever they sit (tabs). */
+export function diagramNodes(nodes: NoteNode[] = []): NoteNode[] {
+  return nodes.flatMap((n) => (n.type === 'noteDiagram' ? [n] : diagramNodes(n.content)))
+}
+
+/** A diagram drawn as a PNG, twice its size for a sharp print; null if the browser cannot. */
+async function drawDiagram(node: NoteNode): Promise<DocxImage | null> {
+  try {
+    const { svg, width, height } = sceneToSvg(readScene(node.attrs?.scene))
+    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+    try {
+      const img = new Image()
+      img.src = url
+      await img.decode()
+      const canvas = document.createElement('canvas')
+      canvas.width = width * 2
+      canvas.height = height * 2
+      const ctx2d = canvas.getContext('2d')
+      if (!ctx2d) return null
+      ctx2d.scale(2, 2)
+      ctx2d.drawImage(img, 0, 0, width, height)
+      const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+      return png ? { data: new Uint8Array(await png.arrayBuffer()), width, height } : null
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  } catch {
+    return null
+  }
+}
+
+/** The .docx of a note, as a Blob to download, its images and diagrams inside. */
 export async function noteToDocx(doc: NoteDoc, meta: DocxMeta): Promise<Blob> {
   const images = new Map<string, DocxImage>()
   for (const id of new Set(imageIds(doc.content))) {
     const image = await loadDocxImage(id)
     if (image) images.set(id, image)
   }
-  return Packer.toBlob(buildNoteDocument(doc, { ...meta, images }))
+  const diagrams = new Map<NoteNode, DocxImage>()
+  for (const node of diagramNodes(doc.content)) {
+    const picture = await drawDiagram(node)
+    if (picture) diagrams.set(node, picture)
+  }
+  return Packer.toBlob(buildNoteDocument(doc, { ...meta, images, diagrams }))
 }
 
 /** « useEffect en profondeur » → « useEffect-en-profondeur.docx »: no character a file system refuses. */

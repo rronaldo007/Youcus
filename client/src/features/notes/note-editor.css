@@ -2878,3 +2878,152 @@
   /* Figma 65:2139: 16 px above the page, 18 under, 20 on the sides. */
   padding: 16px 20px 18px;
 }
+
+/*
+ * Diagram (YC-53), Figma « Bloc de note › Schéma » 65:2143: a paper canvas 400 px high, the bar of
+ * tools at its top left, « Ajuster » at its bottom right. Shapes take the note tokens.
+ */
+.yc-diagram-block {
+  margin: 0;
+}
+
+.yc-diagram {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  background: var(--note-paper);
+  outline: none;
+}
+
+.yc-diagram:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-diagram-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  touch-action: none;
+  user-select: none;
+}
+
+.yc-diagram-canvas[data-tool='rect'],
+.yc-diagram-canvas[data-tool='ellipse'],
+.yc-diagram-canvas[data-tool='diamond'],
+.yc-diagram-canvas[data-tool='text'],
+.yc-diagram-canvas[data-tool='arrow'] {
+  cursor: crosshair;
+}
+
+.yc-diagram-canvas[data-tool='select'] .yc-diagram-shape {
+  cursor: move;
+}
+
+.yc-diagram-bar {
+  position: absolute;
+  top: 9px;
+  left: 11px;
+  z-index: 2;
+  flex-wrap: wrap;
+  /* On a phone the tools take two lines: « Fermer » stays in view. */
+  max-width: calc(100% - 22px);
+  margin: 0;
+}
+
+.yc-diagram-color {
+  position: relative;
+  display: inline-flex;
+}
+
+.yc-diagram-swatches {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  background: var(--note-paper);
+  box-shadow: var(--note-shadow);
+}
+
+.yc-diagram-swatch {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.yc-diagram-swatch:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+}
+
+.yc-diagram-zoom {
+  position: absolute;
+  right: 11px;
+  bottom: 11px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--note-border);
+  border-radius: 8px;
+  background: var(--note-paper);
+  color: var(--note-ink-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.yc-diagram-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--note-ink-muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.yc-diagram-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 2px solid var(--note-accent);
+  border-radius: 8px;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  font: 600 15px 'Hanken Grotesk', system-ui, sans-serif;
+  text-align: center;
+  outline: none;
+}
+
+/* A phone shows a thumbnail; a touch opens the drawing full screen (YC-20). */
+.yc-diagram-thumb {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+/* Nothing to adjust in a thumbnail, and the badge would hide a shape. */
+.yc-diagram-thumb .yc-diagram-zoom {
+  display: none;
+}
+
+.yc-diagram-full {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: 12px;
+  background: var(--note-paper);
+}
