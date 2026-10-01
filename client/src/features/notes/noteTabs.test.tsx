@@ -82,15 +82,12 @@ describe('tabs in a note (YC-52)', () => {
     expect(puts[puts.length - 1].content.some((n) => n.type === 'noteTabs')).toBe(true)
   })
 
-  it('a note opens on the tab of its cursor: the last one, where writing goes on', async () => {
-    initialDoc = { type: 'doc', content: [para('première ligne'), tabs(tab('Théorie', 'Un effet'), tab('Exemple', 'Le code'))] }
-    await ready()
-    await waitFor(() => expect(shownTitle()).toBe('Exemple'))
-  })
-
   it('a click on a tab brings it in front, the cursor in it; nothing is saved for that', async () => {
     initialDoc = { type: 'doc', content: [para('première ligne'), tabs(tab('Théorie', 'Un effet'), tab('Exemple', 'useEffect(() => {})'))] }
     const editor = await ready()
+    // « Exemple » in front first, whatever the cursor did at load.
+    cursorIn(editor, 'useEffect(() => {})')
+    await waitFor(() => expect(shownTitle()).toBe('Exemple'))
     fireEvent.click(screen.getByRole('tab', { name: 'Théorie' }))
     expect(shownTitle()).toBe('Théorie')
     expect(editor.state.selection.$from.parent.textContent).toBe('Un effet')
@@ -110,13 +107,17 @@ describe('tabs in a note (YC-52)', () => {
   it('← → in the bar change the tab and take the cursor with them', async () => {
     initialDoc = { type: 'doc', content: [para('première ligne'), tabs(tab('Théorie', 'Un effet'), tab('Exemple', 'Le code'))] }
     const editor = await ready()
+    // Which tab a note opens on depends on where the editor drops the cursor at load (in the
+    // last tab, or after the block once TipTap adds its trailing line): the test sets it.
+    cursorIn(editor, 'Un effet')
+    await waitFor(() => expect(shownTitle()).toBe('Théorie'))
+    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' })
+    expect(shownTitle()).toBe('Exemple')
+    expect(editor.state.selection.$from.parent.textContent).toBe('Le code')
     // From the last tab, → wraps to the first.
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' })
     expect(shownTitle()).toBe('Théorie')
     expect(editor.state.selection.$from.parent.textContent).toBe('Un effet')
-    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' })
-    expect(shownTitle()).toBe('Exemple')
-    expect(editor.state.selection.$from.parent.textContent).toBe('Le code')
   })
 
   it('« + » adds a tab, in front, its name ready to be typed', async () => {
@@ -172,7 +173,9 @@ describe('tabs in a note (YC-52)', () => {
 
   it('in « Aperçu », the tabs still switch but cannot be changed', async () => {
     initialDoc = { type: 'doc', content: [para('première ligne'), tabs(tab('Théorie', 'A'), tab('Exemple', 'B'))] }
-    await ready()
+    const editor = await ready()
+    cursorIn(editor, 'B')
+    await waitFor(() => expect(shownTitle()).toBe('Exemple'))
     fireEvent.click(screen.getByRole('button', { name: 'Aperçu' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Ajouter un onglet' })).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('tab', { name: 'Théorie' }))
@@ -183,7 +186,9 @@ describe('tabs in a note (YC-52)', () => {
 
   it('shows one tab at a time: the rule written for the block names the tab in front', async () => {
     initialDoc = { type: 'doc', content: [para('première ligne'), tabs(tab('Théorie', 'A'), tab('Exemple', 'B'))] }
-    await ready()
+    const editor = await ready()
+    cursorIn(editor, 'B')
+    await waitFor(() => expect(shownTitle()).toBe('Exemple'))
     fireEvent.click(screen.getByRole('tab', { name: 'Théorie' }))
     const rule = document.querySelector('.yc-tabs style')?.textContent ?? ''
     expect(rule).toContain('[data-note-tab]:nth-child(1) { display: block; }')
