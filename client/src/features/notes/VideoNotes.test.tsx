@@ -75,10 +75,10 @@ describe('VideoNotes (YC-40, rich editor)', () => {
     expect(body).toEqual({
       doc: {
         type: 'doc',
-        // `textAlign: null` (YC-43) and `marker: null` (YC-56) come from the editor; the server drops them on save.
+        // `textAlign` (YC-43), `marker` (YC-56) and the spacing (YC-55) come from the editor as null; the server drops them.
         content: [
           { type: 'heading', attrs: { level: 1, textAlign: null, marker: null }, content: [{ type: 'text', text: 'Mon titre' }] },
-          { type: 'paragraph', attrs: { textAlign: null, marker: null } },
+          { type: 'paragraph', attrs: { textAlign: null, marker: null, lineHeight: null, spaceBefore: null, spaceAfter: null, indent: null } },
         ],
       },
     })

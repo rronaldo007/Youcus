@@ -99,10 +99,35 @@ const withMarker = <T extends Record<string, unknown>>(attrs: T & { marker?: num
   return typeof seconds === 'number' ? { ...rest, marker: seconds } : rest
 }
 
+/**
+ * Paragraph spacing (YC-55), Figma « Menu de l'éditeur › Interligne » (33:2680): line height,
+ * space before and after, first-line indent. The defaults (1, 0, 0, none) are not stored; the
+ * client draws each value on the paper (on ruled paper, rounded to whole lines).
+ */
+export const LINE_HEIGHTS = [1, 1.15, 1.5, 2] as const
+export const PARAGRAPH_SPACES = [0, 8, 16, 32] as const
+export const INDENTS = [0, 32, 64] as const
+const oneOf = <T extends readonly number[]>(values: T) =>
+  z.number().refine((v) => (values as readonly number[]).includes(v)).nullable().optional()
+const spacing = { lineHeight: oneOf(LINE_HEIGHTS), spaceBefore: oneOf(PARAGRAPH_SPACES), spaceAfter: oneOf(PARAGRAPH_SPACES), indent: oneOf(INDENTS) }
+const DEFAULT_SPACING: Record<keyof typeof spacing, number> = { lineHeight: 1, spaceBefore: 0, spaceAfter: 0, indent: 0 }
+const withSpacing = <T extends Record<string, unknown>>(attrs: T) => {
+  const kept: Record<string, unknown> = { ...attrs }
+  for (const key of Object.keys(spacing) as (keyof typeof spacing)[]) {
+    const value = kept[key]
+    if (typeof value !== 'number' || value === DEFAULT_SPACING[key]) delete kept[key]
+  }
+  return kept
+}
+
 const paragraph = z
-  .object({ type: z.literal('paragraph'), attrs: z.object({ textAlign, marker }).optional(), content: z.array(inline).optional() })
+  .object({
+    type: z.literal('paragraph'),
+    attrs: z.object({ textAlign, marker, ...spacing }).optional(),
+    content: z.array(inline).optional(),
+  })
   .transform(({ attrs, ...node }) => {
-    const kept = attrs ? withMarker(withAlign(attrs)) : {}
+    const kept = attrs ? withSpacing(withMarker(withAlign(attrs))) : {}
     return Object.keys(kept).length ? { ...node, attrs: kept } : node
   })
 const heading = z

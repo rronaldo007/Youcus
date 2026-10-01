@@ -190,3 +190,38 @@ describe('timestamped markers (YC-56)', () => {
     })
   })
 })
+
+describe('paragraph spacing (YC-55)', () => {
+  const para = (attrs: Record<string, unknown>) => ({ type: 'paragraph', attrs, content: [t('x')] })
+
+  it('keeps a real line height, spaces and indent, and drops the defaults and the nulls the editor sends', () => {
+    const res = parseNoteDoc({
+      type: 'doc',
+      content: [
+        para({ textAlign: null, marker: null, lineHeight: 1.5, spaceBefore: 16, spaceAfter: 32, indent: 64 }),
+        para({ lineHeight: 1, spaceBefore: 0, spaceAfter: 0, indent: 0 }),
+        para({ lineHeight: null, spaceBefore: null, spaceAfter: null, indent: null }),
+      ],
+    })
+    expect(res.ok && res.doc.content.map((n) => n.attrs ?? null)).toEqual([
+      { lineHeight: 1.5, spaceBefore: 16, spaceAfter: 32, indent: 64 },
+      null,
+      null,
+    ])
+  })
+
+  it('drops spacing sent on a heading: only paragraphs take it', () => {
+    const res = parseNoteDoc({ type: 'doc', content: [{ type: 'heading', attrs: { level: 2, lineHeight: 2 }, content: [t('T')] }] })
+    expect(res.ok && res.doc.content[0].attrs).toEqual({ level: 2 })
+  })
+
+  it.each([
+    ['a line height off the list', { lineHeight: 3 }],
+    ['a space off the list', { spaceBefore: 12 }],
+    ['a space after off the list', { spaceAfter: -8 }],
+    ['an indent off the list', { indent: 40 }],
+    ['a CSS value', { lineHeight: '1.5em' }],
+  ])('refuses %s', (_name, attrs) => {
+    expect(parseNoteDoc({ type: 'doc', content: [para(attrs)] })).toMatchObject({ ok: false, status: 400 })
+  })
+})

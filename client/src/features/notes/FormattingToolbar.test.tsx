@@ -131,7 +131,7 @@ describe('FormattingToolbar (YC-41)', () => {
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Gras (Ctrl+B)' }))
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Effacer la mise en forme' }))
     // TipTap keeps a trailing empty paragraph: only the first block matters.
-    expect(editor.getJSON().content?.[0]).toEqual({ ...para('bonjour'), attrs: { textAlign: null, marker: null } })
+    expect(editor.getJSON().content?.[0]).toEqual({ ...para('bonjour'), attrs: { textAlign: null, marker: null, lineHeight: null, spaceBefore: null, spaceAfter: null, indent: null } })
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Citation (Ctrl+Maj+B)' }))
     expect(editor.isActive('blockquote')).toBe(true)
   })
@@ -441,11 +441,11 @@ describe('FormattingToolbar (YC-41)', () => {
         'À gaucheCtrl+Maj+L', 'CentréCtrl+Maj+E', 'À droiteCtrl+Maj+R', 'JustifiéCtrl+Maj+J',
       ])
       fireEvent.click(within(menu).getByRole('menuitemradio', { name: /Centré/ }))
-      expect(editor.getJSON().content?.[0].attrs).toEqual({ textAlign: 'center', marker: null })
+      expect(editor.getJSON().content?.[0].attrs).toEqual({ textAlign: 'center', marker: null, lineHeight: null, spaceBefore: null, spaceAfter: null, indent: null })
       expect(await screen.findByRole('button', { name: 'Aligner : centré' })).toBeInTheDocument()
       for (const [k, align] of [['r', 'right'], ['j', 'justify'], ['l', 'left'], ['e', 'center']]) {
         key(el, k, { ctrlKey: true, shiftKey: true })
-        expect(editor.getJSON().content?.[0].attrs).toEqual({ textAlign: align, marker: null })
+        expect(editor.getJSON().content?.[0].attrs).toEqual({ textAlign: align, marker: null, lineHeight: null, spaceBefore: null, spaceAfter: null, indent: null })
       }
       expect(editor.getHTML()).toContain('<p style="text-align: center;">bonjour</p>')
     })
