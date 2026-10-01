@@ -1,3 +1,4 @@
+import { DEFAULT_PREFERENCES } from '@/lib/notePage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import type { NoteDoc } from '@/lib/noteDoc'
@@ -8,6 +9,7 @@ vi.mock('@/lib/prisma', () => ({
     video: { findFirst: vi.fn() },
     playlist: { findFirst: vi.fn() },
     note: { findUnique: vi.fn(), upsert: vi.fn() },
+    user: { findUnique: vi.fn() },
   },
 }))
 
@@ -20,7 +22,10 @@ const DOC: NoteDoc = {
 }
 
 describe('getVideoNote', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ notePreferences: null } as never)
+  })
 
   it("renvoie 404 si la vidéo n'appartient pas à l'utilisateur", async () => {
     vi.mocked(prisma.video.findFirst).mockResolvedValue(null as never)
@@ -49,7 +54,10 @@ describe('getVideoNote', () => {
 })
 
 describe('saveVideoNote', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ notePreferences: null } as never)
+  })
 
   it("refuse (404) d'écrire sur une vidéo non possédée", async () => {
     vi.mocked(prisma.video.findFirst).mockResolvedValue(null as never)
@@ -60,19 +68,51 @@ describe('saveVideoNote', () => {
   it('stores the document and its plain text on (authorId, videoId)', async () => {
     vi.mocked(prisma.video.findFirst).mockResolvedValue({ id: 'v1' } as never)
     vi.mocked(prisma.note.findUnique).mockResolvedValue(null as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ notePreferences: null } as never)
     vi.mocked(prisma.note.upsert).mockResolvedValue({ content: 'Note\nobjectifs', doc: DOC, updatedAt: new Date('2026-03-03') } as never)
 
     const res = await saveVideoNote('u1', 'v1', DOC)
 
     expect(res.doc).toEqual(DOC)
+    // A new note starts with the account's settings, here never set: the defaults (YC-48).
     expect(prisma.note.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { authorId_videoId: { authorId: 'u1', videoId: 'v1' } },
-        create: { authorId: 'u1', videoId: 'v1', doc: DOC, content: 'Note\nobjectifs' },
+        create: { authorId: 'u1', videoId: 'v1', doc: DOC, content: 'Note\nobjectifs', page: DEFAULT_PREFERENCES },
         update: { doc: DOC, content: 'Note\nobjectifs' },
       }),
     )
     expect(res.page).toBeNull()
+  })
+
+  it('a new note starts with the settings of its author (YC-48)', async () => {
+    const prefs = { paper: 'seyes', tint: 'sepia', margin: false, timestamps: false, font: 'lora', size: 18 }
+    vi.mocked(prisma.video.findFirst).mockResolvedValue({ id: 'v1' } as never)
+    vi.mocked(prisma.note.findUnique).mockResolvedValue(null as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ notePreferences: prefs } as never)
+    vi.mocked(prisma.note.upsert).mockResolvedValue({ content: 'x', doc: DOC, page: prefs, updatedAt: new Date() } as never)
+    await saveVideoNote('u1', 'v1', DOC)
+    expect(prisma.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u1' } }))
+    expect(vi.mocked(prisma.note.upsert).mock.calls[0][0].create).toMatchObject({ page: prefs })
+  })
+
+  it('an existing note keeps its page: the settings are never read for it (YC-48)', async () => {
+    vi.mocked(prisma.video.findFirst).mockResolvedValue({ id: 'v1' } as never)
+    vi.mocked(prisma.note.findUnique).mockResolvedValue({ content: 'old', doc: DOC } as never)
+    vi.mocked(prisma.note.upsert).mockResolvedValue({ content: 'x', doc: DOC, page: null, updatedAt: new Date() } as never)
+    await saveVideoNote('u1', 'v1', DOC)
+    expect(prisma.user.findUnique).not.toHaveBeenCalled()
+    expect(vi.mocked(prisma.note.upsert).mock.calls[0][0].update).not.toHaveProperty('page')
+  })
+
+  it('a page sent with a new note wins over the settings (YC-48)', async () => {
+    const page = { paper: 'uni', tint: 'blanc', margin: true } as const
+    vi.mocked(prisma.video.findFirst).mockResolvedValue({ id: 'v1' } as never)
+    vi.mocked(prisma.note.findUnique).mockResolvedValue(null as never)
+    vi.mocked(prisma.note.upsert).mockResolvedValue({ content: 'x', doc: DOC, page, updatedAt: new Date() } as never)
+    await saveVideoNote('u1', 'v1', DOC, page)
+    expect(prisma.user.findUnique).not.toHaveBeenCalled()
+    expect(vi.mocked(prisma.note.upsert).mock.calls[0][0].create).toMatchObject({ page })
   })
 
   it('writes the page when one is sent, and reads it back (YC-45)', async () => {
@@ -89,7 +129,10 @@ describe('saveVideoNote', () => {
 })
 
 describe('getPlaylistNote', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ notePreferences: null } as never)
+  })
 
   it("renvoie 404 si la playlist n'appartient pas à l'utilisateur", async () => {
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue(null as never)
@@ -99,7 +142,10 @@ describe('getPlaylistNote', () => {
 })
 
 describe('saving a legacy Markdown note (YC-40)', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ notePreferences: null } as never)
+  })
 
   it('copies the original Markdown to legacyMarkdown on its first rich save', async () => {
     vi.mocked(prisma.video.findFirst).mockResolvedValue({ id: 'v1' } as never)
@@ -125,7 +171,10 @@ describe('saving a legacy Markdown note (YC-40)', () => {
 })
 
 describe('savePlaylistNote', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ notePreferences: null } as never)
+  })
 
   it("refuse (404) d'écrire sur une playlist non possédée", async () => {
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue(null as never)
@@ -143,7 +192,7 @@ describe('savePlaylistNote', () => {
     expect(prisma.note.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { authorId_playlistId: { authorId: 'u1', playlistId: 'p1' } },
-        create: { authorId: 'u1', playlistId: 'p1', doc: DOC, content: 'Note\nobjectifs' },
+        create: { authorId: 'u1', playlistId: 'p1', doc: DOC, content: 'Note\nobjectifs', page: DEFAULT_PREFERENCES },
       }),
     )
   })

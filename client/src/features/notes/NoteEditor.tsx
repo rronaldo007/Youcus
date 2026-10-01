@@ -9,6 +9,7 @@ import { FormattingToolbar } from '@/features/notes/FormattingToolbar'
 import { LinkField } from '@/features/notes/LinkField'
 import { EMPTY_DOC, isSafeHref, type NoteData, type NoteDoc, type NoteSave } from '@/features/notes/noteDoc'
 import { readPage, type NotePage } from '@/features/notes/notePage'
+import { useNotePreferences } from '@/features/notes/useNotePreferences'
 import { HighlightMark, TextColorMark, TextFontMark, TextSizeMark } from '@/features/notes/noteMarks'
 import { NoteCodeBlock } from '@/features/notes/codeBlock'
 import { NoteMarker, canSetMarker } from '@/features/notes/noteMarker'
@@ -119,7 +120,10 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
   // defaults. `pageDirty` only says an autosave is due.
   const [chosenPage, setChosenPage] = useState<NotePage | null>(null)
   const [pageDirty, setPageDirty] = useState(false)
-  const page = chosenPage ?? readPage(note?.page)
+  // A note not written yet starts with the account's settings (YC-48), as the server will store
+  // them at its first save; an existing note shows its own page, whatever the settings are now.
+  const { data: preferences } = useNotePreferences()
+  const page = chosenPage ?? readPage(note === null ? preferences : note?.page)
   const choosePage = (next: NotePage) => {
     setChosenPage(next)
     setPageDirty(true)
@@ -258,6 +262,8 @@ export function NoteEditor({ title, icon, editorLabel, note, isLoading, onSave, 
           data-tint={page.tint}
           data-margin={page.margin ? 'true' : 'false'}
           data-timestamps={page.timestamps ? 'true' : 'false'}
+          data-font={page.font}
+          data-base-size={page.size}
         >
           <EditorContent editor={editor} />
         </div>

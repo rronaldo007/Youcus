@@ -1857,3 +1857,76 @@
     gap: 0;
   }
 }
+
+/* ---- Base font and size of a note (YC-48), from Réglages › Notes ---- */
+
+/* The font is drawn by the [data-font] rules of the marks (YC-42), which match the page too. The
+   size changes the text only: the line stays the 32 px step of the paper. */
+.yc-note-page[data-base-size='12'] .tiptap {
+  font-size: 12px;
+}
+
+.yc-note-page[data-base-size='14'] .tiptap {
+  font-size: 14px;
+}
+
+.yc-note-page[data-base-size='16'] .tiptap {
+  font-size: 16px;
+}
+
+.yc-note-page[data-base-size='18'] .tiptap {
+  font-size: 18px;
+}
+
+.yc-note-page[data-base-size='20'] .tiptap {
+  font-size: 20px;
+}
+
+.yc-note-page[data-base-size='24'] .tiptap {
+  font-size: 24px;
+}
+
+.yc-note-page[data-base-size='28'] .tiptap {
+  font-size: 28px;
+}
+
+.yc-note-page[data-base-size='32'] .tiptap {
+  font-size: 32px;
+}
+
+/* The switches of Réglages › Notes (YC-48): the track of the menus, in a 44 px target. */
+.yc-settings-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.yc-settings-switch:focus-visible {
+  outline: 2px solid var(--note-ink);
+  outline-offset: 2px;
+  border-radius: 13px;
+}
+
+/* The five papers of Réglages › Notes on one row on a phone: the card leaves 294 px for 344 px of
+   previews, and « Uni » fell alone on a second row (seen at 390 px). They share the width. */
+@media (max-width: 480px) {
+  .yc-settings-papers {
+    flex-wrap: nowrap;
+  }
+
+  .yc-settings-papers .yc-paper-choice {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .yc-settings-papers .yc-paper-preview {
+    width: 100%;
+  }
+}

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client'
 import { HttpError } from '@/middleware/errorHandler'
 import { markdownToDoc } from '@/lib/markdownToDoc'
 import { EMPTY_DOC, docToPlainText, type NoteDoc } from '@/lib/noteDoc'
-import type { NotePage } from '@/lib/notePage'
+import { readNotePreferences, type NotePage } from '@/lib/notePage'
 
 export interface VideoNote {
   doc: NoteDoc
@@ -39,6 +39,16 @@ function stored(doc: NoteDoc, existing: { doc: Prisma.JsonValue; content: string
   }
   const isLegacy = existing !== null && existing.doc === null && existing.content.trim() !== ''
   return isLegacy ? { ...written, legacyMarkdown: existing.content } : written
+}
+
+/**
+ * The page a NEW note starts with (YC-48): the one sent, else the account's starting settings.
+ * Only at creation: an existing note keeps its page whatever the settings become.
+ */
+async function startingPage(userId: string, page?: NotePage): Promise<NotePage> {
+  if (page) return page
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { notePreferences: true } })
+  return readNotePreferences(user?.notePreferences)
 }
 
 /** Vérifie que la vidéo appartient à au moins une playlist de l'utilisateur (sinon 404). */
@@ -79,7 +89,7 @@ export async function saveVideoNote(userId: string, videoId: string, doc: NoteDo
   const existing = await prisma.note.findUnique({ where, select: { doc: true, content: true } })
   const note = await prisma.note.upsert({
     where,
-    create: { authorId: userId, videoId, ...stored(doc, null, page) },
+    create: { authorId: userId, videoId, ...stored(doc, null, existing ? page : await startingPage(userId, page)) },
     update: stored(doc, existing, page),
     select: NOTE_SELECT,
   })
@@ -103,7 +113,7 @@ export async function savePlaylistNote(userId: string, playlistId: string, doc: 
   const existing = await prisma.note.findUnique({ where, select: { doc: true, content: true } })
   const note = await prisma.note.upsert({
     where,
-    create: { authorId: userId, playlistId, ...stored(doc, null, page) },
+    create: { authorId: userId, playlistId, ...stored(doc, null, existing ? page : await startingPage(userId, page)) },
     update: stored(doc, existing, page),
     select: NOTE_SELECT,
   })

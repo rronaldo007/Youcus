@@ -8,7 +8,8 @@ const SECRET = 'secret-de-test-assez-long'
 const findFirst = vi.hoisted(() => vi.fn())
 const upsert = vi.hoisted(() => vi.fn())
 const findUnique = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/prisma', () => ({ prisma: { video: { findFirst }, note: { upsert, findUnique } } }))
+const userFindUnique = vi.hoisted(() => vi.fn(async () => ({ notePreferences: null })))
+vi.mock('@/lib/prisma', () => ({ prisma: { video: { findFirst }, note: { upsert, findUnique }, user: { findUnique: userFindUnique } } }))
 
 async function loadApp() {
   vi.resetModules()

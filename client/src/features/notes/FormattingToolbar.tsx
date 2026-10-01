@@ -260,6 +260,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
   sheetOpenRef.current = sheetOpen
   const ch = () => chainOf(editor, !sheetOpenRef.current)
 
+  const baseFont = page.font ?? DEFAULT_FONT
+  const baseSize = page.size ?? DEFAULT_SIZE
+
   // The toolbar re-renders only when a state it shows changes, not on every keystroke.
   const state = useEditorState({
     editor,
@@ -297,8 +300,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
       codeBlock: e.isActive('codeBlock'),
       color: ((e.getAttributes('textColor').color as TextColor | undefined) ?? DEFAULT_COLOR) as TextColor,
       highlight: (e.getAttributes('highlight').color as Highlight | undefined) ?? null,
-      font: ((e.getAttributes('textFont').font as FontId | undefined) ?? DEFAULT_FONT) as FontId,
-      size: ((e.getAttributes('textSize').size as FontSize | undefined) ?? DEFAULT_SIZE) as FontSize,
+      // Without a mark, the text is in the note's base font and size (YC-48).
+      font: ((e.getAttributes('textFont').font as FontId | undefined) ?? baseFont) as FontId,
+      size: ((e.getAttributes('textSize').size as FontSize | undefined) ?? baseSize) as FontSize,
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
       canMarker: canSetMarker(e),
@@ -344,8 +348,9 @@ export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker
     setNamed(editor, 'highlight', { color }, color === null, !sheetOpenRef.current)
     if (color) setLastHighlight(color)
   }
-  const applyFont = (font: FontId) => setNamed(editor, 'textFont', { font }, font === DEFAULT_FONT, !sheetOpenRef.current)
-  const applySize = (size: FontSize) => setNamed(editor, 'textSize', { size }, size === DEFAULT_SIZE, !sheetOpenRef.current)
+  // The note's base needs no mark: choosing it removes the mark.
+  const applyFont = (font: FontId) => setNamed(editor, 'textFont', { font }, font === baseFont, !sheetOpenRef.current)
+  const applySize = (size: FontSize) => setNamed(editor, 'textSize', { size }, size === baseSize, !sheetOpenRef.current)
   const stepSize = (step: 1 | -1) => {
     const next = SIZES[SIZES.indexOf(state.size) + step]
     if (next) applySize(next)
