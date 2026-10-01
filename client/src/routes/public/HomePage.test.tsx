@@ -26,7 +26,7 @@ describe('HomePage', () => {
   it('affiche la landing (hero + CTA Google) quand on est déconnecté', async () => {
     renderWithClient(<HomePage />)
     expect(
-      await screen.findByRole('heading', { level: 1, name: /sans les distractions/i }),
+      await screen.findByRole('heading', { level: 1, name: /Regarde moins\. ?Retiens plus\./i }),
     ).toBeInTheDocument()
     expect(screen.getAllByText(/Continuer avec Google/i).length).toBeGreaterThan(0)
   })
