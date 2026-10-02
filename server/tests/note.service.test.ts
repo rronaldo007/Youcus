@@ -2,13 +2,13 @@ import { DEFAULT_PREFERENCES } from '@/lib/notePage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import type { NoteDoc } from '@/lib/noteDoc'
-import { getPlaylistNote, getVideoNote, savePlaylistNote, saveVideoNote } from '@/services/note.service'
+import { getPlaylistNote, getVideoNote, listPlaylistVideoNotes, savePlaylistNote, saveVideoNote } from '@/services/note.service'
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     video: { findFirst: vi.fn() },
     playlist: { findFirst: vi.fn() },
-    note: { findUnique: vi.fn(), upsert: vi.fn() },
+    note: { findUnique: vi.fn(), upsert: vi.fn(), findMany: vi.fn() },
     user: { findUnique: vi.fn() },
   },
 }))
@@ -195,5 +195,63 @@ describe('savePlaylistNote', () => {
         create: { authorId: 'u1', playlistId: 'p1', doc: DOC, content: 'Note\nobjectifs', page: DEFAULT_PREFERENCES },
       }),
     )
+  })
+})
+
+describe('listPlaylistVideoNotes (YC-77)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const line = (text: string, marker?: number) => ({
+    type: 'paragraph',
+    ...(marker === undefined ? {} : { attrs: { marker } }),
+    content: [{ type: 'text', text }],
+  })
+
+  it('refuses (404) a playlist of someone else, and reads no note', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue(null as never)
+    await expect(listPlaylistVideoNotes('u1', 'p1')).rejects.toMatchObject({ status: 404 })
+    expect(prisma.note.findMany).not.toHaveBeenCalled()
+  })
+
+  it('reads only the notes of THIS user on the videos of THIS playlist', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({ id: 'p1' } as never)
+    vi.mocked(prisma.note.findMany).mockResolvedValue([] as never)
+    await listPlaylistVideoNotes('u1', 'p1')
+    expect(vi.mocked(prisma.note.findMany).mock.calls[0][0]?.where).toEqual({
+      authorId: 'u1',
+      video: { playlists: { some: { playlistId: 'p1' } } },
+    })
+  })
+
+  it('counts the markers at any depth, and leaves out a note left empty', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({ id: 'p1' } as never)
+    vi.mocked(prisma.note.findMany).mockResolvedValue([
+      // Two markers on the page, one inside a list item: three.
+      {
+        videoId: 'v1',
+        content: 'a b c',
+        doc: {
+          type: 'doc',
+          content: [
+            line('a', 65),
+            line('b'),
+            { type: 'bulletList', content: [{ type: 'listItem', content: [line('c', 520)] }] },
+            line('d', 0),
+          ],
+        },
+      },
+      // Written, no marker.
+      { videoId: 'v2', content: 'idée', doc: { type: 'doc', content: [line('idée')] } },
+      // Opened then emptied: the row exists, the note does not.
+      { videoId: 'v3', content: '  ', doc: { type: 'doc', content: [] } },
+      // Written before the rich editor (YC-40): Markdown only, no marker can exist.
+      { videoId: 'v4', content: '# Titre', doc: null },
+    ] as never)
+
+    expect(await listPlaylistVideoNotes('u1', 'p1')).toEqual([
+      { videoId: 'v1', markers: 3 },
+      { videoId: 'v2', markers: 0 },
+      { videoId: 'v4', markers: 0 },
+    ])
   })
 })

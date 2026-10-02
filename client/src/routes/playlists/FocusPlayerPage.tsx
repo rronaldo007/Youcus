@@ -178,6 +178,7 @@ export function FocusPlayerPage() {
         <VideoNotes
           notebook
           videoId={video.id}
+          fullPageTo={`/notes/videos/${video.id}?playlist=${id}`}
           player={{ seconds: currentSeconds, seek }}
           actions={noteActions}
           context={{

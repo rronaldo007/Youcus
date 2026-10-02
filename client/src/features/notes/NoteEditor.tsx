@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { Link } from 'react-router-dom'
 import { EditorContent, Extension, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import { Selection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
@@ -112,6 +113,24 @@ export interface NoteActions {
   appendMarkedLine(text: string, seconds: number, done: SaveCallbacks): boolean
   /** Opens the expanded view (YC-75: « Ouvrir dans le cahier » of a playlist). */
   expand(): void
+  /** « Exporter en .docx » from the header of a note page (YC-77). */
+  exportDocx(): void
+}
+
+/** A timestamped line of the note (YC-56): when, and what it says. */
+export interface Marker {
+  seconds: number
+  text: string
+}
+
+/** What a note page shows outside the editor (YC-77): its header and its « Repères » card. */
+export interface NoteSummary {
+  /** « Enregistré à 14:32 », « Modifié »… ; '' before the first save. */
+  status: string
+  saved: boolean
+  /** In time order. */
+  markers: Marker[]
+  exporting: 'idle' | 'busy' | 'failed'
 }
 
 interface SaveCallbacks {
@@ -175,6 +194,15 @@ interface NoteEditorProps {
    * the serif, the save status, the compact toolbar. Reading mode lives in the expanded view.
    */
   notebook?: boolean
+  /** « Pleine page » of the notebook: the note page of this video (YC-77). */
+  fullPageTo?: string
+  /**
+   * The note page (Figma « Note de vidéo » 22:1225, « Note de playlist » 23:1437, YC-77): the page
+   * draws the header and the side, the editor is the full toolbar and the page, nothing else.
+   */
+  fullPage?: boolean
+  /** Told each time the status, the markers or the export change (YC-77). */
+  onSummary?: (summary: NoteSummary) => void
 }
 
 /**
@@ -213,11 +241,6 @@ function useExpandedView() {
   return { expanded, open, close }
 }
 
-interface Marker {
-  seconds: number
-  text: string
-}
-
 /** Formate une date ISO en HH:MM (locale FR), ou '' si invalide. */
 function formatTime(iso: string | undefined): string {
   if (!iso) return ''
@@ -246,6 +269,9 @@ export function NoteEditor({
   modalOnly = false,
   onClose,
   notebook = false,
+  fullPageTo,
+  fullPage = false,
+  onSummary,
 }: NoteEditorProps) {
   const [draft, setDraft] = useState<NoteDoc | null>(null)
   // The page chosen here (YC-45) stays shown while it is saved; otherwise the stored one, or the
@@ -404,6 +430,18 @@ export function NoteEditor({
     return () => clearTimeout(timer)
   }, [draft, pageDirty, page, editor])
 
+  // Leaving the page within the second (« Pleine page », the back arrow, YC-77): the text typed and
+  // not sent yet goes now, or the timer above would be cleared with it.
+  const pending = useRef({ draft, page, pageDirty })
+  pending.current = { draft, page, pageDirty }
+  useEffect(
+    () => () => {
+      const { draft: doc, page: current, pageDirty: dirty } = pending.current
+      if (doc) send.current(dirty ? { doc, page: current } : { doc })
+    },
+    [],
+  )
+
   // The connection came back? The note is sent again, every 5 s, without a keystroke. A refusal
   // is not retried: the same note would be refused again; the next edit tries.
   useEffect(() => {
@@ -427,8 +465,9 @@ export function NoteEditor({
   // once: an autosave still waiting would be lost if « Lire la suivante » changes the video.
   const latestSave = useRef({ page, pageDirty })
   latestSave.current = { page, pageDirty }
-  // Set below, once the expanded view exists: what « expand » opens (YC-75).
+  // Set below, once the expanded view exists: what « expand » opens (YC-75), and the export.
   const expandRef = useRef<() => void>(() => {})
+  const exportRef = useRef<() => Promise<void>>(async () => {})
   useEffect(() => {
     if (!actions) return
     actions.current = {
@@ -453,6 +492,7 @@ export function NoteEditor({
         return true
       },
       expand: () => expandRef.current(),
+      exportDocx: () => void exportRef.current(),
     }
     return () => {
       actions.current = null
@@ -537,6 +577,7 @@ export function NoteEditor({
       setExporting('failed')
     }
   }
+  exportRef.current = exportDocx
 
   const savedTime = formatTime(note?.updatedAt)
   // A failed save is never covered by the time of the last one that worked (YC-62).
@@ -551,6 +592,15 @@ export function NoteEditor({
         : savedTime
           ? `Enregistré à ${savedTime}`
           : ''
+
+  // The note page draws these itself (YC-77): told once per change, never on every render.
+  const summaryRef = useRef(onSummary)
+  summaryRef.current = onSummary
+  const saved = status.startsWith('Enregistré à')
+  const markersKey = JSON.stringify(markers)
+  useEffect(() => {
+    summaryRef.current?.({ status, saved, markers: JSON.parse(markersKey) as Marker[], exporting })
+  }, [status, saved, markersKey, exporting])
 
   const tab = (m: Mode, label: string) => (
     <button
@@ -568,10 +618,17 @@ export function NoteEditor({
   const notebookHeader = (
     <div className="flex items-center justify-between gap-4">
       <h2 className="font-serif text-title-34 text-content">{title}</h2>
-      <p aria-live="polite" className="flex items-center gap-1.5 text-small-13 font-medium text-content-muted data-[saved]:text-success" data-saved={status.startsWith('Enregistré à') || undefined}>
-        {status.startsWith('Enregistré à') && <Icon src={checkIcon} size={16} />}
-        {status}
-      </p>
+      <div className="flex items-center gap-3">
+        <p aria-live="polite" className="flex items-center gap-1.5 text-small-13 font-medium text-content-muted data-[saved]:text-success" data-saved={saved || undefined}>
+          {saved && <Icon src={checkIcon} size={16} />}
+          {status}
+        </p>
+        {fullPageTo && (
+          <Link to={fullPageTo} className="rounded-full px-3 py-2.5 text-small-13 font-semibold text-content underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus">
+            Pleine page
+          </Link>
+        )}
+      </div>
     </div>
   )
 
@@ -674,7 +731,7 @@ export function NoteEditor({
       aria-label={title}
       // The `hidden` attribute, not a class: assistive technologies and the tests skip it too.
       hidden={modalOnly && !expanded}
-      className={expanded ? 'yc-x-layer' : notebook ? 'flex flex-col' : 'rounded-card border border-line bg-canvas p-4'}
+      className={expanded ? 'yc-x-layer' : notebook || fullPage ? 'flex flex-col' : 'rounded-card border border-line bg-canvas p-4'}
     >
       {expanded && <div className="yc-x-veil" aria-hidden="true" onClick={() => closeView()} />}
       <div
@@ -685,9 +742,9 @@ export function NoteEditor({
         className={expanded ? 'yc-x-dialog yc-note' : 'yc-x-inline'}
         onKeyDown={onDialogKeyDown}
       >
-        {expanded ? bigHeader : notebook ? notebookHeader : smallHeader}
+        {expanded ? bigHeader : fullPage ? null : notebook ? notebookHeader : smallHeader}
         <div className={expanded ? 'yc-x-body' : 'yc-x-inline'}>
-          <div className="yc-note mt-3">
+          <div className={fullPage && !expanded ? 'yc-note' : 'yc-note mt-3'}>
             {saveError && (
               <p role="alert" className="yc-save-error">
                 <span>

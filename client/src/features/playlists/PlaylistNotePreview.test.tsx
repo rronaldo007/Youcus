@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NoteDoc } from '@/features/notes/noteDoc'
 import { noteExcerpt } from '@/features/notes/noteExcerpt'
@@ -20,7 +21,9 @@ function renderPreview() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <PlaylistNotePreview playlistId="p1" context={{ eyebrow: 'Note de playlist · 17 vidéos', heading: 'fullstack' }} />
+      <MemoryRouter>
+        <PlaylistNotePreview playlistId="p1" context={{ eyebrow: 'Note de playlist · 17 vidéos', heading: 'fullstack' }} />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -75,5 +78,10 @@ describe('PlaylistNotePreview (YC-75)', () => {
     renderPreview()
     expect(await screen.findByText(/Aucune note pour l’instant/)).toBeInTheDocument()
     expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+  })
+
+  it('« Pleine page » leads to the note page of the playlist (YC-77)', async () => {
+    renderPreview()
+    expect(await screen.findByRole('link', { name: 'Pleine page' })).toHaveAttribute('href', '/notes/playlists/p1')
   })
 })

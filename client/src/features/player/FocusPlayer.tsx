@@ -309,7 +309,8 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
         </div>
         {overlay}
       </div>
-      <p className="mt-2 text-xs text-content-muted">
+      {/* Inside the stage, whose rounded corners cut what touches them (seen on the note page, YC-77). */}
+      <p className="px-4 pb-3 pt-2 text-xs text-content-muted">
         Youcus retire les recommandations et l'habillage qui font dériver. Les publicités, elles,
         restent celles de YouTube : les conditions de son API interdisent de les bloquer, et elles
         rémunèrent les créateurs dont vous regardez le travail.

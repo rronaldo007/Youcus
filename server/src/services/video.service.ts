@@ -41,6 +41,8 @@ export interface VideoDetail {
   syncedAt: string | null
   channel: VideoChannel | null
   chapters: VideoChapter[]
+  /** Where THIS user is in the video (global per video, CS-70): the note page resumes there (YC-77). */
+  progress: { watchedSeconds: number; completed: boolean }
 }
 
 function asStringArray(value: unknown): string[] | null {
@@ -57,6 +59,7 @@ export async function getVideo(userId: string, videoId: string): Promise<VideoDe
     include: {
       channel: { select: { youtubeId: true, title: true, handle: true, avatarUrl: true } },
       chapters: { orderBy: { position: 'asc' }, select: { position: true, startSeconds: true, title: true } },
+      progress: { where: { userId }, select: { watchedSeconds: true, completed: true } },
     },
   })
   if (!video) throw new HttpError(404, 'Vidéo introuvable')
@@ -82,5 +85,9 @@ export async function getVideo(userId: string, videoId: string): Promise<VideoDe
     syncedAt: video.syncedAt?.toISOString() ?? null,
     channel: video.channel,
     chapters: video.chapters,
+    progress: {
+      watchedSeconds: video.progress[0]?.watchedSeconds ?? 0,
+      completed: video.progress[0]?.completed ?? false,
+    },
   }
 }

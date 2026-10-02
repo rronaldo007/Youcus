@@ -130,6 +130,7 @@ export function SingleVideoPage() {
         <VideoNotes
           notebook
           videoId={video.id}
+          fullPageTo={`/notes/videos/${video.id}`}
           player={{ seconds: currentSeconds, seek }}
           actions={noteActions}
           context={{

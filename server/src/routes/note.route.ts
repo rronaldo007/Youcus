@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
-import { getPlaylistNote, getVideoNote, savePlaylistNote, saveVideoNote } from '@/services/note.service'
+import { getPlaylistNote, getVideoNote, listPlaylistVideoNotes, savePlaylistNote, saveVideoNote } from '@/services/note.service'
 import { parseNoteDoc } from '@/lib/noteDoc'
 import { parseNotePage } from '@/lib/notePage'
 
@@ -65,5 +65,14 @@ noteRouter.put(
   asyncHandler(async (req, res) => {
     const note = await savePlaylistNote(req.userId as string, req.params.playlistId, docFrom(req.body), pageFrom(req.body))
     return res.json(note)
+  }),
+)
+
+// The notes of the videos of a playlist and their markers, for its note page (YC-77).
+noteRouter.get(
+  '/playlists/:playlistId/video-notes',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await listPlaylistVideoNotes(req.userId as string, req.params.playlistId))
   }),
 )

@@ -11,6 +11,8 @@ import { PrivacyPage } from '@/routes/public/PrivacyPage'
 import { WhatWeFixPage } from '@/routes/public/WhatWeFixPage'
 import { AboutPage } from '@/routes/public/AboutPage'
 import { SearchPage } from '@/routes/search/SearchPage'
+import { VideoNotePage } from '@/routes/notes/VideoNotePage'
+import { PlaylistNotePage } from '@/routes/notes/PlaylistNotePage'
 
 const router = createBrowserRouter([
   {
@@ -27,6 +29,8 @@ const router = createBrowserRouter([
       { path: '/playlists/:id/watch/:videoId', element: <FocusPlayerPage /> },
       { path: '/videos/:youtubeId', element: <SingleVideoPage /> },
       { path: '/recherche', element: <SearchPage /> },
+      { path: '/notes/videos/:videoId', element: <VideoNotePage /> },
+      { path: '/notes/playlists/:id', element: <PlaylistNotePage /> },
     ],
   },
 ])

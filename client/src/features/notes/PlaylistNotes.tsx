@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react'
 import { LazyNoteEditor as NoteEditor } from '@/features/notes/LazyNoteEditor'
-import type { NoteActions } from '@/features/notes/NoteEditor'
+import type { NoteActions, NoteSummary } from '@/features/notes/NoteEditor'
 import { usePlaylistNote, useSavePlaylistNote } from '@/features/notes/usePlaylistNote'
 
 /** Panneau de note attachée à une playlist entière (distincte des notes de vidéo). */
@@ -11,9 +11,12 @@ interface PlaylistNotesProps {
   modalOnly?: boolean
   actions?: MutableRefObject<NoteActions | null>
   onClose?: () => void
+  /** On the note page (YC-77): the page draws the header and the side. */
+  fullPage?: boolean
+  onSummary?: (summary: NoteSummary) => void
 }
 
-export function PlaylistNotes({ playlistId, context, modalOnly, actions, onClose }: PlaylistNotesProps) {
+export function PlaylistNotes({ playlistId, context, modalOnly, actions, onClose, fullPage, onSummary }: PlaylistNotesProps) {
   const { data: note, isLoading } = usePlaylistNote(playlistId)
   const save = useSavePlaylistNote(playlistId)
 
@@ -26,12 +29,14 @@ export function PlaylistNotes({ playlistId, context, modalOnly, actions, onClose
       isLoading={isLoading}
       onSave={save.mutate}
       isSaving={save.isPending}
-        isOffline={save.isPaused}
+      isOffline={save.isPaused}
       resetKey={playlistId}
       context={context}
       modalOnly={modalOnly}
       actions={actions}
       onClose={onClose}
+      fullPage={fullPage}
+      onSummary={onSummary}
     />
   )
 }

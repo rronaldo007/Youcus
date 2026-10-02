@@ -3,7 +3,7 @@ import { accessibleBy } from '@/lib/videoAccess'
 import { Prisma } from '@prisma/client'
 import { HttpError } from '@/middleware/errorHandler'
 import { markdownToDoc } from '@/lib/markdownToDoc'
-import { EMPTY_DOC, docToPlainText, type NoteDoc } from '@/lib/noteDoc'
+import { EMPTY_DOC, docToPlainText, type NoteDoc, type NoteNode } from '@/lib/noteDoc'
 import { readNotePreferences, type NotePage } from '@/lib/notePage'
 
 export interface VideoNote {
@@ -105,6 +105,39 @@ export async function getPlaylistNote(userId: string, playlistId: string): Promi
     select: NOTE_SELECT,
   })
   return toNote(note)
+}
+
+/** How many lines of a document are timestamped (YC-56 markers), at any depth (tabs, lists). */
+export function countMarkers(doc: NoteDoc): number {
+  let count = 0
+  const walk = (node: NoteNode) => {
+    if (typeof node.attrs?.marker === 'number') count++
+    node.content?.forEach(walk)
+  }
+  doc.content.forEach(walk)
+  return count
+}
+
+/** A video of a playlist that has a note, and how many markers it holds (YC-77). */
+export interface VideoNoteMarkers {
+  videoId: string
+  markers: number
+}
+
+/**
+ * The notes written on the videos of a playlist, for « Vidéos et leurs notes » of its note page
+ * (Figma 23:1588, YC-77). A note left empty counts as none; a video without a line here has none.
+ */
+export async function listPlaylistVideoNotes(userId: string, playlistId: string): Promise<VideoNoteMarkers[]> {
+  await assertOwnsPlaylist(userId, playlistId)
+  const notes = await prisma.note.findMany({
+    where: { authorId: userId, video: { playlists: { some: { playlistId } } } },
+    select: { videoId: true, content: true, doc: true },
+  })
+  return notes.flatMap((n) => {
+    if (!n.videoId || n.content.trim() === '') return []
+    return [{ videoId: n.videoId, markers: n.doc ? countMarkers(n.doc as unknown as NoteDoc) : 0 }]
+  })
 }
 
 /** Crée ou met à jour la note de l'utilisateur pour une playlist (une seule par playlist). */
