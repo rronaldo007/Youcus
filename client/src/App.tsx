@@ -8,6 +8,7 @@ import { ImportModal } from '@/features/playlists/ImportModal'
 import { LoginPage } from '@/routes/public/LoginPage'
 import { SettingsPage } from '@/routes/settings/SettingsPage'
 import { PrivacyPage } from '@/routes/public/PrivacyPage'
+import { WhatWeFixPage } from '@/routes/public/WhatWeFixPage'
 import { SearchPage } from '@/routes/search/SearchPage'
 
 const router = createBrowserRouter([
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/confidentialite', element: <PrivacyPage /> },
+      { path: '/ce-qu-on-corrige', element: <WhatWeFixPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/import', element: <ImportModal /> },
       { path: '/playlists/:id', element: <PlaylistDetailPage /> },

@@ -47,10 +47,9 @@ function Hero() {
           <Link to="/login" className={buttonClass('primary', 'w-full md:w-auto')}>
             Continuer avec Google →
           </Link>
-          {/* « Ce qu'on corrige » has no page yet (YC-71): until then, the section that says it (decision of 01/10). */}
-          <a href="#trois-gestes" className={buttonClass('ghost', 'w-full md:w-auto')}>
+          <Link to="/ce-qu-on-corrige" className={buttonClass('ghost', 'w-full md:w-auto')}>
             Voir ce qu’on corrige
-          </a>
+          </Link>
         </div>
       </div>
       <div className="w-full max-w-[600px] xl:w-[45%] xl:shrink-0">
