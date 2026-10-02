@@ -98,11 +98,12 @@ export function usePlaylists() {
   })
 }
 
-/** Détail d'une playlist (avec ses vidéos). */
-export function usePlaylist(id: string) {
+/** Détail d'une playlist (avec ses vidéos). `enabled: false` when there is none to read (YC-77). */
+export function usePlaylist(id: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['playlists', id],
     queryFn: () => apiFetch<PlaylistDetail>(`/playlists/${id}`),
+    enabled,
   })
 }
 

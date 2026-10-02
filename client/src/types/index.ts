@@ -127,4 +127,6 @@ export interface VideoDetail {
   syncedAt: string | null
   channel: { youtubeId: string; title: string; handle: string | null; avatarUrl: string | null } | null
   chapters: VideoChapter[]
+  /** Where the user is in the video (global per video, CS-70), for the note page (YC-77). */
+  progress: { watchedSeconds: number; completed: boolean }
 }

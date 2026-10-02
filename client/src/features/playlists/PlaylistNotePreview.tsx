@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { buttonClass } from '@/components/ui/buttonStyles'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import type { NoteActions } from '@/features/notes/NoteEditor'
@@ -37,9 +38,15 @@ export function PlaylistNotePreview({ playlistId, context }: { playlistId: strin
       )}
       {note && <InlineMessage tone="success">Enregistré</InlineMessage>}
       {/* A plain button: React 18 passes no ref through Button, and the focus comes back here. */}
-      <button ref={button} type="button" onClick={open} className={buttonClass('secondary')}>
-        Ouvrir dans le cahier
-      </button>
+      <div className="flex flex-wrap gap-2.5">
+        <button ref={button} type="button" onClick={open} className={buttonClass('secondary')}>
+          Ouvrir dans le cahier
+        </button>
+        {/* The note page of the playlist, with its videos and their notes beside it (YC-77). */}
+        <Link to={`/notes/playlists/${playlistId}`} className={buttonClass('ghost')}>
+          Pleine page
+        </Link>
+      </div>
       <PlaylistNotes playlistId={playlistId} context={context} modalOnly actions={actions} onClose={() => button.current?.focus()} />
     </section>
   )

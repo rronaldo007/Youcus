@@ -46,6 +46,7 @@ const row = {
     { position: 0, startSeconds: 0, title: 'Intro' },
     { position: 1, startSeconds: 98, title: 'Setup NodeJS Server' },
   ],
+  progress: [],
 }
 
 describe('GET /api/videos/:id (YC-4)', () => {
@@ -99,6 +100,20 @@ describe('GET /api/videos/:id (YC-4)', () => {
         { position: 0, startSeconds: 0, title: 'Intro' },
         { position: 1, startSeconds: 98, title: 'Setup NodeJS Server' },
       ],
+      // Never opened: from the start.
+      progress: { watchedSeconds: 0, completed: false },
+    })
+  })
+
+  it('gives where THIS user is in the video, for the note page to resume there (YC-77)', async () => {
+    const { app, SESSION_COOKIE } = await loadApp()
+    findFirst.mockResolvedValue({ ...row, progress: [{ watchedSeconds: 245, completed: false }] } as never)
+    const res = await request(app).get('/api/videos/vid1').set('Cookie', signedCookie(SESSION_COOKIE, 'user-42'))
+
+    expect(res.body.progress).toEqual({ watchedSeconds: 245, completed: false })
+    expect(findFirst.mock.calls[0][0]?.include?.progress).toEqual({
+      where: { userId: 'user-42' },
+      select: { watchedSeconds: true, completed: true },
     })
   })
 })

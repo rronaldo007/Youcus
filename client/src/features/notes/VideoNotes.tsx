@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react'
 import { LazyNoteEditor as NoteEditor } from '@/features/notes/LazyNoteEditor'
-import type { NoteActions } from '@/features/notes/NoteEditor'
+import type { NoteActions, NoteSummary } from '@/features/notes/NoteEditor'
 import { useSaveVideoNote, useVideoNote } from '@/features/notes/useVideoNote'
 
 /**
@@ -13,6 +13,9 @@ export function VideoNotes({
   context,
   actions,
   notebook = false,
+  fullPageTo,
+  fullPage = false,
+  onSummary,
 }: {
   videoId: string
   player?: { seconds: number; seek: (seconds: number) => void }
@@ -22,15 +25,23 @@ export function VideoNotes({
   actions?: MutableRefObject<NoteActions | null>
   /** « Mon cahier », the right column of the player (YC-76). */
   notebook?: boolean
+  /** « Pleine page » in the notebook: the note page of this video (YC-77). */
+  fullPageTo?: string
+  /** On the note page (YC-77): the page draws the header and the side. */
+  fullPage?: boolean
+  onSummary?: (summary: NoteSummary) => void
 }) {
   const { data: note, isLoading } = useVideoNote(videoId)
   const save = useSaveVideoNote(videoId)
 
   return (
-    <div className={notebook ? '' : 'mt-6'}>
+    <div className={notebook || fullPage ? '' : 'mt-6'}>
       <NoteEditor
         title={notebook ? 'Mon cahier' : 'Notes'}
         notebook={notebook}
+        fullPageTo={fullPageTo}
+        fullPage={fullPage}
+        onSummary={onSummary}
         editorLabel="Note de la vidéo"
         note={note}
         isLoading={isLoading}

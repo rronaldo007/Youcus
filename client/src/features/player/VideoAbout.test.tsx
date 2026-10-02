@@ -25,6 +25,7 @@ const base: VideoDetail = {
   syncedAt: '2026-09-29T21:15:25.739Z',
   channel: null,
   chapters: [],
+  progress: { watchedSeconds: 0, completed: false },
 }
 
 function renderWith(video: Partial<VideoDetail>, props: { creatorNote?: string | null; playlistChannel?: string | null } = {}) {
