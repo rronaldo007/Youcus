@@ -1,5 +1,12 @@
-import { useEffect, useRef } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
+import { buttonClass } from '@/components/ui/buttonStyles'
+import { PageState } from '@/components/ui/PageState'
+import { PlayerPanel } from '@/features/player/PlayerPanel'
+import { PlayerShell } from '@/features/player/PlayerShell'
+import { PlayerTitle } from '@/features/player/PlayerTitle'
+import { VideoChaptersOf } from '@/features/player/VideoChapters'
+import { useOnline } from '@/features/player/useOnline'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
 import { EndCard } from '@/features/player/EndCard'
 import { StudyControls } from '@/features/player/StudyControls'
@@ -17,6 +24,9 @@ import { startAt } from '@/features/player/startAt'
  */
 export function SingleVideoPage() {
   const { youtubeId = '' } = useParams()
+  const online = useOnline()
+  const [, setAttempt] = useState(0)
+  const retry = () => setAttempt((n) => n + 1)
   const { data: video, isLoading, isError } = useLibraryVideo(youtubeId)
   const setProgress = useSetLibraryProgress()
   // The resume position is read once per video: a refetch must not move the player.
@@ -48,21 +58,12 @@ export function SingleVideoPage() {
     if (at !== null) seek(at)
   }, [at, seek])
 
-  const back = (
-    <Link to="/" className="text-sm text-brand-purple hover:underline">
-      ← Tableau de bord
-    </Link>
-  )
-
   if (isLoading) return <p className="p-6 text-content-muted">Chargement…</p>
   if (isError || !video) {
     return (
-      <div className="p-6">
-        {back}
-        <p role="alert" className="mt-4 text-accent-red">
-          Cette vidéo n'est pas dans ta bibliothèque.
-        </p>
-      </div>
+      <main className="mx-auto w-full max-w-[1440px] px-4 pt-8 md:px-8 xl:px-16">
+        <PageState kind="error" title="Vidéo introuvable" text="Cette vidéo n’est pas dans ta bibliothèque." action={{ label: 'Retour au tableau de bord', to: '/' }} />
+      </main>
     )
   }
 
@@ -71,74 +72,63 @@ export function SingleVideoPage() {
     resumeRef.current = { key: `${video.youtubeId}:${at}`, seconds: at ?? video.watchedSeconds }
   }
   const startSeconds = resumeRef.current.seconds
+  const playable = video.availability === 'AVAILABLE'
+
+  let stage
+  if (video.availability !== 'AVAILABLE') {
+    stage = (
+      <PlayerPanel
+        icon="alert"
+        title="Vidéo indisponible"
+        text={`YouTube ne la sert plus ici (${AVAILABILITY_LABEL[video.availability].toLowerCase()}). Ta note et tes repères sont conservés.`}
+      >
+        <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}`} target="_blank" rel="noopener noreferrer" className={buttonClass('ghost')}>
+          Voir sur YouTube
+        </a>
+      </PlayerPanel>
+    )
+  } else if (!online) {
+    stage = (
+      <PlayerPanel icon="offline" title="Pas de réseau" text="La vidéo reviendra avec la connexion. Ton cahier, lui, marche hors ligne : écris, tout se synchronisera.">
+        <button type="button" onClick={retry} className={buttonClass('primary')}>
+          Réessayer
+        </button>
+      </PlayerPanel>
+    )
+  } else {
+    stage = (
+      <FocusPlayer
+        ref={playerRef}
+        youtubeId={video.youtubeId}
+        title={video.title}
+        startSeconds={startSeconds}
+        onProgress={(s) => reportLibrarySeconds(video.id, s)}
+        onEnded={() => {
+          setEndedAt(Math.max(currentSeconds, video.durationSeconds))
+          setProgress.mutate({ videoId: video.id, completed: true })
+        }}
+        onPlay={() => setEndedAt(null)}
+        autoplay={autoplay}
+        overlay={endedAt !== null && <EndCard context={{ kind: 'single', homeTo: '/' }} seconds={endedAt} onSave={saveSentence} onReplay={replay} />}
+        onTimeUpdate={setCurrentSeconds}
+        rate={rate}
+        onRateChange={setRate}
+        captions={captions}
+        onCaptionTracks={onCaptionTracks}
+      />
+    )
+  }
 
   return (
-    <main className="px-6 py-8 sm:px-10 lg:px-16">
-      {back}
-
-      <div className="mx-auto mt-4 max-w-5xl">
-        {video.availability !== 'AVAILABLE' ? (
-          <p role="alert" className="rounded-card border border-line bg-surface p-6 text-content">
-            {AVAILABILITY_LABEL[video.availability]} : YouTube ne la sert plus ici. Ta note, elle, reste ci-dessous.
-          </p>
-        ) : (
-          <>
-            <FocusPlayer
-              ref={playerRef}
-              youtubeId={video.youtubeId}
-              title={video.title}
-              startSeconds={startSeconds}
-              onProgress={(s) => reportLibrarySeconds(video.id, s)}
-              onEnded={() => {
-                setEndedAt(Math.max(currentSeconds, video.durationSeconds))
-                setProgress.mutate({ videoId: video.id, completed: true })
-              }}
-              onPlay={() => setEndedAt(null)}
-              autoplay={autoplay}
-              overlay={
-                endedAt !== null && (
-                  <EndCard
-                    context={{ kind: 'single', homeTo: '/' }}
-                    seconds={endedAt}
-                    onSave={saveSentence}
-                    onReplay={replay}
-                  />
-                )
-              }
-              onTimeUpdate={setCurrentSeconds}
-              rate={rate}
-              onRateChange={setRate}
-              captions={captions}
-              onCaptionTracks={onCaptionTracks}
-            />
-            <StudyControls
-              player={studyPlayer}
-              rate={rate}
-              onRate={chooseRate}
-              captions={captions}
-              tracks={tracks}
-              onCaptions={chooseCaptions}
-            />
-          </>
-        )}
-
-        <div className="mt-4 flex items-start justify-between gap-4">
-          <h1 className="text-xl font-semibold text-content">{video.title}</h1>
-          <button
-            type="button"
-            onClick={() => setProgress.mutate({ videoId: video.id, completed: !video.completed })}
-            disabled={setProgress.isPending}
-            className={`shrink-0 rounded-card border px-3 py-1.5 text-sm font-medium transition disabled:opacity-60 ${
-              video.completed ? 'border-success/40 bg-success/10 text-success' : 'border-line text-content hover:bg-surface-2'
-            }`}
-          >
-            {video.completed ? '✓ Vue' : 'Marquer comme vue'}
-          </button>
-        </div>
-
-        <VideoAbout videoId={video.id} currentSeconds={currentSeconds} onSeek={seek} />
-
+    <PlayerShell
+      back={{ to: '/', label: 'Retour au tableau de bord' }}
+      title="Vidéo seule"
+      meta={[video.channelTitle, video.durationSeconds > 0 && formatDuration(video.durationSeconds)].filter(Boolean).join(' · ')}
+      offline={!online}
+      onRetry={retry}
+      notebook={
         <VideoNotes
+          notebook
           videoId={video.id}
           player={{ seconds: currentSeconds, seek }}
           actions={noteActions}
@@ -147,7 +137,20 @@ export function SingleVideoPage() {
             heading: video.title,
           }}
         />
-      </div>
-    </main>
+      }
+    >
+      <div className="overflow-hidden rounded-yc-xl border border-white/[0.12] bg-stage">{stage}</div>
+      {playable && online && <StudyControls player={studyPlayer} rate={rate} onRate={chooseRate} captions={captions} tracks={tracks} onCaptions={chooseCaptions} />}
+      <PlayerTitle
+        videoId={video.id}
+        title={video.title}
+        completed={video.completed}
+        playable={playable}
+        onToggleSeen={() => setProgress.mutate({ videoId: video.id, completed: !video.completed })}
+        pending={setProgress.isPending}
+      />
+      <VideoChaptersOf videoId={video.id} currentSeconds={currentSeconds} onSeek={seek} />
+      <VideoAbout videoId={video.id} onSeek={seek} />
+    </PlayerShell>
   )
 }

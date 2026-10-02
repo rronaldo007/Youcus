@@ -46,14 +46,14 @@ describe('VideoAbout (YC-5)', () => {
   beforeEach(() => vi.restoreAllMocks())
   afterEach(() => vi.unstubAllGlobals())
 
-  it('shows the four metadata pills and a link to YouTube', async () => {
+  it('shows the facts YouTube gave and a link to YouTube (YC-76: the design\'s wording)', async () => {
     renderWith({})
     const card = await screen.findByRole('region', { name: 'À propos de la vidéo' })
-    expect(text(card)).toContain('319,9 k de vues')
+    expect(text(card)).toContain('319,9 k vues')
     expect(text(card)).toContain('Publiée le 2 décembre 2025')
     expect(text(card)).toContain('3:02:37')
     expect(text(card)).toContain('6,7 k')
-    expect(screen.getByRole('link', { name: 'Ouvrir sur YouTube ↗' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Voir sur YouTube' })).toHaveAttribute(
       'href',
       'https://www.youtube.com/watch?v=g09PoiCob4Y',
     )
@@ -84,12 +84,12 @@ describe('VideoAbout (YC-5)', () => {
     expect(text(card)).toContain('<img src=x onerror=alert(2)>')
   })
 
-  it('folds the description to three lines and unfolds it on "Afficher plus"', async () => {
+  it('folds the description to three lines and unfolds it on « Afficher toute la description »', async () => {
     // jsdom does no layout: make the clamped paragraph report hidden content.
     vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(200)
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(60)
     renderWith({})
-    const more = await screen.findByRole('button', { name: 'Afficher plus' })
+    const more = await screen.findByRole('button', { name: 'Afficher toute la description' })
     const paragraph = screen.getByText(/Learn backend/)
     expect(paragraph.className).toContain('line-clamp-3')
     fireEvent.click(more)
@@ -102,7 +102,7 @@ describe('VideoAbout (YC-5)', () => {
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(60)
     renderWith({})
     await screen.findByRole('region', { name: 'À propos de la vidéo' })
-    expect(screen.queryByRole('button', { name: 'Afficher plus' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Afficher toute la description' })).toBeNull()
   })
 
   it('shows the playlist author\'s note and who wrote it (YC-14)', async () => {

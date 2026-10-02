@@ -70,7 +70,7 @@ describe('SingleVideoPage (YC-61)', () => {
   it('says so when the video is not in the library', async () => {
     inLibrary = false
     renderPage()
-    expect(await screen.findByRole('alert')).toHaveTextContent("n'est pas dans ta bibliothèque")
+    expect(await screen.findByRole('alert')).toHaveTextContent('n’est pas dans ta bibliothèque')
   })
 
   it('plays the video, with its title, the study controls and its note', async () => {
@@ -79,7 +79,8 @@ describe('SingleVideoPage (YC-61)', () => {
     await waitFor(() => expect(PlayerMock).toHaveBeenCalled())
     expect((PlayerMock.mock.calls[0][1] as { videoId: string }).videoId).toBe(ID)
     expect(screen.getByRole('button', { name: /Vitesse de lecture/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '← Tableau de bord' })).toHaveAttribute('href', '/')
+    // Focus mode (YC-76): the round back button, no app bar.
+    expect(screen.getByRole('link', { name: 'Retour au tableau de bord' })).toHaveAttribute('href', '/')
   })
 
   it('starts where it was left; ?t= (a note found by the search, YC-22) starts at that moment', async () => {
@@ -111,7 +112,9 @@ describe('SingleVideoPage (YC-61)', () => {
     act(() => events.onReady({ target: PlayerMock.mock.results[0].value }))
     act(() => events.onStateChange({ data: 0 }))
     expect(await screen.findByText('VIDÉO SEULE · TERMINÉE ✓')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Retour au tableau de bord' })).toHaveAttribute('href', '/')
+    // The end card's own link home, beside the back button of the focus mode (YC-76).
+    expect(screen.getAllByRole('link', { name: 'Retour au tableau de bord' }).every((a) => a.getAttribute('href') === '/')).toBe(true)
+    expect(screen.getAllByRole('link', { name: 'Retour au tableau de bord' })).toHaveLength(2)
     await waitFor(() => expect(posts.some((p) => (p.body as { completed?: boolean }).completed === true)).toBe(true))
     const seen = posts.find((p) => (p.body as { completed?: boolean }).completed === true)
     expect(seen?.url).toContain('/progress')

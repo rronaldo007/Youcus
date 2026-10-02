@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { buttonClass } from '@/components/ui/buttonStyles'
+import { ChannelAvatar } from '@/components/ui/ChannelAvatar'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { LinkifiedText } from '@/features/player/LinkifiedText'
 import { unavailableSentence } from '@/lib/availability'
@@ -13,16 +14,6 @@ const PRIVACY: Record<NonNullable<PlaylistDetail['privacyStatus']>, string> = {
 }
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-
-/**
- * The channel's face, or a neutral disc: Google's image hosts sometimes refuse to serve it
- * (ERR_BLOCKED_BY_ORB seen on 02/10), and a broken image must never show.
- */
-function ChannelAvatar({ url }: { url: string | null }) {
-  const [failed, setFailed] = useState(false)
-  if (!url || failed) return <span aria-hidden="true" className="size-7 shrink-0 rounded-full bg-sunken" />
-  return <img src={url} alt="" onError={() => setFailed(true)} className="size-7 shrink-0 rounded-full object-cover" />
-}
 
 function Fact({ children }: { children: string }) {
   return <li className="whitespace-nowrap rounded-full bg-sunken px-2.5 py-[5px] font-mono text-mono-12 text-content">{children}</li>

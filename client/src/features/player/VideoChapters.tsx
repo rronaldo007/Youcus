@@ -2,11 +2,12 @@ import { useEffect, useRef } from 'react'
 import { currentChapterIndex } from '@/lib/chapters'
 import { formatTimestamp } from '@/lib/format'
 import type { VideoChapter } from '@/types'
+import { useVideo } from './useVideo'
 
 /**
- * Chapters parsed from the description (YC-6, Figma « Focus + Description », 150:2818): a click
- * moves the player, and the chapter playing is highlighted and follows the playback.
- * Long lists scroll inside the card; only the list scrolls to the current chapter, never the page.
+ * Chapters parsed from the description (YC-6), under the title of the player (Figma « Lecteur »
+ * 11:475, YC-76): a click moves the player, the chapter playing is highlighted and followed, those
+ * before it say « vu ». Long lists scroll in place; only the list scrolls, never the page.
  */
 export function VideoChapters({
   chapters,
@@ -35,13 +36,12 @@ export function VideoChapters({
   if (chapters.length === 0) return null
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="h-px w-full bg-line" />
-      <div className="flex items-center gap-2">
-        <h2 className="text-sm font-bold text-content">Chapitres</h2>
-        <span className="text-xs text-content-muted">{chapters.length} · tirés de la description</span>
-      </div>
-      <ol ref={listRef} className="relative flex max-h-80 flex-col gap-0.5 overflow-y-auto">
+    <section aria-labelledby="chapitres-titre">
+      <h2 id="chapitres-titre" className="sr-only">
+        Chapitres ({chapters.length})
+      </h2>
+      {/* Three rows show, like the frame; the others scroll, and the list follows the playback. */}
+      <ol ref={listRef} className="relative flex max-h-[140px] flex-col gap-0.5 overflow-y-auto">
         {chapters.map((chapter, i) => {
           const isCurrent = i === current
           const isPast = current >= 0 && i < current
@@ -51,28 +51,32 @@ export function VideoChapters({
                 type="button"
                 onClick={() => onSeek(chapter.startSeconds)}
                 aria-current={isCurrent ? 'true' : undefined}
-                className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition hover:bg-surface-2 ${
-                  isCurrent ? 'bg-surface-2' : ''
-                }`}
+                className={`flex min-h-touch w-full items-center gap-3 rounded-yc-md px-2.5 text-left transition-colors hover:bg-sunken ${isCurrent ? 'bg-sunken' : ''}`}
               >
-                <span className={`${pillWidth} shrink-0 rounded-[5px] bg-brand-purple py-[3px] text-center font-mono text-xs font-bold text-on-purple`}>
-                  {formatTimestamp(chapter.startSeconds)}
-                </span>
                 <span
-                  className={`min-w-0 text-[13px] ${
-                    isCurrent ? 'font-semibold text-content' : isPast ? 'text-content-muted' : 'text-content'
+                  className={`${pillWidth} shrink-0 rounded-[5px] py-[3px] text-center font-mono text-mono-12 font-bold ${
+                    isPast ? 'bg-sunken text-content-muted' : 'bg-accent text-on-accent'
                   }`}
                 >
+                  {formatTimestamp(chapter.startSeconds)}
+                </span>
+                <span className={`min-w-0 flex-1 truncate text-body-15 ${isCurrent ? 'font-semibold text-content' : isPast ? 'text-content-muted' : 'text-content'}`}>
                   {chapter.title}
                 </span>
-                {isCurrent && (
-                  <span className="shrink-0 text-[11px] font-semibold text-brand-purple">● en cours</span>
-                )}
+                {isPast && <span className="shrink-0 font-mono text-mono-12 text-content-muted">✓ vu</span>}
+                {isCurrent && <span className="shrink-0 font-mono text-mono-12 text-accent-text">● en cours</span>}
               </button>
             </li>
           )
         })}
       </ol>
-    </div>
+    </section>
   )
+}
+
+/** The chapters of a video, read with its card (the same query): nothing while it loads (YC-76). */
+export function VideoChaptersOf({ videoId, currentSeconds, onSeek }: { videoId: string; currentSeconds: number; onSeek: (seconds: number) => void }) {
+  const { data: video } = useVideo(videoId)
+  if (!video) return null
+  return <VideoChapters chapters={video.chapters} currentSeconds={currentSeconds} onSeek={onSeek} />
 }

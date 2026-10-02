@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { buttonClass } from '@/components/ui/buttonStyles'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { NavDrawer } from '@/components/layout/NavDrawer'
-import { APP_TABS, SOON } from '@/components/layout/navItems'
+import { APP_TABS, SOON, isPlayerPath } from '@/components/layout/navItems'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { MAX_QUERY } from '@/features/search/search'
 import { SEARCH_PAGE, useSearchField } from '@/features/search/useSearchField'
@@ -17,7 +17,9 @@ import type { User } from '@/types'
 /** Navigation applicative responsive : n'apparaît que pour un utilisateur connecté. */
 export function AppNav() {
   const { data: user } = useCurrentUser()
-  if (!user) return null
+  const { pathname } = useLocation()
+  // The player is in focus mode, without the bar (Figma « Lecteur » 11:475, Ronaldo 02/10).
+  if (!user || isPlayerPath(pathname)) return null
   return <AppBar user={user} />
 }
 
