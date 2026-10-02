@@ -18,9 +18,9 @@ describe('LandingPage (Figma 13:2, YC-69)', () => {
     expect(screen.getByRole('link', { name: 'Continuer avec Google →' })).toHaveAttribute('href', '/login')
   })
 
-  it('leads « Voir ce qu’on corrige » to the three gestures until its page exists (YC-71)', () => {
+  it('leads « Voir ce qu’on corrige » to its page (YC-71), and keeps the three gestures', () => {
     renderLanding()
-    expect(screen.getByRole('link', { name: 'Voir ce qu’on corrige' })).toHaveAttribute('href', '#trois-gestes')
+    expect(screen.getByRole('link', { name: 'Voir ce qu’on corrige' })).toHaveAttribute('href', '/ce-qu-on-corrige')
     const steps = screen.getByRole('region', { name: 'Trois gestes. Pas un de plus.' })
     expect(steps).toHaveAttribute('id', 'trois-gestes')
     expect(within(steps).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Importe', 'Regarde', 'Retiens'])

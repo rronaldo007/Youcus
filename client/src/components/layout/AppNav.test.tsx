@@ -157,6 +157,7 @@ describe('Public navigation and footer (Figma 87:59, 87:60)', () => {
     expect(screen.getByRole('link', { name: 'Ouvrir l’app' })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('link', { name: 'Accueil' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByText('Le créateur')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('link', { name: 'Ce qu’on corrige' })).toHaveAttribute('href', '/ce-qu-on-corrige')
     expect(screen.getByRole('link', { name: 'Confidentialité' })).toHaveAttribute('href', '/confidentialite')
   })
 })

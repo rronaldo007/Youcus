@@ -28,7 +28,7 @@ export const PUBLIC_LINKS: { label: string; to?: string }[] = [
   { label: 'Accueil', to: '/' },
   { label: 'Catalogue' },
   { label: 'À propos' },
-  { label: 'Ce qu’on corrige' },
+  { label: 'Ce qu’on corrige', to: '/ce-qu-on-corrige' },
   { label: 'Le créateur' },
 ]
 
