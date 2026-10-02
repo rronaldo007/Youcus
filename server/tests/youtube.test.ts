@@ -75,6 +75,18 @@ describe('fetchPlaylist', () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ items: [] })))
     await expect(fetchPlaylist('PLmissing')).rejects.toMatchObject({ status: 404 })
   })
+
+  it('a quota refused by YouTube is a 503 with the code « youtube_quota » (YC-81)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: { message: 'The request cannot be completed because you have exceeded your quota.' } }, 403)))
+    await expect(fetchPlaylist('PLx')).rejects.toMatchObject({ status: 503, code: 'youtube_quota' })
+  })
+
+  it('another refusal of YouTube carries no quota code', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: { message: 'Forbidden' } }, 403)))
+    const err = await fetchPlaylist('PLx').catch((e: unknown) => e)
+    expect(err).toMatchObject({ status: 502 })
+    expect((err as { code?: string }).code).toBeUndefined()
+  })
 })
 
 describe('parseIsoDuration (YC-1)', () => {

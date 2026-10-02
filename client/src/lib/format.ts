@@ -60,3 +60,28 @@ export function formatTotalDuration(totalSeconds: number): string {
   if (minutes < 600) return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
   return `${Math.round(minutes / 60)} h`
 }
+
+/** Minutes east of UTC for `zone` at `date` (Intl only gives wall-clock parts). */
+function zoneOffset(date: Date, zone: string): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })
+      .formatToParts(date)
+      .map((p) => [p.type, p.value]),
+  )
+  const wall = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute)
+  return Math.round((wall - Math.floor(date.getTime() / 60_000) * 60_000) / 60_000)
+}
+
+/**
+ * When the YouTube quota comes back, in Paris time (Figma « Quota atteint » 98:27737: « Ça reprend à
+ * 09:00, heure de Paris »): the quota resets at midnight Pacific time. 09:00 most of the year; 08:00
+ * in the weeks when one country has changed its clocks and the other not yet.
+ */
+export function quotaResetTime(now: Date = new Date()): string {
+  const la = 'America/Los_Angeles'
+  const local = new Date(now.getTime() + zoneOffset(now, la) * 60_000)
+  // Midnight of the next day in Los Angeles, as a UTC instant.
+  const guess = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1)
+  const reset = new Date(guess - zoneOffset(new Date(guess), la) * 60_000)
+  return new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }).format(reset)
+}

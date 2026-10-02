@@ -50,3 +50,20 @@ describe('apiFetch errors (YC-12)', () => {
     expect((await failure()).message).toBe('Requête échouée (400)')
   })
 })
+
+describe('apiFetch error codes (YC-81)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps the code the server sends', async () => {
+    mockFetch(503, JSON.stringify({ error: 'Quota YouTube dépassé', code: 'youtube_quota' }))
+    const err = await failure()
+    expect(err).toMatchObject({ status: 503, message: 'Quota YouTube dépassé', code: 'youtube_quota' })
+  })
+
+  it('no code: undefined, the message unchanged', async () => {
+    mockFetch(404, JSON.stringify({ error: 'Playlist introuvable' }))
+    const err = await failure()
+    expect(err.code).toBeUndefined()
+    expect(err.message).toBe('Playlist introuvable')
+  })
+})

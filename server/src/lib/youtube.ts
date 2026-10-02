@@ -118,7 +118,7 @@ function mapYouTubeError(status: number, body: unknown): HttpError {
   const message =
     (body as { error?: { message?: string } })?.error?.message ?? `statut ${status}`
   if (status === 403 && /quota/i.test(message)) {
-    return new HttpError(503, 'Quota YouTube dépassé, réessayez plus tard')
+    return new HttpError(503, 'Quota YouTube dépassé, réessayez plus tard', 'youtube_quota')
   }
   if (status === 404) return new HttpError(404, 'Playlist introuvable')
   return new HttpError(502, `Erreur de l'API YouTube : ${message}`)
