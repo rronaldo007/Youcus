@@ -38,7 +38,7 @@ function Card({ id, title, children }: { id: string; title: string; children: Re
 }
 
 /** « Connexion YouTube » (Figma 17:1277): read-only access, and the way to withdraw it (YC-80). */
-function YouTubeCard({ connected }: { connected: boolean }) {
+function YouTubeCard({ connected, expired }: { connected: boolean; expired: boolean }) {
   const disconnect = useDisconnectYouTube()
   const [confirming, setConfirming] = useState(false)
   const done = disconnect.data
@@ -81,10 +81,16 @@ function YouTubeCard({ connected }: { connected: boolean }) {
               Accès effacé de Youcus. Google n’a pas confirmé : vérifie les accès de ton compte sur myaccount.google.com/permissions.
             </InlineMessage>
           ) : (
-            <InlineMessage tone="info">{done ? 'YouTube déconnecté.' : 'Non connecté : Youcus lit seulement les playlists publiques.'}</InlineMessage>
+            <InlineMessage tone={expired && !done ? 'error' : 'info'}>
+              {done
+                ? 'YouTube déconnecté.'
+                : expired
+                  ? 'Connexion expirée : reconnecte ton compte pour importer tes playlists.'
+                  : 'Non connecté : Youcus lit seulement les playlists publiques.'}
+            </InlineMessage>
           )}
           <a href={googleYoutubeConnectUrl} className={buttonClass('secondary', 'w-full md:w-auto')}>
-            Connecter YouTube
+            {expired && !done ? 'Reconnecter YouTube' : 'Connecter YouTube'}
           </a>
         </>
       )}
@@ -150,7 +156,7 @@ export function SettingsPage() {
             <p className="text-small-13 text-content-muted">Ces informations viennent de ton compte Google et ne se modifient pas ici.</p>
           </Card>
 
-          <YouTubeCard connected={Boolean(user.youtubeConnected)} />
+          <YouTubeCard connected={Boolean(user.youtubeConnected)} expired={Boolean(user.youtubeExpired)} />
 
           <Card id="apparence" title="Apparence">
             <div role="radiogroup" aria-label="Thème" className="flex w-full flex-col gap-2 md:w-auto md:flex-row">

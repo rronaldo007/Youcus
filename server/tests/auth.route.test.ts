@@ -91,3 +91,28 @@ describe('DELETE /api/auth/youtube (YC-80)', () => {
     expect(vi.mocked(prisma.user.findUnique).mock.calls[0][0]).toMatchObject({ where: { id: 'user-42' } })
   })
 })
+
+describe('GET /api/auth/me, youtubeExpired (YC-84)', () => {
+  beforeEach(() => vi.resetModules())
+  const base = { id: 'user-42', email: 'a@b.c', displayName: 'Ada', avatarUrl: null }
+
+  async function me(row: Record<string, unknown>) {
+    const { app, SESSION_COOKIE } = await loadApp()
+    const { prisma } = await import('@/lib/prisma')
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ...base, ...row } as never)
+    const res = await request(app).get('/api/auth/me').set('Cookie', signedCookie(SESSION_COOKIE, 'user-42'))
+    return res.body as { youtubeConnected: boolean; youtubeExpired: boolean }
+  }
+
+  it('a token erased because it died: expired, not connected', async () => {
+    expect(await me({ ytAccessToken: null, ytExpiredAt: new Date('2026-10-02T08:00:00Z') })).toMatchObject({ youtubeConnected: false, youtubeExpired: true })
+  })
+
+  it('never connected: not expired', async () => {
+    expect(await me({ ytAccessToken: null, ytExpiredAt: null })).toMatchObject({ youtubeConnected: false, youtubeExpired: false })
+  })
+
+  it('connected again: not expired, even with an old date left', async () => {
+    expect(await me({ ytAccessToken: 'at', ytExpiredAt: new Date('2026-10-02T08:00:00Z') })).toMatchObject({ youtubeConnected: true, youtubeExpired: false })
+  })
+})

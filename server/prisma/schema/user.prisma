@@ -9,6 +9,9 @@ model User {
   ytAccessToken  String?    @db.Text
   ytRefreshToken String?    @db.Text
   ytTokenExpiry  DateTime?
+  // When the server erased a dead YouTube token (YC-84): « Connexion YouTube expirée » instead of
+  // « never connected ». Null again at the reconnection, and after « Déconnecter YouTube » (a choice).
+  ytExpiredAt    DateTime?
   // Starting settings of every NEW note (YC-48): paper, tint, margin, timestamps, font, size,
   // validated by src/lib/notePage.ts. Copied into a note when it is created; null = the defaults.
   notePreferences Json?

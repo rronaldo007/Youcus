@@ -135,6 +135,8 @@ authRouter.get(
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       youtubeConnected: Boolean(user.ytAccessToken),
+      // Erased by the server because it died, not by the user (YC-84): the dashboard asks to reconnect.
+      youtubeExpired: !user.ytAccessToken && user.ytExpiredAt !== null,
     })
   }),
 )

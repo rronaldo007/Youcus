@@ -25,7 +25,7 @@ export async function getValidAccessToken(userId: string): Promise<string> {
   if (!refreshed) {
     await prisma.user.update({
       where: { id: userId },
-      data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null },
+      data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null, ytExpiredAt: new Date() },
     })
     throw new HttpError(403, 'Accès YouTube expiré, reconnectez votre compte YouTube')
   }
@@ -65,9 +65,10 @@ export async function disconnectYouTube(userId: string): Promise<{ revoked: bool
   const token = user?.ytRefreshToken ?? user?.ytAccessToken
   if (!token) return { revoked: true }
   const revoked = await revokeToken(token)
+  // A choice, not an expiry: no « Connexion YouTube expirée » after it (YC-84).
   await prisma.user.update({
     where: { id: userId },
-    data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null },
+    data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null, ytExpiredAt: null },
   })
   return { revoked }
 }

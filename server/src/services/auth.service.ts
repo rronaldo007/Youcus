@@ -12,6 +12,8 @@ export function upsertGoogleUser(profile: GoogleProfile, tokens?: GoogleTokens):
     ? {
         ytAccessToken: tokens.accessToken,
         ytTokenExpiry: tokens.expiresAt,
+        // Reconnected: the « expired » banner goes (YC-84).
+        ytExpiredAt: null,
         ...(tokens.refreshToken ? { ytRefreshToken: tokens.refreshToken } : {}),
       }
     : {}

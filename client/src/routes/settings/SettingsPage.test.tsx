@@ -137,4 +137,13 @@ describe('SettingsPage', () => {
     fireEvent.click(within(card).getByRole('button', { name: 'Confirmer la déconnexion' }))
     expect(await within(card).findByText(/Google n’a pas confirmé/)).toBeInTheDocument()
   })
+
+  it('YouTube expired (YC-84): says so and offers to reconnect', async () => {
+    user = { ...USER, youtubeConnected: false, youtubeExpired: true } as typeof USER
+    renderSettings()
+    const card = (await screen.findByRole('heading', { name: 'Connexion YouTube' })).parentElement as HTMLElement
+    expect(within(card).getByText(/Connexion expirée/)).toBeInTheDocument()
+    expect(within(card).getByRole('link', { name: 'Reconnecter YouTube' })).toHaveAttribute('href', expect.stringContaining('/auth/google/youtube'))
+  })
 })
+

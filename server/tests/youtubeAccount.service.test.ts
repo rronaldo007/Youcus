@@ -62,7 +62,7 @@ describe('getValidAccessToken', () => {
     await expect(getValidAccessToken('u1')).rejects.toMatchObject({ status: 403 })
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null },
+      data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null, ytExpiredAt: expect.any(Date) },
     })
   })
 

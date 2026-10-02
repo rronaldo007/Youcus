@@ -8,7 +8,9 @@ import { NotesPage } from './NotesPage'
 let list: NoteList
 let listCalls: number
 
-const recent = new Date(Date.now() - 2 * 3600_000).toISOString()
+// A fixed clock: « il y a 2 h » must not become « hier » when the suite runs between 00:00 and 02:00.
+const NOW = new Date(2026, 9, 2, 20, 30)
+const recent = new Date(NOW.getTime() - 2 * 3600_000).toISOString()
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -25,6 +27,8 @@ function renderPage() {
 
 describe('NotesPage (YC-78)', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
     window.history.replaceState(null, '', '/notes')
     listCalls = 0
     list = {
@@ -65,7 +69,10 @@ describe('NotesPage (YC-78)', () => {
       }),
     )
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
 
   it('counts the notes, the markers and the playlists, and greys the export until YC-86', async () => {
     renderPage()
