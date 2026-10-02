@@ -27,3 +27,14 @@ export function videoIdOf(input: string): string | null {
 export function isVideoLink(input: string): boolean {
   return !/[?&]list=/.test(input) && videoIdOf(input) !== null
 }
+
+/**
+ * What the import window accepts (YC-81): a playlist link (`list=`) or a bare playlist id, or a video
+ * link (YC-61); null for anything else, refused before asking the server.
+ */
+export function linkKind(input: string): 'playlist' | 'video' | null {
+  const value = input.trim()
+  if (/[?&]list=[A-Za-z0-9_-]+/.test(value) || /^(PL|UU|LL|FL|OL)[A-Za-z0-9_-]{10,}$/.test(value)) return 'playlist'
+  if (isVideoLink(value)) return 'video'
+  return null
+}

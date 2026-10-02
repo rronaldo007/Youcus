@@ -25,7 +25,16 @@ const router = createBrowserRouter([
       { path: '/ce-qu-on-corrige', element: <WhatWeFixPage /> },
       { path: '/a-propos', element: <AboutPage /> },
       { path: '/settings', element: <SettingsPage /> },
-      { path: '/import', element: <ImportModal /> },
+      // The window over the dashboard, as Figma « Import » 17:2025 draws it (YC-81).
+      {
+        path: '/import',
+        element: (
+          <>
+            <HomePage />
+            <ImportModal />
+          </>
+        ),
+      },
       { path: '/playlists/:id', element: <PlaylistDetailPage /> },
       { path: '/playlists/:id/watch/:videoId', element: <FocusPlayerPage /> },
       { path: '/videos/:youtubeId', element: <SingleVideoPage /> },

@@ -5,6 +5,8 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** What the client can act on without reading the sentence (YC-81: « youtube_quota »). */
+    public code?: string,
   ) {
     super(message)
   }
@@ -18,7 +20,7 @@ export function notFound(_req: Request, res: Response) {
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     if (err.status >= 500) logger.error({ err }, 'Erreur non gérée')
-    res.status(err.status).json({ error: err.message })
+    res.status(err.status).json(err.code ? { error: err.message, code: err.code } : { error: err.message })
     return
   }
   // A body the parser refused (too large, not JSON) is the client's doing: its 4xx is kept, with

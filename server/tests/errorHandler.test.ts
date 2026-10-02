@@ -41,4 +41,10 @@ describe('errorHandler (YC-34)', () => {
     expect(res.status).toBe(503)
     expect(res.body).toEqual({ error: 'Quota YouTube dépassé, réessayez plus tard' })
   })
+
+  it('gives the code of an HttpError, for the client to act on (YC-81)', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => undefined)
+    const res = await request(appThrowing(new HttpError(503, 'Quota YouTube dépassé', 'youtube_quota'))).get('/boom')
+    expect(res.body).toEqual({ error: 'Quota YouTube dépassé', code: 'youtube_quota' })
+  })
 })

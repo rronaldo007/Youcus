@@ -10,6 +10,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The server's `{ code }` when it sends one (YC-81: « youtube_quota »). */
+    public code?: string,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -24,7 +26,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     ...init,
   })
   if (!res.ok) {
-    throw new ApiError(res.status, await errorMessage(res))
+    const { message, code } = await errorOf(res)
+    throw new ApiError(res.status, message, code)
   }
   return (await res.json()) as T
 }
@@ -35,12 +38,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
  * every message it sends is written for the user. A body that is not JSON (a proxy's error
  * page) falls back to the status.
  */
-async function errorMessage(res: Response): Promise<string> {
+async function errorOf(res: Response): Promise<{ message: string; code?: string }> {
   const fallback = `Requête échouée (${res.status})`
   try {
-    const body = (await res.json()) as { error?: unknown }
-    return typeof body.error === 'string' && body.error.trim() !== '' ? body.error : fallback
+    const body = (await res.json()) as { error?: unknown; code?: unknown }
+    const message = typeof body.error === 'string' && body.error.trim() !== '' ? body.error : fallback
+    return { message, code: typeof body.code === 'string' ? body.code : undefined }
   } catch {
-    return fallback
+    return { message: fallback }
   }
 }

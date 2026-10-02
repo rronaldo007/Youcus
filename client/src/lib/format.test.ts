@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCompactCount, formatDuration, formatLongDate, formatRelativeDay } from './format'
+import { formatCompactCount, formatDuration, formatLongDate, formatRelativeDay, quotaResetTime } from './format'
 
 // Intl separates the number and its unit with a no-break space; compare on plain spaces.
 const plain = (s: string) => s.replace(/[\u00a0\u202f]/g, ' ')
@@ -40,5 +40,22 @@ describe('formatRelativeDay (YC-78)', () => {
     expect(formatRelativeDay(new Date(2026, 8, 29, 8).toISOString(), now)).toBe('il y a 3 jours')
     expect(formatRelativeDay(new Date(2026, 8, 24, 8).toISOString(), now)).toBe('la semaine dernière')
     expect(formatRelativeDay(new Date(2026, 8, 1, 10).toISOString(), now)).toBe('le 1 septembre 2026')
+  })
+})
+
+describe('quotaResetTime (YC-81)', () => {
+  it('midnight in Los Angeles, said in Paris time', () => {
+    // Both on summer time, then both on winter time: 09:00.
+    expect(quotaResetTime(new Date('2026-10-02T21:00:00Z'))).toBe('09:00')
+    expect(quotaResetTime(new Date('2026-01-15T12:00:00Z'))).toBe('09:00')
+    // The US changed (8 March), Europe not yet (29 March): 08:00.
+    expect(quotaResetTime(new Date('2026-03-20T12:00:00Z'))).toBe('08:00')
+    // Europe changed back (25 October), the US not yet (1 November): 08:00.
+    expect(quotaResetTime(new Date('2026-10-28T12:00:00Z'))).toBe('08:00')
+  })
+
+  it('late at night in Paris, still the coming reset, not the one after', () => {
+    // 01:30 in Paris on 3 October is 16:30 on 2 October in Los Angeles: the reset is at 09:00 the same morning.
+    expect(quotaResetTime(new Date('2026-10-02T23:30:00Z'))).toBe('09:00')
   })
 })
