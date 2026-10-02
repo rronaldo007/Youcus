@@ -23,7 +23,7 @@ describe('currentChapterIndex (YC-6)', () => {
 describe('VideoChapters (YC-6)', () => {
   it('lists the chapters with their timestamps, hours included', () => {
     render(<VideoChapters chapters={chapters} currentSeconds={0} onSeek={vi.fn()} />)
-    expect(screen.getByText('4 · tirés de la description')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Chapitres (4)' })).toBeInTheDocument()
     expect(screen.getByText('00:00')).toBeInTheDocument()
     expect(screen.getByText('01:38')).toBeInTheDocument()
     expect(screen.getByText('1:02:03')).toBeInTheDocument()

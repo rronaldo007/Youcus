@@ -33,3 +33,8 @@ export const PUBLIC_LINKS: { label: string; to?: string }[] = [
 ]
 
 export const SOON = 'Bientôt disponible'
+
+/** A playlist's player or a video kept on its own (YC-61): the player hides the bar (YC-76). */
+export function isPlayerPath(pathname: string): boolean {
+  return /^\/playlists\/[^/]+\/watch\/[^/]+/.test(pathname) || /^\/videos\/[^/]+/.test(pathname)
+}

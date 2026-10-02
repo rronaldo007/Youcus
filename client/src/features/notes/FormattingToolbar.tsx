@@ -259,15 +259,17 @@ interface FormattingToolbarProps {
   expanded?: boolean
   /** Chooses image files to insert (YC-50); absent, no image tool is shown. */
   onImage?: () => void
+  /** The phone's single row, whatever the screen: the notebook column of the player (YC-76). */
+  compact?: boolean
 }
 
-export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker, onExpand, expanded = false, onImage }: FormattingToolbarProps) {
+export function FormattingToolbar({ editor, onLink, page, onPageChange, onMarker, onExpand, expanded = false, onImage, compact = false }: FormattingToolbarProps) {
   const ref = useRef<HTMLDivElement>(null)
   // The colour tools reapply the last colour chosen in one click (Figma « Outil couleur », 31:88).
   const [lastColor, setLastColor] = useState<TextColor>('rouge')
   const [lastHighlight, setLastHighlight] = useState<Highlight>('jaune')
   // On a phone (YC-47): one scrolling row, and « Aa » opens the sheet with everything.
-  const phone = usePhone()
+  const phone = usePhone() || compact
   const [sheetOpen, setSheetOpen] = useState(false)
   const sheetOpenRef = useRef(false)
   sheetOpenRef.current = sheetOpen

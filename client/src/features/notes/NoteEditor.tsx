@@ -170,6 +170,11 @@ interface NoteEditorProps {
   modalOnly?: boolean
   /** Called once the expanded view is closed: a modal-only note gives the focus back to the page. */
   onClose?: () => void
+  /**
+   * « Mon cahier » of the player (Figma « Lecteur » 11:475, YC-76): no card around it, the title in
+   * the serif, the save status, the compact toolbar. Reading mode lives in the expanded view.
+   */
+  notebook?: boolean
 }
 
 /**
@@ -240,6 +245,7 @@ export function NoteEditor({
   actions,
   modalOnly = false,
   onClose,
+  notebook = false,
 }: NoteEditorProps) {
   const [draft, setDraft] = useState<NoteDoc | null>(null)
   // The page chosen here (YC-45) stays shown while it is saved; otherwise the stored one, or the
@@ -559,6 +565,16 @@ export function NoteEditor({
     </button>
   )
 
+  const notebookHeader = (
+    <div className="flex items-center justify-between gap-4">
+      <h2 className="font-serif text-title-34 text-content">{title}</h2>
+      <p aria-live="polite" className="flex items-center gap-1.5 text-small-13 font-medium text-content-muted data-[saved]:text-success" data-saved={status.startsWith('Enregistré à') || undefined}>
+        {status.startsWith('Enregistré à') && <Icon src={checkIcon} size={16} />}
+        {status}
+      </p>
+    </div>
+  )
+
   const smallHeader = (
     <div className="flex items-center justify-between gap-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-content-muted">
@@ -658,7 +674,7 @@ export function NoteEditor({
       aria-label={title}
       // The `hidden` attribute, not a class: assistive technologies and the tests skip it too.
       hidden={modalOnly && !expanded}
-      className={expanded ? 'yc-x-layer' : 'rounded-card border border-line bg-canvas p-4'}
+      className={expanded ? 'yc-x-layer' : notebook ? 'flex flex-col' : 'rounded-card border border-line bg-canvas p-4'}
     >
       {expanded && <div className="yc-x-veil" aria-hidden="true" onClick={() => closeView()} />}
       <div
@@ -669,7 +685,7 @@ export function NoteEditor({
         className={expanded ? 'yc-x-dialog yc-note' : 'yc-x-inline'}
         onKeyDown={onDialogKeyDown}
       >
-        {expanded ? bigHeader : smallHeader}
+        {expanded ? bigHeader : notebook ? notebookHeader : smallHeader}
         <div className={expanded ? 'yc-x-body' : 'yc-x-inline'}>
           <div className="yc-note mt-3">
             {saveError && (
@@ -696,6 +712,7 @@ export function NoteEditor({
                   onImage={() => imageInput.current?.click()}
                   onExpand={expanded ? () => closeView() : view.open}
                   expanded={expanded}
+                  compact={notebook && !expanded}
                 />
                 <input
                   ref={imageInput}

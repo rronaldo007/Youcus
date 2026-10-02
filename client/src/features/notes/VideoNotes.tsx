@@ -12,6 +12,7 @@ export function VideoNotes({
   player,
   context,
   actions,
+  notebook = false,
 }: {
   videoId: string
   player?: { seconds: number; seek: (seconds: number) => void }
@@ -19,14 +20,17 @@ export function VideoNotes({
   context?: { eyebrow?: string; heading: string }
   /** What the player page can do to the note (the end card, YC-60). */
   actions?: MutableRefObject<NoteActions | null>
+  /** « Mon cahier », the right column of the player (YC-76). */
+  notebook?: boolean
 }) {
   const { data: note, isLoading } = useVideoNote(videoId)
   const save = useSaveVideoNote(videoId)
 
   return (
-    <div className="mt-6">
+    <div className={notebook ? '' : 'mt-6'}>
       <NoteEditor
-        title="Notes"
+        title={notebook ? 'Mon cahier' : 'Notes'}
+        notebook={notebook}
         editorLabel="Note de la vidéo"
         note={note}
         isLoading={isLoading}
