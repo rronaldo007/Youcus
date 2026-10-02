@@ -6,9 +6,9 @@ import { InlineMessage } from '@/components/ui/InlineMessage'
 import { PageState } from '@/components/ui/PageState'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Skeleton } from '@/components/ui/Skeletons'
-import { PlaylistNotes } from '@/features/notes/PlaylistNotes'
 import { nextVideo } from '@/features/playlists/nextVideo'
 import { PlaylistAbout } from '@/features/playlists/PlaylistAbout'
+import { PlaylistNotePreview } from '@/features/playlists/PlaylistNotePreview'
 import { PlaylistVideoRow } from '@/features/playlists/PlaylistVideoRow'
 import { usePlaylist, useRefreshPlaylist } from '@/features/playlists/usePlaylists'
 import { isPlayable } from '@/lib/availability'
@@ -18,8 +18,8 @@ const BACK = 'font-mono text-mono-12 uppercase text-content-muted hover:text-con
 
 /**
  * Détail d'une playlist (Figma « Détail de playlist » 16:434, 16:544, 16:642 ; sombre 45:6423). The
- * playlist's note keeps its full editor until the notebook exists (YC-77, decision of 02/10), in the
- * right column on a computer and under the list elsewhere.
+ * playlist's note is a preview; « Ouvrir dans le cahier » opens it in the expanded view (Ronaldo,
+ * 02/10), in the right column on a computer and under the list elsewhere.
  */
 export function PlaylistDetailPage() {
   const { id } = useParams()
@@ -114,7 +114,7 @@ export function PlaylistDetailPage() {
             </ol>
           </section>
           <div className="w-full xl:w-[420px] xl:shrink-0">
-            <PlaylistNotes playlistId={data.id} context={{ eyebrow: `Note de playlist · ${data.videoCount} vidéo${data.videoCount > 1 ? 's' : ''}`, heading: data.title }} />
+            <PlaylistNotePreview playlistId={data.id} context={{ eyebrow: `Note de playlist · ${data.videoCount} vidéo${data.videoCount > 1 ? 's' : ''}`, heading: data.title }} />
           </div>
         </div>
       </main>

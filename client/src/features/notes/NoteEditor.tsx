@@ -110,6 +110,8 @@ export interface NoteActions {
    * False when the note cannot take it yet (still loading); `done` tells what the server said.
    */
   appendMarkedLine(text: string, seconds: number, done: SaveCallbacks): boolean
+  /** Opens the expanded view (YC-75: « Ouvrir dans le cahier » of a playlist). */
+  expand(): void
 }
 
 interface SaveCallbacks {
@@ -161,6 +163,13 @@ interface NoteEditorProps {
   context?: { eyebrow?: string; heading: string }
   /** Filled with what a page can do to this note (the end card of the player, YC-60). */
   actions?: MutableRefObject<NoteActions | null>
+  /**
+   * The note shows only in its expanded view (YC-75): the page draws its own preview and opens it.
+   * Hidden, the editor stays mounted, so an autosave still waiting is never lost on closing.
+   */
+  modalOnly?: boolean
+  /** Called once the expanded view is closed: a modal-only note gives the focus back to the page. */
+  onClose?: () => void
 }
 
 /**
@@ -229,6 +238,8 @@ export function NoteEditor({
   player,
   context,
   actions,
+  modalOnly = false,
+  onClose,
 }: NoteEditorProps) {
   const [draft, setDraft] = useState<NoteDoc | null>(null)
   // The page chosen here (YC-45) stays shown while it is saved; otherwise the stored one, or the
@@ -410,6 +421,8 @@ export function NoteEditor({
   // once: an autosave still waiting would be lost if « Lire la suivante » changes the video.
   const latestSave = useRef({ page, pageDirty })
   latestSave.current = { page, pageDirty }
+  // Set below, once the expanded view exists: what « expand » opens (YC-75).
+  const expandRef = useRef<() => void>(() => {})
   useEffect(() => {
     if (!actions) return
     actions.current = {
@@ -433,6 +446,7 @@ export function NoteEditor({
         setPageDirty(false)
         return true
       },
+      expand: () => expandRef.current(),
     }
     return () => {
       actions.current = null
@@ -441,6 +455,7 @@ export function NoteEditor({
 
   // The expanded view (YC-18): the same editor, in a modal; nothing below is mounted twice.
   const view = useExpandedView()
+  expandRef.current = view.open
   const expanded = view.expanded
   const sectionRef = useRef<HTMLElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -454,8 +469,8 @@ export function NoteEditor({
     // Synchronous focus: TipTap's focus() lands a frame later, and would take the focus back
     // from « Agrandir » if the view is closed at once (seen in the tests).
     if (expanded) editor.view.focus()
-    else sectionRef.current?.querySelector<HTMLElement>('.yc-tool-expand')?.focus({ preventScroll: true })
-  }, [expanded, editor])
+    else if (!modalOnly) sectionRef.current?.querySelector<HTMLElement>('.yc-tool-expand')?.focus({ preventScroll: true })
+  }, [expanded, editor, modalOnly])
   // Back to the note at its normal size, at the same place of the text; or, after a marker or
   // « Reprendre », up to the player. By hand: TipTap's scrollIntoView takes the focus back.
   const closeView = (revealPlayer = false) =>
@@ -463,6 +478,7 @@ export function NoteEditor({
     // in Chrome: a scroll done in the handler itself was undone).
     view.close(() => requestAnimationFrame(() => afterClose(revealPlayer)))
   const afterClose = (revealPlayer: boolean) => {
+    if (modalOnly) return onClose?.()
     if (revealPlayer) return window.scrollTo({ top: 0, behavior: 'smooth' })
     if (!editor || editor.isDestroyed) return
     try {
@@ -637,7 +653,13 @@ export function NoteEditor({
   // The same tree open or not (wrappers in `display: contents` when inline): the editor is never
   // remounted, so a text typed less than a second ago, not saved yet, is never lost.
   return (
-    <section ref={sectionRef} aria-label={title} className={expanded ? 'yc-x-layer' : 'rounded-card border border-line bg-canvas p-4'}>
+    <section
+      ref={sectionRef}
+      aria-label={title}
+      // The `hidden` attribute, not a class: assistive technologies and the tests skip it too.
+      hidden={modalOnly && !expanded}
+      className={expanded ? 'yc-x-layer' : 'rounded-card border border-line bg-canvas p-4'}
+    >
       {expanded && <div className="yc-x-veil" aria-hidden="true" onClick={() => closeView()} />}
       <div
         ref={dialogRef}
