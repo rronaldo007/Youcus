@@ -1,9 +1,15 @@
+import { Icon } from '@/components/ui/Icon'
+import { StatusPill, type PillTone } from '@/components/ui/StatusPill'
 import { AVAILABILITY_LABEL } from '@/lib/availability'
 import { formatDuration } from '@/lib/format'
 import { libraryVideoState, type LibraryVideoState as State } from '@/features/library/libraryVideoState'
 import type { LibraryVideo } from '@/types'
 
-const STATE_LABEL: Record<State, string> = { todo: '○ À voir', progress: '● En cours', seen: '✓ Vue' }
+const STATE: Record<State, { label: string; tone: PillTone }> = {
+  todo: { label: '○ À voir', tone: 'outline' },
+  progress: { label: '● En cours', tone: 'accent' },
+  seen: { label: '✓ Vue', tone: 'success' },
+}
 
 const seenDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''
@@ -17,64 +23,61 @@ function legend(video: LibraryVideo, state: State): string {
 }
 
 /**
- * A video kept on its own (YC-61), Figma « Carte de vidéo » 104:150: the « Vidéo » pill, the
- * duration on the thumbnail, its state, and the progress in minutes. Same frame as the playlist
- * card, in the app's current look until the design port (decision of 30/09).
+ * Figma « Carte de vidéo » 104:150, a video kept on its own (YC-61): « même gabarit que la carte de
+ * playlist ; titre en Hanken (une phrase, pas un nom), pastille Vidéo, durée sur la miniature,
+ * progression en minutes ». The « Actions » menu is laid over it by the grid, like the playlists'.
  */
 export function LibraryVideoCard({ video }: { video: LibraryVideo }) {
   const state = libraryVideoState(video)
   const playable = video.availability === 'AVAILABLE'
-  const pct = state === 'seen' ? 100 : video.durationSeconds ? Math.min(100, Math.round((video.watchedSeconds / video.durationSeconds) * 100)) : 0
+  const pct = state === 'seen' ? 100 : video.durationSeconds ? Math.min(100, (video.watchedSeconds / video.durationSeconds) * 100) : 0
   const position =
     state === 'progress' ? `${formatDuration(video.watchedSeconds)} / ${formatDuration(video.durationSeconds)}` : formatDuration(video.durationSeconds)
 
   return (
-    <div className="flex flex-col" aria-disabled={playable ? undefined : true}>
-      <div className="relative aspect-video w-full overflow-hidden bg-surface-2">
-        {playable && video.thumbnailUrl && (
-          <img src={video.thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        )}
-        <span className="absolute left-2.5 top-2.5 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-content-muted">
-          Vidéo
+    <div
+      aria-disabled={playable ? undefined : true}
+      className="flex h-full flex-col overflow-hidden rounded-yc-lg border border-line bg-surface transition-colors hover:border-line-strong"
+    >
+      <div className="relative h-[168px] w-full shrink-0 bg-stage">
+        {playable && video.thumbnailUrl && <img src={video.thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />}
+        <span className="absolute left-3 top-3">
+          <StatusPill>Vidéo</StatusPill>
         </span>
         {playable ? (
-          <span className="absolute inset-0 flex items-center justify-center">
-            <span className="flex size-11 items-center justify-center rounded-full bg-accent-red pl-0.5 text-white">▶</span>
+          <span aria-hidden="true" className="absolute left-1/2 top-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent text-on-accent">
+            <Icon name="play" />
           </span>
         ) : (
           video.availability !== 'AVAILABLE' && (
-            <span className="absolute bottom-2.5 right-2.5 rounded bg-surface px-1.5 py-0.5 font-mono text-[11px] font-semibold text-accent-red">
-              {AVAILABILITY_LABEL[video.availability]}
+            <span className="absolute bottom-3 right-3">
+              <StatusPill tone="error" dot={false}>
+                {AVAILABILITY_LABEL[video.availability]}
+              </StatusPill>
             </span>
           )
         )}
         {playable && video.durationSeconds > 0 && (
-          <span className="absolute bottom-2.5 right-2.5 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[11px] text-white">
+          <span className="absolute bottom-3 right-3 rounded-yc-sm bg-[color:var(--yc-text-on-stage)] px-2 py-[3px] font-mono text-[12px] text-[color:var(--yc-bg-stage)]">
             {formatDuration(video.durationSeconds)}
           </span>
         )}
       </div>
-      <div className="flex flex-col gap-[9px] px-3.5 pb-3.5 pt-3">
-        <span
-          className={`self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-            state === 'progress'
-              ? 'bg-brand-purple text-on-purple'
-              : state === 'seen'
-                ? 'bg-success/15 text-success'
-                : 'border border-line text-content'
-          }`}
-        >
-          {STATE_LABEL[state]}
-        </span>
-        <p className="line-clamp-2 text-[15px] font-semibold text-content">{video.title}</p>
-        {video.channelTitle && <p className="text-[13px] text-content-muted">{video.channelTitle}</p>}
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className="h-full rounded-full bg-brand-purple" style={{ width: `${pct}%` }} />
+      <div className="flex flex-col items-start gap-2 px-4 pb-4 pt-3.5">
+        <StatusPill tone={STATE[state].tone} dot={false}>
+          {STATE[state].label}
+        </StatusPill>
+        <p className="line-clamp-2 w-full text-[17px] font-semibold leading-[1.3] text-content">{video.title}</p>
+        {video.channelTitle && <p className="w-full truncate text-small-13 font-medium text-content-muted">{video.channelTitle}</p>}
+        <div className="flex w-full flex-col gap-2">
+          <div aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-[3px] bg-sunken">
+            <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="flex justify-between gap-2 whitespace-nowrap font-mono text-mono-12 text-content-muted">
+            <span>{legend(video, state)}</span>
+            {video.durationSeconds > 0 && <span>{position}</span>}
+          </p>
         </div>
-        <p className="flex justify-between gap-2 font-mono text-xs text-content-muted">
-          <span>{legend(video, state)}</span>
-          {video.durationSeconds > 0 && <span>{position}</span>}
-        </p>
       </div>
     </div>
   )

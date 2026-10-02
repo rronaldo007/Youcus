@@ -23,8 +23,8 @@ describe('playlist.service (lecture / suppression)', () => {
     // Progression globale (CS-70) : 3 vidéos disponibles, dont 2 vues.
     const ok = { status: 'AVAILABLE', embeddable: true, blockedRegions: null }
     vi.mocked(prisma.playlistVideo.findMany).mockResolvedValue([
-      { playlistId: 'p1', video: { ...ok, progress: [{ id: 'x' }] } },
-      { playlistId: 'p1', video: { ...ok, progress: [{ id: 'y' }] } },
+      { playlistId: 'p1', video: { ...ok, progress: [{ completed: true, updatedAt: new Date('2026-10-01T10:00:00Z') }] } },
+      { playlistId: 'p1', video: { ...ok, progress: [{ completed: true, updatedAt: new Date('2026-10-01T10:00:00Z') }] } },
       { playlistId: 'p1', video: { ...ok, progress: [] } },
     ] as never)
 
@@ -34,8 +34,40 @@ describe('playlist.service (lecture / suppression)', () => {
       expect.objectContaining({ where: { ownerId: 'u1' } }),
     )
     expect(res).toEqual([
-      { id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, videoCount: 3, completedCount: 2, availableCount: 3 },
+      {
+        id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, videoCount: 3, completedCount: 2, availableCount: 3,
+        channelTitle: null, multipleChannels: false, lastActivityAt: '2026-10-01T10:00:00.000Z',
+      },
     ])
+  })
+
+  it('gives the channel under the card, and the last activity for « Récentes » (YC-74)', async () => {
+    const ok = { status: 'AVAILABLE', embeddable: true, blockedRegions: null }
+    const at = (d: string) => new Date(d)
+    vi.mocked(prisma.playlist.findMany).mockResolvedValue([
+      { id: 'own', youtubeId: 'y1', title: 'A', thumbnailUrl: null, channel: { title: 'Grafikart.fr' }, _count: { videos: 1 } },
+      { id: 'one', youtubeId: 'y2', title: 'B', thumbnailUrl: null, channel: null, _count: { videos: 2 } },
+      // Saved by the user: the playlist is on THEIR channel, the videos are not.
+      { id: 'many', youtubeId: 'y3', title: 'C', thumbnailUrl: null, channel: { title: 'ronaldo rukundo' }, _count: { videos: 2 } },
+      { id: 'none', youtubeId: 'y4', title: 'D', thumbnailUrl: null, channel: null, _count: { videos: 0 } },
+    ] as never)
+    vi.mocked(prisma.playlistVideo.findMany).mockResolvedValue([
+      // The playlist's own channel only stands in when no video names one.
+      { playlistId: 'own', video: { ...ok, channel: null, progress: [] } },
+      // Started but not finished: it still dates the playlist.
+      { playlistId: 'one', video: { ...ok, channel: { title: 'Fireship' }, progress: [{ completed: false, updatedAt: at('2026-10-01T08:00:00Z') }] } },
+      // Watched before it was deleted on YouTube: still the latest activity.
+      { playlistId: 'one', video: { status: 'DELETED', embeddable: false, blockedRegions: null, channel: { title: 'Fireship' }, progress: [{ completed: true, updatedAt: at('2026-10-02T08:00:00Z') }] } },
+      { playlistId: 'many', video: { ...ok, channel: { title: 'Fireship' }, progress: [] } },
+      { playlistId: 'many', video: { ...ok, channel: { title: 'freeCodeCamp' }, progress: [] } },
+    ] as never)
+
+    const byId = Object.fromEntries((await listPlaylists('u1')).map((p) => [p.id, p]))
+
+    expect(byId.own).toMatchObject({ channelTitle: 'Grafikart.fr', multipleChannels: false, lastActivityAt: null })
+    expect(byId.one).toMatchObject({ channelTitle: 'Fireship', multipleChannels: false, lastActivityAt: '2026-10-02T08:00:00.000Z', completedCount: 0 })
+    expect(byId.many).toMatchObject({ channelTitle: null, multipleChannels: true })
+    expect(byId.none).toMatchObject({ channelTitle: null, multipleChannels: false, lastActivityAt: null })
   })
 
   it('getPlaylist renvoie 404 quand la playlist n\'appartient pas à l\'utilisateur', async () => {
@@ -59,10 +91,10 @@ describe('playlist.service (lecture / suppression)', () => {
       { id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, _count: { videos: 3 } },
     ] as never)
     vi.mocked(prisma.playlistVideo.findMany).mockResolvedValue([
-      { playlistId: 'p1', video: { status: 'AVAILABLE', embeddable: true, blockedRegions: null, progress: [{ id: 'x' }] } },
-      { playlistId: 'p1', video: { status: 'AVAILABLE', embeddable: true, blockedRegions: null, progress: [{ id: 'y' }] } },
+      { playlistId: 'p1', video: { status: 'AVAILABLE', embeddable: true, blockedRegions: null, progress: [{ completed: true, updatedAt: new Date('2026-10-01T10:00:00Z') }] } },
+      { playlistId: 'p1', video: { status: 'AVAILABLE', embeddable: true, blockedRegions: null, progress: [{ completed: true, updatedAt: new Date('2026-10-01T10:00:00Z') }] } },
       // Seen before it was deleted: counts neither as available nor as seen.
-      { playlistId: 'p1', video: { status: 'DELETED', embeddable: false, blockedRegions: null, progress: [{ id: 'z' }] } },
+      { playlistId: 'p1', video: { status: 'DELETED', embeddable: false, blockedRegions: null, progress: [{ completed: true, updatedAt: new Date('2026-10-01T10:00:00Z') }] } },
     ] as never)
     const [pl] = await listPlaylists('u1')
     expect(pl).toMatchObject({ videoCount: 3, availableCount: 2, completedCount: 2 })

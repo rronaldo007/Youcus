@@ -16,6 +16,23 @@ export interface Playlist {
   completedCount?: number
   /** Playable videos: the progress percentage is counted on these only (YC-13). */
   availableCount?: number
+  /** Whose videos these are, under the card (YC-74); null when none or several. */
+  channelTitle?: string | null
+  /** The videos come from several channels: « Plusieurs chaînes » (YC-74). */
+  multipleChannels?: boolean
+  /** Last time one of its videos was watched or marked, for « Récentes » (YC-74). */
+  lastActivityAt?: string | null
+}
+
+/** The video the dashboard offers to resume (GET /resume, YC-74). */
+export interface ResumeItem {
+  youtubeId: string
+  title: string
+  thumbnailUrl: string | null
+  durationSeconds: number
+  watchedSeconds: number
+  /** Null for a video kept on its own (YC-61). */
+  playlist: { id: string; title: string; position: number; total: number } | null
 }
 
 /** Why a video cannot be played, or AVAILABLE (YC-13). */

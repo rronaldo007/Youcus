@@ -61,6 +61,7 @@ export function useSetProgress(playlistId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playlists', playlistId] })
       queryClient.invalidateQueries({ queryKey: ['playlists'] })
+      queryClient.invalidateQueries({ queryKey: ['resume'] })
     },
   })
 }
@@ -113,6 +114,8 @@ export function useDeletePlaylist() {
       apiFetch<{ ok: boolean }>(`/playlists/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playlists'] })
+      // Its videos are no longer offered to resume (YC-74).
+      queryClient.invalidateQueries({ queryKey: ['resume'] })
     },
   })
 }

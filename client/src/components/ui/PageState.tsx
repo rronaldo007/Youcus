@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { buttonClass, type ButtonVariant } from '@/components/ui/buttonStyles'
+import { SOON } from '@/components/layout/navItems'
+import { BUTTON_BASE, buttonClass, type ButtonVariant } from '@/components/ui/buttonStyles'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
 export type PageStateKind = 'empty' | 'error' | 'offline' | 'no-results' | 'quota'
@@ -12,10 +13,24 @@ const KINDS: Record<PageStateKind, { icon: IconName; className: string }> = {
   quota: { icon: 'gauge', className: 'bg-status-warning-bg text-status-warning-text' },
 }
 
-/** A button of the state: a link when it goes somewhere, a button when it does something. */
-export type PageStateAction = { label: string } & ({ to: string; onClick?: never } | { onClick: () => void; to?: never })
+/**
+ * A button of the state: a link when it goes somewhere, a button when it does something, greyed with
+ * « Bientôt » when its page does not exist yet (the rule of the tabs, decision of 01/10).
+ */
+export type PageStateAction = { label: string } & (
+  | { to: string; onClick?: never; soon?: never }
+  | { onClick: () => void; to?: never; soon?: never }
+  | { soon: true; to?: never; onClick?: never }
+)
 
 function ActionButton({ action, variant }: { action: PageStateAction; variant: ButtonVariant }) {
+  if (action.soon) {
+    return (
+      <span aria-disabled="true" title={SOON} className={`${BUTTON_BASE} cursor-not-allowed text-content opacity-45`}>
+        {action.label} · Bientôt
+      </span>
+    )
+  }
   if (action.to !== undefined) {
     return (
       <Link to={action.to} className={buttonClass(variant)}>
