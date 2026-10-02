@@ -1,12 +1,38 @@
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { googleLoginUrl } from '@/lib/api'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
+import { buttonClass } from '@/components/ui/buttonStyles'
+import { InlineMessage } from '@/components/ui/InlineMessage'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 /**
- * Écran de connexion Youcus qui amène vers le consentement Google.
- * (L'écran « Choisir un compte » du design 61:534 est celui de Google, rendu par Google.)
+ * The brand half (Figma « Marque »): always dark, whatever the theme, so it carries the `dark` class
+ * and the tokens resolve to their dark values inside it.
+ */
+function BrandPanel() {
+  return (
+    <div className="dark flex flex-col bg-page px-5 py-8 sm:p-16 xl:min-h-screen xl:flex-1 xl:justify-between">
+      <div className="flex items-center justify-between gap-4">
+        <Link to="/" aria-label="Youcus, accueil" className="flex shrink-0 items-center rounded-yc-sm">
+          <Logo size="public" />
+        </Link>
+        <ThemeToggle />
+      </div>
+      <p className="font-serif text-[44px] leading-[42px] tracking-[-0.03em] sm:text-[72px] sm:leading-[68px] xl:text-[96px] xl:leading-[91px]">
+        <span className="block text-content">Regarde moins.</span>
+        <em className="block text-accent-text">Retiens plus.</em>
+      </p>
+      <p className="hidden font-mono text-mono-12 uppercase text-content-muted sm:block">
+        APIs officielles YouTube · Rien n’est téléchargé
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Écran de connexion (Figma « Connexion » 21:538, 21:565, 21:590 ; sombre 47:8950), qui amène vers le
+ * consentement Google. La connexion ne demande que l'identité : YouTube se connecte plus tard, à part.
  */
 export function LoginPage() {
   const { data: user, isLoading } = useCurrentUser()
@@ -19,39 +45,32 @@ export function LoginPage() {
   const denied = params.get('auth') === 'denied'
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface">
-      <header className="flex items-center justify-between px-6 py-4">
-        <Logo />
-        <ThemeToggle />
-      </header>
-
-      <main className="flex flex-1 items-center justify-center px-6 py-10">
-        <div className="w-full max-w-md rounded-card border border-line bg-canvas p-8 text-center">
-          <div className="flex justify-center">
-            <Logo />
-          </div>
-          <h1 className="mt-6 text-2xl font-bold text-content">Se connecter à Youcus</h1>
-          <p className="mt-1 text-sm text-content-muted">pour importer tes playlists et étudier sans distraction</p>
-
-          {denied && (
-            <p role="alert" className="mt-4 rounded-card bg-accent-red/10 px-3 py-2 text-sm text-accent-red">
-              La connexion a été annulée. Réessaie pour continuer.
-            </p>
-          )}
-
-          <a
-            href={googleLoginUrl}
-            className="mt-6 flex w-full items-center justify-center rounded-lg bg-brand-purple px-5 py-3 text-sm font-semibold text-on-purple transition hover:bg-brand-purple-dark"
-          >
+    <div className="flex min-h-screen flex-col bg-page xl:flex-row">
+      <BrandPanel />
+      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-12">
+        <div className="flex w-full max-w-[460px] flex-col gap-5 rounded-[24px] border border-line bg-surface px-6 py-8 sm:px-9 sm:py-10">
+          <h1 className="font-serif text-title-34 text-content sm:text-title-56">Ton cahier t’attend.</h1>
+          <p className="text-body-16 text-content-muted">
+            Une seule connexion, avec ton compte Google. Tes playlists, tes notes et ta progression te suivent partout.
+          </p>
+          <a href={googleLoginUrl} className={buttonClass('primary', 'w-full')}>
             Continuer avec Google
           </a>
-
-          <p className="mt-6 text-xs leading-relaxed text-content-muted">
-            Pour continuer, Google partagera votre nom, votre adresse e-mail et votre photo de profil avec Youcus.
+          {denied && (
+            <div role="alert">
+              <InlineMessage tone="error">La connexion a été annulée. Réessaie pour continuer.</InlineMessage>
+            </div>
+          )}
+          <InlineMessage tone="info">On ne demande que ton identité. YouTube, en lecture seule, plus tard.</InlineMessage>
+          <hr className="border-line" />
+          {/* The design also names terms of use: Youcus has none, so the sentence only names what exists. */}
+          <p className="text-small-13 font-medium text-content-muted">
+            En continuant, tu acceptes la{' '}
+            <Link to="/confidentialite" className="underline underline-offset-2 hover:text-content">
+              politique de confidentialité
+            </Link>
+            . Tes données s’exportent depuis les réglages.
           </p>
-          <Link to="/confidentialite" className="mt-3 inline-block text-xs text-content-muted underline hover:text-content">
-            Confidentialité
-          </Link>
         </div>
       </main>
     </div>
