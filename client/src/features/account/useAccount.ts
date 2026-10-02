@@ -35,3 +35,12 @@ export function useDeleteAccount() {
     },
   })
 }
+
+/** « Déconnecter YouTube » (YC-80): revoked at Google, erased by the server; `revoked` false when Google did not confirm. */
+export function useDisconnectYouTube() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch<{ revoked: boolean }>('/auth/youtube', { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auth', 'me'] }),
+  })
+}

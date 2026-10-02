@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
-import { refreshAccessToken } from '@/lib/googleOAuth'
+import { refreshAccessToken, revokeToken } from '@/lib/googleOAuth'
 
 /**
  * Renvoie un jeton d'accès YouTube valide pour l'utilisateur,
@@ -50,4 +50,24 @@ export async function optionalAccessToken(userId: string): Promise<string | unde
     if (err instanceof HttpError && err.status === 403) return undefined
     throw err
   }
+}
+
+/**
+ * « Déconnecter YouTube » (YC-80): the grant is revoked at Google, then the tokens are erased here,
+ * whatever Google answered: the user asked Youcus to forget the access, and it does. `revoked` says
+ * whether Google confirmed it, so the page can tell the user to check their Google account if not.
+ */
+export async function disconnectYouTube(userId: string): Promise<{ revoked: boolean }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { ytAccessToken: true, ytRefreshToken: true },
+  })
+  const token = user?.ytRefreshToken ?? user?.ytAccessToken
+  if (!token) return { revoked: true }
+  const revoked = await revokeToken(token)
+  await prisma.user.update({
+    where: { id: userId },
+    data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null },
+  })
+  return { revoked }
 }

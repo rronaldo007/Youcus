@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
-import { refreshAccessToken } from '@/lib/googleOAuth'
-import { optionalAccessToken } from '@/services/youtubeToken.service'
+import { refreshAccessToken, revokeToken } from '@/lib/googleOAuth'
+import { disconnectYouTube, optionalAccessToken } from '@/services/youtubeToken.service'
 
 vi.mock('@/lib/prisma', () => ({
   prisma: { user: { findUnique: vi.fn(), update: vi.fn() } },
 }))
-vi.mock('@/lib/googleOAuth', () => ({ refreshAccessToken: vi.fn() }))
+vi.mock('@/lib/googleOAuth', () => ({ refreshAccessToken: vi.fn(), revokeToken: vi.fn() }))
 
 describe('optionalAccessToken (YC-30)', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -43,5 +43,39 @@ describe('optionalAccessToken (YC-30)', () => {
       .mockResolvedValueOnce({ ytAccessToken: 'tok' } as never)
       .mockRejectedValueOnce(new Error('db down'))
     await expect(optionalAccessToken('u1')).rejects.toThrow('db down')
+  })
+})
+
+describe('disconnectYouTube (YC-80)', () => {
+  beforeEach(() => vi.clearAllMocks())
+  const erased = { where: { id: 'u1' }, data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null } }
+
+  it('revokes the whole grant (the refresh token) at Google, then erases the tokens', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ytAccessToken: 'at', ytRefreshToken: 'rt' } as never)
+    vi.mocked(revokeToken).mockResolvedValue(true)
+    expect(await disconnectYouTube('u1')).toEqual({ revoked: true })
+    expect(revokeToken).toHaveBeenCalledWith('rt')
+    expect(prisma.user.update).toHaveBeenCalledWith(erased)
+  })
+
+  it('without a refresh token, revokes the access token', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ytAccessToken: 'at', ytRefreshToken: null } as never)
+    vi.mocked(revokeToken).mockResolvedValue(true)
+    await disconnectYouTube('u1')
+    expect(revokeToken).toHaveBeenCalledWith('at')
+  })
+
+  it('Google unreachable: the tokens are erased all the same, and the page is told', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ytAccessToken: 'at', ytRefreshToken: 'rt' } as never)
+    vi.mocked(revokeToken).mockResolvedValue(false)
+    expect(await disconnectYouTube('u1')).toEqual({ revoked: false })
+    expect(prisma.user.update).toHaveBeenCalledWith(erased)
+  })
+
+  it('never connected: nothing to revoke, nothing written', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ytAccessToken: null, ytRefreshToken: null } as never)
+    expect(await disconnectYouTube('u1')).toEqual({ revoked: true })
+    expect(revokeToken).not.toHaveBeenCalled()
+    expect(prisma.user.update).not.toHaveBeenCalled()
   })
 })
