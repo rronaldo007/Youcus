@@ -81,6 +81,23 @@ describe('search page (YC-22)', () => {
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/search?q=useEffect'), expect.anything())
   })
 
+  it('in the new design (YC-82): serif titles, the state pills of the design system', async () => {
+    open('/recherche?q=useEffect')
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'Résultats pour « useEffect »' })
+    expect(h1).toHaveClass('font-serif')
+    await screen.findByRole('heading', { level: 2, name: 'Notes' })
+    screen.getAllByRole('heading', { level: 2 }).forEach((h) => expect(h).toHaveClass('font-serif'))
+    // Figma « Pastille d'état » 56:14: Accent = in progress, Neutre = seen, kinds and moments neutral.
+    expect(screen.getByText('● En cours')).toHaveClass('bg-accent')
+    expect(screen.getByText('✓ Vue')).toHaveClass('bg-sunken')
+    const kinds = screen.getAllByText('Playlist', { selector: 'span' })
+    expect(kinds).toHaveLength(2)
+    kinds.forEach((k) => expect(k).toHaveClass('bg-sunken'))
+    expect(screen.getByText('04:05')).toHaveClass('bg-sunken')
+    // No old token left on the page.
+    expect(document.body.innerHTML).not.toMatch(/accent-red|surface-2|bg-content|text-canvas|rounded-card/)
+  })
+
   it('a note line opens its video at its marker; the next line of that note says « Même note »', async () => {
     open('/recherche?q=useEffect')
     const notes = (await screen.findByRole('heading', { name: 'Notes' })).parentElement as HTMLElement
