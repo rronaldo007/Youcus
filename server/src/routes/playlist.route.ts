@@ -13,6 +13,7 @@ import {
 } from '@/services/playlist.service'
 import { importSelectedPlaylists, listMyPlaylists } from '@/services/youtubeAccount.service'
 import { setProgress } from '@/services/progress.service'
+import { findResume } from '@/services/resume.service'
 
 export const playlistRouter = Router()
 
@@ -55,6 +56,15 @@ playlistRouter.post(
       throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Requête invalide')
     }
     res.json(await setProgress(req.userId as string, parsed.data))
+  }),
+)
+
+// The video the dashboard offers to resume, or null (YC-74).
+playlistRouter.get(
+  '/resume',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await findResume(req.userId as string))
   }),
 )
 

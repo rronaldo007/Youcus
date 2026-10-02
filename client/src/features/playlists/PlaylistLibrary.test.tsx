@@ -34,6 +34,18 @@ function renderLibrary() {
   )
 }
 
+function renderSelecting(onSelectingDone = vi.fn()) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <PlaylistLibrary selecting onSelectingDone={onSelectingDone} />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  return onSelectingDone
+}
+
 const titles = () => screen.getAllByRole('listitem').map((li) => li.textContent ?? '')
 
 describe('PlaylistLibrary', () => {
@@ -66,15 +78,62 @@ describe('PlaylistLibrary', () => {
     expect(screen.getByText('0/12')).toBeInTheDocument()
   })
 
-  it('supprime une playlist via DELETE /playlists/:id', async () => {
+  it('supprime une playlist via DELETE /playlists/:id, depuis le menu de la carte (YC-74)', async () => {
     renderLibrary()
-    fireEvent.click(await screen.findByRole('button', { name: /Supprimer/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions de Cours React' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/playlists/p1'),
         expect.objectContaining({ method: 'DELETE' }),
       ),
     )
+  })
+
+  describe('the dashboard of the new design (YC-74)', () => {
+    beforeEach(() => {
+      playlists = [
+        { id: 'p1', youtubeId: 'y1', title: 'Jamais ouverte', thumbnailUrl: null, videoCount: 3, channelTitle: 'JavaScript Mastery', lastActivityAt: null },
+        { id: 'p2', youtubeId: 'y2', title: 'Hier', thumbnailUrl: null, videoCount: 3, multipleChannels: true, lastActivityAt: '2026-10-01T10:00:00Z' },
+        { id: 'p3', youtubeId: 'y3', title: 'Ce matin', thumbnailUrl: null, videoCount: 3, channelTitle: null, lastActivityAt: '2026-10-02T08:00:00Z' },
+      ]
+    })
+
+    it('names whose videos these are under each card', async () => {
+      renderLibrary()
+      const one = (await screen.findByText('Jamais ouverte')).closest('li') as HTMLElement
+      expect(within(one).getByText('JavaScript Mastery')).toBeInTheDocument()
+      const many = screen.getByText('Hier').closest('li') as HTMLElement
+      expect(within(many).getByText('Plusieurs chaînes')).toBeInTheDocument()
+    })
+
+    it('« Récentes » shows the playlists watched, the last watched first', async () => {
+      renderLibrary()
+      await screen.findByText('Jamais ouverte')
+      fireEvent.click(screen.getByRole('button', { name: 'Récentes' }))
+      expect(screen.getByRole('button', { name: 'Récentes' })).toHaveAttribute('aria-pressed', 'true')
+      const order = titles().map((t) => (t.includes('Ce matin') ? 'Ce matin' : t.includes('Hier') ? 'Hier' : t))
+      expect(order).toEqual(['Ce matin', 'Hier'])
+    })
+
+    it('keeps each card’s actions always visible, and no selection until « Fusionner »', async () => {
+      renderLibrary()
+      await screen.findByText('Jamais ouverte')
+      expect(screen.getAllByRole('button', { name: /^Actions de / })).toHaveLength(3)
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+      expect(screen.queryByText('Sélectionner')).not.toBeInTheDocument()
+    })
+
+    it('merges only from two chosen playlists, and « Annuler » leaves the selection', async () => {
+      const done = renderSelecting()
+      fireEvent.click(await screen.findByRole('checkbox', { name: /Jamais ouverte/ }))
+      const merge = screen.getByRole('button', { name: /^Fusionner \(/ })
+      expect(merge).toBeDisabled()
+      fireEvent.click(screen.getByRole('checkbox', { name: /Hier/ }))
+      expect(screen.getByRole('button', { name: 'Fusionner (2)' })).toBeEnabled()
+      fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+      expect(done).toHaveBeenCalled()
+    })
   })
 
   describe('videos kept on their own (YC-61)', () => {
@@ -129,6 +188,7 @@ describe('PlaylistLibrary', () => {
     it('« Retirer » takes one out of the library, after a confirmation', async () => {
       renderLibrary()
       const item = (await screen.findByText('Commencée')).closest('li') as HTMLElement
+      fireEvent.click(within(item).getByRole('button', { name: 'Actions de Commencée' }))
       fireEvent.click(within(item).getByRole('button', { name: 'Retirer' }))
       expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Sa note est gardée'))
       await waitFor(() =>

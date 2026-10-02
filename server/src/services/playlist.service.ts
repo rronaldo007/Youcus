@@ -86,6 +86,16 @@ export interface ImportedPlaylist {
   completedCount?: number
   /** Videos that can be played: the progress percentage is counted on these only (YC-13). */
   availableCount?: number
+  /**
+   * The channel under the card (YC-74): whose videos these are, so the one channel they all share. A
+   * playlist a user saved belongs to THEIR channel on YouTube, which says nothing of its content: it
+   * only stands in when no video names its channel. Null when there is none or several.
+   */
+  channelTitle?: string | null
+  /** The videos come from several channels: the card says « Plusieurs chaînes ». */
+  multipleChannels?: boolean
+  /** Last time the user watched or marked one of its videos, for the « Récentes » filter (YC-74). */
+  lastActivityAt?: string | null
 }
 
 /** Unavailable videos of a playlist, by reason (YC-13). */
@@ -143,6 +153,7 @@ export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]>
       youtubeId: true,
       title: true,
       thumbnailUrl: true,
+      channel: { select: { title: true } },
       _count: { select: { videos: true } },
     },
   })
@@ -158,30 +169,47 @@ export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]>
           status: true,
           embeddable: true,
           blockedRegions: true,
-          progress: { where: { userId, completed: true }, select: { id: true } },
+          channel: { select: { title: true } },
+          progress: { where: { userId }, select: { completed: true, updatedAt: true } },
         },
       },
     },
   })
   const available = new Map<string, number>()
   const completed = new Map<string, number>()
+  const channels = new Map<string, Set<string>>()
+  const lastActivity = new Map<string, Date>()
   for (const entry of entries) {
+    const progress = entry.video.progress[0]
+    // Any progress dates the playlist, even on a video that has become unavailable since.
+    if (progress && progress.updatedAt > (lastActivity.get(entry.playlistId) ?? new Date(0))) {
+      lastActivity.set(entry.playlistId, progress.updatedAt)
+    }
+    if (entry.video.channel) {
+      channels.set(entry.playlistId, (channels.get(entry.playlistId) ?? new Set()).add(entry.video.channel.title))
+    }
     if (availabilityOf(entry.video) !== 'AVAILABLE') continue
     available.set(entry.playlistId, (available.get(entry.playlistId) ?? 0) + 1)
-    if (entry.video.progress.length > 0) {
+    if (progress?.completed) {
       completed.set(entry.playlistId, (completed.get(entry.playlistId) ?? 0) + 1)
     }
   }
 
-  return rows.map((r) => ({
-    id: r.id,
-    youtubeId: r.youtubeId,
-    title: r.title,
-    thumbnailUrl: r.thumbnailUrl,
-    videoCount: r._count.videos,
-    completedCount: completed.get(r.id) ?? 0,
-    availableCount: available.get(r.id) ?? 0,
-  }))
+  return rows.map((r) => {
+    const videoChannels = [...(channels.get(r.id) ?? [])]
+    return {
+      id: r.id,
+      youtubeId: r.youtubeId,
+      title: r.title,
+      thumbnailUrl: r.thumbnailUrl,
+      videoCount: r._count.videos,
+      completedCount: completed.get(r.id) ?? 0,
+      availableCount: available.get(r.id) ?? 0,
+      channelTitle: videoChannels.length === 1 ? videoChannels[0] : videoChannels.length === 0 ? (r.channel?.title ?? null) : null,
+      multipleChannels: videoChannels.length > 1,
+      lastActivityAt: lastActivity.get(r.id)?.toISOString() ?? null,
+    }
+  })
 }
 
 /** Détail d'une playlist de l'utilisateur avec ses vidéos ordonnées. */

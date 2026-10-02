@@ -30,7 +30,10 @@ export function useRemoveLibraryVideo() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (videoId: string) => apiFetch<{ ok: true }>(`/library/videos/${encodeURIComponent(videoId)}`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['library'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['library'] })
+      queryClient.invalidateQueries({ queryKey: ['resume'] })
+    },
   })
 }
 
@@ -46,7 +49,10 @@ export function useSetLibraryProgress() {
         method: 'POST',
         body: JSON.stringify(input),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['library'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['library'] })
+      queryClient.invalidateQueries({ queryKey: ['resume'] })
+    },
   })
 }
 
