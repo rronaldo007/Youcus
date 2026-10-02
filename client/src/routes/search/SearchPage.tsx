@@ -1,5 +1,7 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { buttonClass } from '@/components/ui/buttonStyles'
+import { StatusPill, type PillTone } from '@/components/ui/StatusPill'
 import { formatDuration, formatTimestamp } from '@/lib/format'
 import { Highlight } from '@/features/search/Highlight'
 import { useSearchField } from '@/features/search/useSearchField'
@@ -30,21 +32,23 @@ function MaskIcon({ src, size = 24 }: { src: string; size?: number }) {
 }
 
 const STATE_LABEL: Record<VideoState, string> = { todo: '○ À voir', progress: '● En cours', seen: '✓ Vue' }
-const STATE_CLASS: Record<VideoState, string> = {
-  todo: 'border border-content text-content',
-  progress: 'bg-accent-red text-white',
-  seen: 'bg-surface-2 text-content-muted',
-}
+// Figma « Pastille d'état » 56:14: Contour = to do, Accent = in progress, Neutre = seen.
+const STATE_TONE: Record<VideoState, PillTone> = { todo: 'outline', progress: 'accent', seen: 'neutral' }
 
-function Pill({ children, className = 'bg-surface-2 text-content-muted' }: { children: ReactNode; className?: string }) {
-  return <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${className}`}>{children}</span>
+/** The symbol is in the text (✓ ● ○) or the pill names a kind: no dot (« Point masquable »). */
+function Pill({ children, tone = 'neutral' }: { children: ReactNode; tone?: PillTone }) {
+  return (
+    <StatusPill tone={tone} dot={false}>
+      {children}
+    </StatusPill>
+  )
 }
 
 /** A line of the results (Figma « Résultat de recherche » 108:370): the whole row opens it. */
 function Row({ to, lead, title, detail, pill }: { to: string; lead: ReactNode; title: ReactNode; detail: string; pill: ReactNode }) {
   return (
     <li className="border-t border-line first:border-t-0">
-      <Link to={to} className="flex items-center gap-3.5 p-3 transition hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none">
+      <Link to={to} className="flex items-center gap-3.5 p-3 transition-colors hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none">
         {lead}
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="break-words text-[15px] font-semibold text-content sm:text-base">{title}</span>
@@ -60,7 +64,7 @@ function Row({ to, lead, title, detail, pill }: { to: string; lead: ReactNode; t
 }
 
 const Thumb = ({ url }: { url: string | null }) => (
-  <span className="relative h-[54px] w-24 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#121110]">
+  <span className="relative h-[54px] w-24 shrink-0 overflow-hidden rounded-lg border border-white/[0.12] bg-stage">
     {url && <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />}
   </span>
 )
@@ -68,7 +72,7 @@ const Thumb = ({ url }: { url: string | null }) => (
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[22px] font-semibold text-content">{title}</h2>
+      <h2 className="font-serif text-[26px] leading-tight text-content">{title}</h2>
       <ul className="overflow-hidden rounded-2xl border border-line bg-surface py-1">{children}</ul>
     </section>
   )
@@ -121,17 +125,17 @@ function counts(r: SearchResults): Record<SearchType, number> {
 function NoResult({ query, filtered, onClear }: { query: string; filtered: boolean; onClear: () => void }) {
   return (
     <div className="flex flex-col items-center gap-4 px-8 py-14 text-center">
-      <span className="flex size-16 items-center justify-center rounded-full bg-surface-2 text-content">
+      <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-full bg-sunken text-content">
         <MaskIcon src={searchIcon} size={28} />
       </span>
-      <h2 className="mt-2 text-[28px] font-semibold text-content">Aucun résultat pour « {query} »</h2>
+      <h2 className="mt-2 font-serif text-[32px] leading-tight text-content">Aucun résultat pour « {query} »</h2>
       <p className="max-w-md text-base leading-normal text-content-muted">
         {filtered
           ? 'Rien sous ce filtre. Les autres résultats sont dans « Tout ».'
           : 'Essaie un autre mot, ou une partie du mot. La recherche couvre tes playlists, tes vidéos et tes notes.'}
       </p>
       {filtered && (
-        <button type="button" onClick={onClear} className="mt-2 h-11 rounded-full bg-content px-6 text-[15px] font-semibold text-canvas">
+        <button type="button" onClick={onClear} className={buttonClass('primary', 'mt-2')}>
           Effacer les filtres
         </button>
       )}
@@ -141,9 +145,9 @@ function NoResult({ query, filtered, onClear }: { query: string; filtered: boole
 
 /**
  * The search (YC-22), Figma « Recherche » 110:36166 (1440), 110:36423 (834), 110:36691 (390): the
- * user's playlists, videos and notes, the term marked; never YouTube. In the app's current look
- * until the design port (decision of 30/09). On a computer the field is in the top bar; on a phone,
- * in the page.
+ * user's playlists, videos and notes, the term marked; never YouTube. In the new design since YC-82
+ * (sombre 110:37036); no « Catalogue » filter until YC-65. On a computer the field is in the top bar;
+ * on a phone, in the page.
  */
 export function SearchPage() {
   const [params, setParams] = useSearchParams()
@@ -170,20 +174,20 @@ export function SearchPage() {
   const notes = r?.notes.items ?? []
 
   return (
-    <main className="px-4 pb-24 pt-6 sm:px-10 md:pb-16 md:pt-10 lg:px-16">
-      <div className="mx-auto flex max-w-5xl flex-col gap-8">
+    <div className="min-h-[calc(100vh-64px)] bg-app">
+      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 pb-24 pt-6 md:px-8 md:pb-16 md:pt-8 xl:px-16 xl:pt-10">
         <header className="flex flex-col gap-2">
-          <p className="font-mono text-xs uppercase tracking-[0.04em] text-content-muted">
+          <p className="font-mono text-mono-12 uppercase text-content-muted">
             Recherche{n ? ` · ${n.all} résultat${n.all > 1 ? 's' : ''}` : ''} · dans tes playlists et tes notes
           </p>
-          <h1 className="text-[34px] font-semibold leading-tight text-content md:text-[44px]">
+          <h1 className="break-words font-serif text-title-34 text-content md:text-title-56">
             {query ? `Résultats pour « ${query} »` : 'Rechercher'}
           </h1>
         </header>
 
         {/* On a phone the top bar has no field: it is here (Figma 390). */}
         <form role="search" onSubmit={submit} className="md:hidden">
-          <label className="flex h-12 items-center gap-2.5 rounded-xl border-2 border-accent-red bg-surface px-4 text-content">
+          <label className="flex h-12 items-center gap-2.5 rounded-full border-2 border-focus bg-surface px-4 text-content">
             <MaskIcon src={searchIcon} size={20} />
             <input
               ref={field}
@@ -208,7 +212,7 @@ export function SearchPage() {
         {query.length < MIN_QUERY ? (
           <p className="text-content-muted">Tape au moins {MIN_QUERY} caractères : un titre, une chaîne, un mot de tes notes.</p>
         ) : search.isError ? (
-          <p role="alert" className="rounded-card border border-line bg-surface p-6 text-content">
+          <p role="alert" className="rounded-[20px] border border-line bg-surface p-6 text-body-15 text-content">
             La recherche n’a pas répondu. Réessaie dans un instant.
           </p>
         ) : !r || !n ? (
@@ -222,8 +226,8 @@ export function SearchPage() {
                   type="button"
                   aria-pressed={type === t}
                   onClick={() => setType(t)}
-                  className={`min-h-10 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition ${
-                    type === t ? 'bg-content text-canvas' : 'border border-line text-content hover:bg-surface-2'
+                  className={`min-h-10 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus ${
+                    type === t ? 'bg-inverse text-content-inverse' : 'border border-line text-content hover:bg-sunken'
                   }`}
                 >
                   {TYPE_LABEL[t]} · {n[t]}
@@ -258,7 +262,7 @@ export function SearchPage() {
                         lead={<Thumb url={v.thumbnailUrl} />}
                         title={<Highlight text={v.title} query={query} />}
                         detail={videoDetail(v)}
-                        pill={<Pill className={STATE_CLASS[v.state]}>{STATE_LABEL[v.state]}</Pill>}
+                        pill={<Pill tone={STATE_TONE[v.state]}>{STATE_LABEL[v.state]}</Pill>}
                       />
                     ))}
                   </Section>
@@ -270,7 +274,7 @@ export function SearchPage() {
                         key={`${line.noteId}-${i}`}
                         to={noteLink(line)}
                         lead={
-                          <span className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-surface-2 text-content">
+                          <span className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-sunken text-content">
                             <MaskIcon src={markerIcon} />
                           </span>
                         }
@@ -294,7 +298,7 @@ export function SearchPage() {
         )}
 
         <p className="text-[13px] text-content-muted">La recherche couvre tes playlists, tes vidéos et tes notes. Elle ne cherche jamais dans YouTube.</p>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }
