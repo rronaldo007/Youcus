@@ -5,6 +5,8 @@ export interface User {
   avatarUrl: string | null
   /** Vrai si le compte a accordé l'accès YouTube (import des playlists du compte). */
   youtubeConnected?: boolean
+  /** Its YouTube token died and the server erased it (YC-84): « Connexion YouTube expirée ». */
+  youtubeExpired?: boolean
 }
 
 export interface Playlist {

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Icon } from '@/components/ui/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { Logo } from '@/components/ui/Logo'
+import { StatusBanner } from '@/components/ui/StatusBanner'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { buttonClass } from '@/components/ui/buttonStyles'
 import { AccountMenu } from '@/components/layout/AccountMenu'
@@ -12,6 +13,7 @@ import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { MAX_QUERY } from '@/features/search/search'
 import { SEARCH_PAGE, useSearchField } from '@/features/search/useSearchField'
 import { useSearchShortcut } from '@/features/search/useSearchShortcut'
+import { googleYoutubeConnectUrl } from '@/lib/api'
 import type { User } from '@/types'
 
 /** Navigation applicative responsive : n'apparaît que pour un utilisateur connecté. */
@@ -20,7 +22,17 @@ export function AppNav() {
   const { pathname } = useLocation()
   // The player is in focus mode, without the bar (Figma « Lecteur » 11:475, Ronaldo 02/10).
   if (!user || isPlayerPath(pathname)) return null
-  return <AppBar user={user} />
+  return (
+    <>
+      <AppBar user={user} />
+      {/* A state of the whole session, under the bar, not closable (Figma 98:16852, YC-84). */}
+      {user.youtubeExpired && (
+        <StatusBanner kind="error" action={{ label: 'Reconnecter YouTube', onClick: () => window.location.assign(googleYoutubeConnectUrl) }}>
+          Connexion YouTube expirée : reconnecte ton compte pour importer ou synchroniser. Tes notes ne sont pas concernées.
+        </StatusBanner>
+      )}
+    </>
+  )
 }
 
 /** The tabs of the bar: the current one underlined in the red signal, those without a page greyed. */

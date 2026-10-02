@@ -29,12 +29,13 @@ export function StatusBanner({ kind, children, action, onClose }: StatusBannerPr
   return (
     <div
       role={kind === 'error' || kind === 'offline' ? 'alert' : 'status'}
-      className={`flex w-full items-center gap-3 border-b border-line px-4 py-2.5 sm:px-6 ${className}`}
+      // On a phone the action goes under the sentence rather than squeezing it (seen at 390, YC-84).
+      className={`flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line px-4 py-2.5 sm:flex-nowrap sm:px-6 ${className}`}
     >
       <Icon name={icon} />
-      <p className="min-w-0 flex-1 text-label-14 font-medium">{children}</p>
+      <p className="min-w-0 flex-1 basis-[calc(100%-2rem)] text-label-14 font-medium sm:basis-auto">{children}</p>
       {action && (
-        <button type="button" onClick={action.onClick} className="shrink-0 text-label-14 font-semibold underline underline-offset-2">
+        <button type="button" onClick={action.onClick} className="ml-8 shrink-0 text-label-14 font-semibold underline underline-offset-2 sm:ml-0">
           {action.label}
         </button>
       )}

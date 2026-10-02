@@ -48,4 +48,19 @@ describe('upsertGoogleUser', () => {
     })
     expect(user).toBe(fakeUser)
   })
+
+  it('reconnected with YouTube: the tokens are kept and the expiry forgotten (YC-84)', async () => {
+    vi.mocked(prisma.user.upsert).mockResolvedValue({} as User)
+    const expiresAt = new Date('2026-10-03T10:00:00Z')
+    await upsertGoogleUser(profile, { accessToken: 'at', refreshToken: 'rt', expiresAt })
+    const args = vi.mocked(prisma.user.upsert).mock.calls[0][0]
+    expect(args.update).toMatchObject({ ytAccessToken: 'at', ytRefreshToken: 'rt', ytTokenExpiry: expiresAt, ytExpiredAt: null })
+  })
+
+  it('a sign-in without YouTube touches neither the tokens nor the expiry', async () => {
+    vi.mocked(prisma.user.upsert).mockResolvedValue({} as User)
+    await upsertGoogleUser(profile)
+    expect(vi.mocked(prisma.user.upsert).mock.calls[0][0].update).not.toHaveProperty('ytExpiredAt')
+  })
 })
+

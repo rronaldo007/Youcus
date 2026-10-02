@@ -34,7 +34,8 @@ describe('optionalAccessToken (YC-30)', () => {
 
     expect(await optionalAccessToken('u1')).toBeUndefined()
     expect(prisma.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null } }),
+      // Dead, not chosen: dated, for « Connexion YouTube expirée » (YC-84).
+      expect.objectContaining({ data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null, ytExpiredAt: expect.any(Date) } }),
     )
   })
 
@@ -48,7 +49,8 @@ describe('optionalAccessToken (YC-30)', () => {
 
 describe('disconnectYouTube (YC-80)', () => {
   beforeEach(() => vi.clearAllMocks())
-  const erased = { where: { id: 'u1' }, data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null } }
+  // A choice: never shown as expired (YC-84).
+  const erased = { where: { id: 'u1' }, data: { ytAccessToken: null, ytRefreshToken: null, ytTokenExpiry: null, ytExpiredAt: null } }
 
   it('revokes the whole grant (the refresh token) at Google, then erases the tokens', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({ ytAccessToken: 'at', ytRefreshToken: 'rt' } as never)
