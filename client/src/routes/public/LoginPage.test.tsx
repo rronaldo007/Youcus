@@ -24,8 +24,33 @@ describe('LoginPage', () => {
 
   it('links to the privacy policy (YC-38)', async () => {
     renderLogin()
-    const link = await screen.findByRole('link', { name: 'Confidentialité' })
+    const link = await screen.findByRole('link', { name: 'politique de confidentialité' })
     expect(link).toHaveAttribute('href', '/confidentialite')
+  })
+
+  it('makes the visitor accept no terms of use, since Youcus has none (YC-73)', async () => {
+    const { container } = renderLogin()
+    await screen.findByRole('heading', { level: 1, name: 'Ton cahier t’attend.' })
+    expect(container.textContent).not.toMatch(/conditions d.utilisation/i)
+  })
+
+  it('says the sign-in asks for identity only, YouTube read-only comes later (YC-73)', async () => {
+    renderLogin()
+    expect(await screen.findByText(/On ne demande que ton identité/)).toHaveTextContent('lecture seule')
+  })
+
+  it('keeps the brand half dark in both themes (Figma 21:538, 47:8950)', async () => {
+    renderLogin()
+    const promise = await screen.findByText('Regarde moins.')
+    expect(promise.closest('.dark')).not.toBeNull()
+    // The card follows the theme: it is outside the forced-dark half.
+    expect(screen.getByRole('heading', { level: 1 }).closest('.dark')).toBeNull()
+  })
+
+  it('offers the way home and the theme switch the old screen had', async () => {
+    renderLogin()
+    expect(await screen.findByRole('link', { name: 'Youcus, accueil' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('button', { name: /Activer le thème/ })).toBeInTheDocument()
   })
 
   it('propose la connexion Google (vers /auth/google)', async () => {

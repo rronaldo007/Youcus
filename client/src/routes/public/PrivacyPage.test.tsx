@@ -1,4 +1,4 @@
-import { render as rtlRender, screen } from '@testing-library/react'
+import { render as rtlRender, screen, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -13,7 +13,7 @@ const render = (ui: ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>
 describe('PrivacyPage', () => {
   it('offers a way back home to a visitor without a session', () => {
     render(<PrivacyPage />)
-    expect(screen.getByRole('link', { name: /Accueil/ })).toHaveAttribute('href', '/')
+    expect(within(screen.getByRole('main')).getByRole('link', { name: /Accueil/ })).toHaveAttribute('href', '/')
   })
 
   it('names who is responsible and how to reach them', () => {
@@ -45,6 +45,12 @@ describe('PrivacyPage', () => {
       'href',
       'https://myaccount.google.com/permissions',
     )
+  })
+
+  it('wears the public navigation and footer (YC-73)', () => {
+    render(<PrivacyPage />)
+    expect(screen.getByRole('navigation', { name: 'Site' })).toBeInTheDocument()
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('Ronaldo Rukundo')
   })
 
   it('makes no claim the app does not keep (no encryption, no Frankfurt, no deferred deletion)', () => {
