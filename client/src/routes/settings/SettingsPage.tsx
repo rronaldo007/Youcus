@@ -1,33 +1,117 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react'
+import { Link, Navigate, useLocation } from 'react-router-dom'
+import { buttonClass } from '@/components/ui/buttonStyles'
 import { Avatar } from '@/components/ui/Avatar'
+import { InlineMessage } from '@/components/ui/InlineMessage'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
-import { useDeleteAccount, useExportData } from '@/features/account/useAccount'
-import { useTheme } from '@/features/theme/useTheme'
+import { useDeleteAccount, useDisconnectYouTube, useExportData } from '@/features/account/useAccount'
+import { useTheme, type ThemePreference } from '@/features/theme/useTheme'
+import { googleYoutubeConnectUrl } from '@/lib/api'
 
 // Réglages › Notes (YC-48) brings the editor's styles and fonts: loaded only on this page.
 const NoteSettings = lazy(() => import('@/features/notes/NoteSettings'))
 
-type Theme = 'light' | 'dark'
-const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
-  { value: 'light', label: 'Clair', icon: '☀' },
-  { value: 'dark', label: 'Sombre', icon: '☾' },
+/** The cards of the page, in the order of Figma « Réglages » 17:1239. « #donnees » is the account menu's link. */
+const SECTIONS = [
+  { id: 'compte', label: 'Compte' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'apparence', label: 'Apparence' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'donnees', label: 'Données' },
+] as const
+
+const THEMES: { value: ThemePreference; label: string }[] = [
+  { value: 'light', label: 'Clair' },
+  { value: 'dark', label: 'Sombre' },
+  { value: 'system', label: 'Comme le système' },
 ]
 
+function Card({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section id={id} aria-labelledby={`${id}-titre`} className="flex scroll-mt-6 flex-col items-start gap-4 rounded-[20px] border border-line bg-surface p-6 md:p-7">
+      <h2 id={`${id}-titre`} className="font-serif text-title-24 text-content">
+        {title}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+/** « Connexion YouTube » (Figma 17:1277): read-only access, and the way to withdraw it (YC-80). */
+function YouTubeCard({ connected }: { connected: boolean }) {
+  const disconnect = useDisconnectYouTube()
+  const [confirming, setConfirming] = useState(false)
+  const done = disconnect.data
+  return (
+    <Card id="youtube" title="Connexion YouTube">
+      <p className="text-body-15 text-content-muted">Youcus lit tes playlists en lecture seule. Rien n’est publié, rien n’est modifié sur ton compte.</p>
+      {connected ? (
+        <>
+          <InlineMessage tone="success">Connecté · accès en lecture seule</InlineMessage>
+          {confirming ? (
+            <div className="flex w-full flex-col gap-3">
+              <p className="text-body-15 text-content">
+                Youcus oubliera l’accès et Google le retirera. Tes playlists et tes notes restent ; pour importer à nouveau depuis ton compte, il faudra te reconnecter.
+              </p>
+              <div className="flex flex-col gap-2.5 md:flex-row">
+                <button type="button" onClick={() => setConfirming(false)} disabled={disconnect.isPending} className={buttonClass('secondary', 'w-full md:w-auto')}>
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => disconnect.mutate(undefined, { onSettled: () => setConfirming(false) })}
+                  disabled={disconnect.isPending}
+                  className={buttonClass('danger', 'w-full md:w-auto')}
+                >
+                  {disconnect.isPending ? 'Déconnexion…' : 'Confirmer la déconnexion'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirming(true)} className={buttonClass('secondary', 'w-full md:w-auto')}>
+              Déconnecter YouTube
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          {done && !done.revoked ? (
+            // Erased here, but Google did not confirm: the user can withdraw it there.
+            <InlineMessage tone="info">
+              Accès effacé de Youcus. Google n’a pas confirmé : vérifie les accès de ton compte sur myaccount.google.com/permissions.
+            </InlineMessage>
+          ) : (
+            <InlineMessage tone="info">{done ? 'YouTube déconnecté.' : 'Non connecté : Youcus lit seulement les playlists publiques.'}</InlineMessage>
+          )}
+          <a href={googleYoutubeConnectUrl} className={buttonClass('secondary', 'w-full md:w-auto')}>
+            Connecter YouTube
+          </a>
+        </>
+      )}
+      {disconnect.isError && (
+        <div role="alert">
+          <InlineMessage tone="error">La déconnexion a échoué. Réessaie dans un instant : rien n’a changé.</InlineMessage>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 /**
- * Écran Réglages : profil (avatar/nom/email), préférence de thème et zone RGPD.
- * Conteneur qui héberge les actions « Exporter / Supprimer mes données » (CS-22).
- * Réf. design Figma Settings 38:350 (clair) / 38:395 (sombre).
+ * Réglages (Figma 17:1219, 17:1615, 17:1702 ; sombre 45:7282, YC-80): the account, YouTube, the theme,
+ * the starting settings of notes, the data. The sections are a column on a computer, a row of
+ * chips elsewhere. « Objectif de la semaine » waits for the statistics (YC-79).
  */
 export function SettingsPage() {
   const { data: user, isLoading } = useCurrentUser()
-  const { theme, toggle } = useTheme()
+  const { preference, setPreference } = useTheme()
   const exportData = useExportData()
   const deleteAccount = useDeleteAccount()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const { hash } = useLocation()
+  const current = SECTIONS.find((s) => `#${s.id}` === hash)?.id ?? 'compte'
 
-  // « Mes données » in the account menu (YC-68) lands on the export: the router does not scroll to a hash.
+  // A section asked by the address (« Mes données » of the account menu): the router does not scroll to a hash.
   useEffect(() => {
     if (hash && user) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
   }, [hash, user])
@@ -35,147 +119,103 @@ export function SettingsPage() {
   if (isLoading) return null
   if (!user) return <Navigate to="/login" replace />
 
-  const selectTheme = (value: Theme) => {
-    if (value !== theme) toggle()
-  }
-
   return (
-    <main className="mx-auto max-w-2xl px-6 py-8 sm:px-10">
-      <h1 className="text-2xl font-bold text-content">Réglages</h1>
-      <p className="mt-1 text-sm text-content-muted">Gère ton compte et tes préférences.</p>
-
-      {/* Profil */}
-      <section aria-labelledby="settings-profil" className="mt-8 rounded-card border border-line bg-canvas p-6">
-        <h2 id="settings-profil" className="text-sm font-semibold uppercase tracking-wide text-content-muted">
-          Profil
-        </h2>
-        <div className="mt-4 flex items-center gap-4">
-          <Avatar user={user} size="menu" />
-          <div className="min-w-0">
-            <p className="truncate font-medium text-content">{user.displayName}</p>
-            <p className="truncate text-sm text-content-muted">{user.email}</p>
-          </div>
-        </div>
-        <p className="mt-4 text-xs text-content-muted">
-          Ces informations proviennent de ton compte Google et ne sont pas modifiables ici.
-        </p>
-      </section>
-
-      {/* Préférences */}
-      <section aria-labelledby="settings-theme" className="mt-6 rounded-card border border-line bg-canvas p-6">
-        <h2 id="settings-theme" className="text-sm font-semibold uppercase tracking-wide text-content-muted">
-          Apparence
-        </h2>
-        <div className="mt-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="font-medium text-content">Thème</p>
-            <p className="text-sm text-content-muted">Choisis l'apparence claire ou sombre.</p>
-          </div>
-          <div role="group" aria-label="Thème" className="flex rounded-lg border border-line p-1">
-            {THEME_OPTIONS.map((opt) => {
-              const active = theme === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => selectTheme(opt.value)}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                    active ? 'bg-brand-purple text-on-purple' : 'text-content-muted hover:bg-surface-2'
-                  }`}
-                >
-                  <span aria-hidden>{opt.icon}</span>
-                  {opt.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Notes : réglages de départ de chaque nouvelle note (YC-48) */}
-      <section aria-labelledby="settings-notes" className="mt-6 rounded-card border border-line bg-canvas p-6">
-        <h2 id="settings-notes" className="text-sm font-semibold uppercase tracking-wide text-content-muted">
-          Notes
-        </h2>
-        <Suspense fallback={<p className="mt-4 text-sm text-content-muted">Chargement…</p>}>
-          <NoteSettings />
-        </Suspense>
-      </section>
-
-      {/* Données personnelles (RGPD) — héberge CS-22 */}
-      <section id="donnees" aria-labelledby="settings-rgpd" className="mt-6 scroll-mt-6 rounded-card border border-line bg-canvas p-6">
-        <h2 id="settings-rgpd" className="text-sm font-semibold uppercase tracking-wide text-content-muted">
-          Données personnelles
-        </h2>
-
-        <div className="mt-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="font-medium text-content">Exporter mes données</p>
-            <p className="text-sm text-content-muted">Télécharge une copie de tes données au format JSON.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => exportData.mutate()}
-            disabled={exportData.isPending}
-            className="shrink-0 rounded-lg border border-line px-4 py-2 text-sm font-medium text-content transition hover:bg-surface-2 disabled:opacity-60"
-          >
-            {exportData.isPending ? 'Export…' : 'Exporter'}
-          </button>
-        </div>
-        {exportData.isError && (
-          <p role="alert" className="mt-2 text-sm text-accent-red">
-            L'export a échoué. Réessaie plus tard.
-          </p>
-        )}
-
-        <hr className="my-5 border-line" />
-
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="font-medium text-accent-red">Supprimer mon compte</p>
-            <p className="text-sm text-content-muted">Cette action est définitive et supprime toutes tes données.</p>
-          </div>
-          {!confirmingDelete ? (
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              className="shrink-0 rounded-lg border border-accent-red/40 px-4 py-2 text-sm font-medium text-accent-red transition hover:bg-accent-red/10"
-            >
-              Supprimer
-            </button>
-          ) : (
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(false)}
-                disabled={deleteAccount.isPending}
-                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-content transition hover:bg-surface-2 disabled:opacity-60"
+    <div className="min-h-[calc(100vh-64px)] bg-app">
+      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 pb-16 pt-6 md:px-8 md:pt-8 xl:flex-row xl:items-start xl:gap-12 xl:px-16 xl:pt-10">
+        <div className="flex flex-col gap-5 xl:sticky xl:top-6 xl:w-60 xl:shrink-0 xl:gap-1">
+          <h1 className="font-serif text-title-34 text-content md:text-title-56">Réglages</h1>
+          <nav aria-label="Sections des réglages" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0 xl:flex-col xl:overflow-visible [&::-webkit-scrollbar]:hidden">
+            {SECTIONS.map((s) => (
+              <Link
+                key={s.id}
+                to={`#${s.id}`}
+                aria-current={current === s.id ? 'true' : undefined}
+                className={buttonClass(current === s.id ? 'secondary' : 'ghost', 'xl:w-full xl:justify-start')}
               >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={() => deleteAccount.mutate()}
-                disabled={deleteAccount.isPending}
-                className="rounded-lg bg-accent-red px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-              >
-                {deleteAccount.isPending ? 'Suppression…' : 'Confirmer la suppression'}
-              </button>
+                {s.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          <Card id="compte" title="Compte">
+            <div className="flex min-w-0 items-center gap-4">
+              <Avatar user={user} size="menu" />
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <p className="truncate text-label-14 font-semibold text-content">{user.displayName}</p>
+                <p className="truncate text-small-13 font-medium text-content-muted">{user.email}</p>
+              </div>
             </div>
-          )}
+            <p className="text-small-13 text-content-muted">Ces informations viennent de ton compte Google et ne se modifient pas ici.</p>
+          </Card>
+
+          <YouTubeCard connected={Boolean(user.youtubeConnected)} />
+
+          <Card id="apparence" title="Apparence">
+            <div role="radiogroup" aria-label="Thème" className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={preference === t.value}
+                  onClick={() => setPreference(t.value)}
+                  className={buttonClass(preference === t.value ? 'primary' : 'secondary', 'w-full md:w-auto')}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card id="notes" title="Notes">
+            {/* The full width of the card: the switches sit at its right edge (Figma 42:7100). */}
+            <div className="w-full">
+              <Suspense fallback={<p className="text-body-15 text-content-muted">Chargement…</p>}>
+                <NoteSettings />
+              </Suspense>
+            </div>
+          </Card>
+
+          <Card id="donnees" title="Tes données">
+            <p className="text-body-15 text-content-muted">Tout ce que Youcus sait de toi, en un fichier. Supprimer le compte efface aussi tes notes : c’est définitif.</p>
+            {confirmingDelete ? (
+              <div className="flex w-full flex-col gap-3">
+                <p className="text-body-15 text-content">Confirme pour supprimer définitivement ton compte, tes playlists et tes notes.</p>
+                <div className="flex flex-col gap-2.5 md:flex-row">
+                  <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleteAccount.isPending} className={buttonClass('secondary', 'w-full md:w-auto')}>
+                    Annuler
+                  </button>
+                  <button type="button" onClick={() => deleteAccount.mutate()} disabled={deleteAccount.isPending} className={buttonClass('danger', 'w-full md:w-auto')}>
+                    {deleteAccount.isPending ? 'Suppression…' : 'Confirmer la suppression'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
+                <button type="button" onClick={() => exportData.mutate()} disabled={exportData.isPending} className={buttonClass('secondary', 'w-full md:w-auto')}>
+                  {exportData.isPending ? 'Export…' : 'Exporter mes données'}
+                </button>
+                {/* « Danger … toujours suivie d'une confirmation » (Figma Bouton 5:117). */}
+                <button type="button" onClick={() => setConfirmingDelete(true)} className={buttonClass('danger', 'w-full md:w-auto')}>
+                  Supprimer mon compte
+                </button>
+              </div>
+            )}
+            {exportData.isError && (
+              <div role="alert">
+                <InlineMessage tone="error">L’export a échoué. Réessaie plus tard.</InlineMessage>
+              </div>
+            )}
+            {deleteAccount.isError && (
+              <div role="alert">
+                <InlineMessage tone="error">La suppression a échoué. Réessaie plus tard.</InlineMessage>
+              </div>
+            )}
+          </Card>
         </div>
-        {confirmingDelete && (
-          <p className="mt-2 text-sm text-content-muted">
-            Confirme pour supprimer définitivement ton compte et toutes tes données.
-          </p>
-        )}
-        {deleteAccount.isError && (
-          <p role="alert" className="mt-2 text-sm text-accent-red">
-            La suppression a échoué. Réessaie plus tard.
-          </p>
-        )}
-      </section>
-    </main>
+      </main>
+    </div>
   )
 }

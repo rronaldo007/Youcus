@@ -82,3 +82,42 @@ describe('exchangeCodeForTokens', () => {
     expect(result.tokens.refreshToken).toBe('rt')
   })
 })
+
+describe('revokeToken (YC-80)', () => {
+  const originalFetch = globalThis.fetch
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+  const google = (status: number, body: unknown) => {
+    const fn = vi.fn(async () => new Response(JSON.stringify(body), { status }))
+    globalThis.fetch = fn as unknown as typeof fetch
+    return fn
+  }
+
+  it('posts the token to Google\'s revoke endpoint, form-encoded', async () => {
+    const fn = google(200, {})
+    const { revokeToken } = await loadModule()
+    expect(await revokeToken('rt')).toBe(true)
+    const [url, init] = fn.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('https://oauth2.googleapis.com/revoke')
+    expect(init.method).toBe('POST')
+    expect(String(init.body)).toBe('token=rt')
+  })
+
+  it('a token already revoked (400 invalid_token) counts as revoked; another refusal does not', async () => {
+    google(400, { error: 'invalid_token' })
+    let { revokeToken } = await loadModule()
+    expect(await revokeToken('rt')).toBe(true)
+    google(400, { error: 'invalid_request' })
+    ;({ revokeToken } = await loadModule())
+    expect(await revokeToken('rt')).toBe(false)
+  })
+
+  it('Google unreachable: false, never a thrown error', async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new TypeError('fetch failed')
+    }) as unknown as typeof fetch
+    const { revokeToken } = await loadModule()
+    expect(await revokeToken('rt')).toBe(false)
+  })
+})

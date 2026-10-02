@@ -13,6 +13,7 @@ import {
 import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
 import { upsertGoogleUser } from '@/services/auth.service'
+import { disconnectYouTube } from '@/services/youtubeToken.service'
 
 export const authRouter = Router()
 
@@ -108,6 +109,15 @@ authRouter.post('/auth/logout', (_req, res) => {
   clearSession(res)
   res.json({ ok: true })
 })
+
+// « Déconnecter YouTube » from Réglages (YC-80): revoked at Google, erased here.
+authRouter.delete(
+  '/auth/youtube',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await disconnectYouTube(req.userId as string))
+  }),
+)
 
 // Profil de l'utilisateur connecté (protégé par requireAuth).
 authRouter.get(

@@ -69,3 +69,25 @@ describe('GET /api/auth/google/youtube', () => {
     expect(location.searchParams.get('state')).toMatch(/:youtube$/)
   })
 })
+
+describe('DELETE /api/auth/youtube (YC-80)', () => {
+  beforeEach(() => vi.resetModules())
+
+  it('refuse (401) un visiteur sans session, sans rien lire', async () => {
+    const { app } = await loadApp()
+    const { prisma } = await import('@/lib/prisma')
+    const res = await request(app).delete('/api/auth/youtube')
+    expect(res.status).toBe(401)
+    expect(prisma.user.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('déconnecte YouTube pour l’utilisateur de la session', async () => {
+    const { app, SESSION_COOKIE } = await loadApp()
+    const { prisma } = await import('@/lib/prisma')
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ytAccessToken: null, ytRefreshToken: null } as never)
+    const res = await request(app).delete('/api/auth/youtube').set('Cookie', signedCookie(SESSION_COOKIE, 'user-42'))
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ revoked: true })
+    expect(vi.mocked(prisma.user.findUnique).mock.calls[0][0]).toMatchObject({ where: { id: 'user-42' } })
+  })
+})

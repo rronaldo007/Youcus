@@ -3,6 +3,7 @@ import { HttpError } from '@/middleware/errorHandler'
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+const GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
 
 /** Profil Google normalisé, prêt pour l'upsert User. */
@@ -154,4 +155,24 @@ export async function refreshAccessToken(
     throw new HttpError(401, 'Session YouTube expirée, reconnectez-vous')
   }
   return { accessToken: token.access_token, expiresAt: toExpiry(token.expires_in) }
+}
+
+/**
+ * Withdraws the access Youcus was given (YC-80, « Déconnecter YouTube »): revoking the refresh token
+ * revokes the whole grant at Google. True when Google took it, or says the token is no longer valid
+ * (400 invalid_token: already revoked); false when Google could not be reached or answered otherwise.
+ */
+export async function revokeToken(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(GOOGLE_REVOKE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token }),
+    })
+    if (res.ok) return true
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    return res.status === 400 && body?.error === 'invalid_token'
+  } catch {
+    return false
+  }
 }
