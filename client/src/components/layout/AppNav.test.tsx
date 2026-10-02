@@ -48,12 +48,20 @@ describe('AppBar (Figma 5:433)', () => {
   it('shows the tabs without a page greyed and says why, never as a dead link', () => {
     renderBar()
     const nav = screen.getAllByRole('navigation', { name: 'Principale' })[0]
-    for (const label of ['Catalogue', 'Mes notes', 'Statistiques']) {
+    for (const label of ['Catalogue', 'Statistiques']) {
       expect(within(nav).queryByRole('link', { name: new RegExp(label) })).not.toBeInTheDocument()
       const tab = within(nav).getByText(label)
       expect(tab).toHaveAttribute('aria-disabled', 'true')
       expect(tab).toHaveTextContent('Bientôt disponible')
     }
+  })
+
+  it('« Mes notes » leads to every note, and stays lit on a note page (YC-78)', () => {
+    renderBar('/notes/videos/v1')
+    const nav = screen.getAllByRole('navigation', { name: 'Principale' })[0]
+    const tab = within(nav).getByRole('link', { name: 'Mes notes' })
+    expect(tab).toHaveAttribute('href', '/notes')
+    expect(tab).toHaveAttribute('aria-current', 'page')
   })
 
   it('keeps every former access: import, search, the dashboard by the logo', () => {
@@ -131,7 +139,8 @@ describe('NavDrawer (Figma 108:325)', () => {
     fireEvent.click(burger)
     const drawer = screen.getByRole('dialog', { name: 'Menu' })
     expect(within(drawer).getByRole('button', { name: 'Fermer le menu' })).toHaveFocus()
-    expect(within(drawer).getAllByText('Bientôt')).toHaveLength(3)
+    // Catalogue and Statistiques: Mes notes has its page since YC-78.
+    expect(within(drawer).getAllByText('Bientôt')).toHaveLength(2)
     fireEvent.keyDown(within(drawer).getByRole('button', { name: 'Fermer le menu' }), { key: 'Escape' })
     expect(screen.queryByRole('dialog', { name: 'Menu' })).not.toBeInTheDocument()
     expect(burger).toHaveFocus()

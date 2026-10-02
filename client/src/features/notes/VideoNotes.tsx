@@ -16,6 +16,8 @@ export function VideoNotes({
   fullPageTo,
   fullPage = false,
   onSummary,
+  modalOnly,
+  onClose,
 }: {
   videoId: string
   player?: { seconds: number; seek: (seconds: number) => void }
@@ -30,18 +32,23 @@ export function VideoNotes({
   /** On the note page (YC-77): the page draws the header and the side. */
   fullPage?: boolean
   onSummary?: (summary: NoteSummary) => void
+  /** Only its expanded view (« Agrandir » of a card in Mes notes, YC-78). */
+  modalOnly?: boolean
+  onClose?: () => void
 }) {
   const { data: note, isLoading } = useVideoNote(videoId)
   const save = useSaveVideoNote(videoId)
 
   return (
-    <div className={notebook || fullPage ? '' : 'mt-6'}>
+    <div className={notebook || fullPage || modalOnly ? '' : 'mt-6'}>
       <NoteEditor
         title={notebook ? 'Mon cahier' : 'Notes'}
         notebook={notebook}
         fullPageTo={fullPageTo}
         fullPage={fullPage}
         onSummary={onSummary}
+        modalOnly={modalOnly}
+        onClose={onClose}
         editorLabel="Note de la vidéo"
         note={note}
         isLoading={isLoading}

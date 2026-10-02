@@ -19,7 +19,8 @@ export const APP_TABS: NavItem[] = [
     match: (p) => p === '/' || p.startsWith('/playlists') || p.startsWith('/videos') || p === '/import',
   },
   { label: 'Catalogue', icon: 'star' },
-  { label: 'Mes notes', icon: 'bookmark' },
+  // Every note, and the note pages opened from it (YC-77, YC-78).
+  { label: 'Mes notes', icon: 'bookmark', to: '/notes', match: (p) => p.startsWith('/notes') },
   { label: 'Statistiques', icon: 'gauge' },
 ]
 

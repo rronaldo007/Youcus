@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { SOON } from '@/components/layout/navItems'
+import { Link } from 'react-router-dom'
 import { buttonClass } from '@/components/ui/buttonStyles'
 import { Icon } from '@/components/ui/Icon'
 import type { NoteSummary } from '@/features/notes/NoteEditor'
@@ -32,10 +32,9 @@ export function NotePageHeader({
   const exporting = summary?.exporting ?? 'idle'
   return (
     <>
-      {/* « Mes notes » has no page yet (YC-78): greyed with « Bientôt », like its tab. */}
-      <span aria-disabled="true" title={SOON} className="self-start cursor-not-allowed font-mono text-mono-12 uppercase text-content-muted opacity-60">
-        ← Mes notes · Bientôt
-      </span>
+      <Link to="/notes" className="self-start font-mono text-mono-12 uppercase text-content-muted hover:text-content">
+        ← Mes notes
+      </Link>
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between xl:gap-8">
         <div className="flex min-w-0 flex-col gap-2">
           <p className="font-mono text-mono-12 uppercase text-content-muted">{eyebrow}</p>
