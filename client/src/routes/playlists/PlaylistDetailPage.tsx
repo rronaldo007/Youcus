@@ -1,11 +1,26 @@
 import { Link, useParams } from 'react-router-dom'
-import { VideoCard } from '@/components/ui/VideoCard'
-import { SkeletonGrid } from '@/components/ui/Skeletons'
+import { SOON } from '@/components/layout/navItems'
+import { BUTTON_BASE, buttonClass } from '@/components/ui/buttonStyles'
+import { Icon } from '@/components/ui/Icon'
+import { InlineMessage } from '@/components/ui/InlineMessage'
+import { PageState } from '@/components/ui/PageState'
+import { ProgressBar } from '@/components/ui/ProgressBar'
+import { Skeleton } from '@/components/ui/Skeletons'
 import { PlaylistNotes } from '@/features/notes/PlaylistNotes'
+import { nextVideo } from '@/features/playlists/nextVideo'
+import { PlaylistAbout } from '@/features/playlists/PlaylistAbout'
+import { PlaylistVideoRow } from '@/features/playlists/PlaylistVideoRow'
 import { usePlaylist, useRefreshPlaylist } from '@/features/playlists/usePlaylists'
-import { isPlayable, unavailableSentence } from '@/lib/availability'
+import { isPlayable } from '@/lib/availability'
+import { formatTotalDuration } from '@/lib/format'
 
-/** Détail d'une playlist : grille de vidéos (design system), lien vers le lecteur focus. */
+const BACK = 'font-mono text-mono-12 uppercase text-content-muted hover:text-content'
+
+/**
+ * Détail d'une playlist (Figma « Détail de playlist » 16:434, 16:544, 16:642 ; sombre 45:6423). The
+ * playlist's note keeps its full editor until the notebook exists (YC-77, decision of 02/10), in the
+ * right column on a computer and under the list elsewhere.
+ */
 export function PlaylistDetailPage() {
   const { id } = useParams()
   const { data, isLoading, isError } = usePlaylist(id as string)
@@ -13,79 +28,96 @@ export function PlaylistDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="px-6 py-8 sm:px-10 lg:px-16">
-        <SkeletonGrid variant="video" />
+      <main aria-busy="true" aria-label="Chargement" className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 pb-16 pt-8 md:px-8 xl:px-16">
+        <Skeleton kind="player" />
+        <Skeleton kind="video-row" />
+        <Skeleton kind="video-row" />
       </main>
     )
   }
   if (isError || !data) {
     return (
-      <div className="p-6">
-        <Link to="/" className="text-sm text-brand-purple hover:underline">
-          ← Bibliothèque
+      <main className="mx-auto w-full max-w-[1440px] px-4 pt-8 md:px-8 xl:px-16">
+        <Link to="/" className={BACK}>
+          ← Mes playlists
         </Link>
-        <p role="alert" className="mt-4 text-accent-red">
-          Playlist introuvable.
-        </p>
-      </div>
+        <PageState kind="error" title="Playlist introuvable" text="Elle a peut-être été supprimée. Tes autres playlists sont sur le tableau de bord." action={{ label: 'Retour au tableau de bord', to: '/' }} />
+      </main>
     )
   }
 
-  const unavailable = unavailableSentence(data.unavailable)
+  const playable = data.videos.filter(isPlayable)
+  const done = playable.filter((v) => v.completed).length
+  const totalSeconds = data.videos.reduce((sum, v) => sum + (v.durationSeconds || 0), 0)
+  const next = nextVideo(data.videos)
+  const channel = data.multipleChannels ? 'Plusieurs chaînes' : data.contentChannel?.title
+  const overline = [channel, `${data.videoCount} vidéo${data.videoCount > 1 ? 's' : ''}`, totalSeconds > 0 && formatTotalDuration(totalSeconds)].filter(Boolean).join(' · ')
 
   return (
-    <main className="px-6 py-8 sm:px-10 lg:px-16">
-      <Link to="/" className="text-sm text-brand-purple hover:underline">
-        ← Bibliothèque
-      </Link>
+    <div className="min-h-[calc(100vh-64px)] bg-app">
+      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 pb-16 pt-6 md:gap-8 md:px-8 md:pt-8 xl:px-16">
+        <Link to="/" className={`${BACK} self-start`}>
+          ← Mes playlists
+        </Link>
 
-      <div className="mt-4 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-content">{data.title}</h1>
-        <button
-          type="button"
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
-          className="shrink-0 rounded-card border border-line px-3 py-1.5 text-sm font-medium text-content transition hover:bg-surface-2 disabled:opacity-60"
-        >
-          {refresh.isPending ? 'Rafraîchissement…' : 'Rafraîchir'}
-        </button>
-      </div>
-      <p className="text-content-muted">
-        {data.videoCount} vidéo{data.videoCount > 1 ? 's' : ''}
-      </p>
-      {unavailable && (
-        <p role="status" className="mt-2 flex items-center gap-1.5 text-sm text-accent-red">
-          <span aria-hidden>⚠</span>
-          {unavailable}
-        </p>
-      )}
-      {refresh.isError && (
-        <p role="alert" className="mt-1 text-sm text-accent-red">
-          {(refresh.error as Error).message}
-        </p>
-      )}
+        <header className="flex flex-col gap-6 xl:flex-row xl:items-center xl:gap-8">
+          <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-yc-lg border border-white/[0.12] bg-stage xl:aspect-auto xl:h-[168px] xl:w-[300px]">
+            {data.thumbnailUrl && <img src={data.thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <p className="font-mono text-mono-12 uppercase text-content-muted">{overline}</p>
+            <h1 className="break-words font-serif text-title-34 text-content md:text-title-56">{data.title}</h1>
+            <div className="w-full xl:w-[460px]">
+              <ProgressBar done={done} total={playable.length} unit="vues" label={`Progression de ${data.title}`} />
+            </div>
+            <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap">
+              {next && (
+                <Link to={`/playlists/${data.id}/watch/${next.video.youtubeId}`} className={buttonClass('primary', 'w-full md:w-auto')}>
+                  {next.label}
+                  <Icon name="play" size={24} />
+                </Link>
+              )}
+              <button type="button" onClick={() => refresh.mutate()} disabled={refresh.isPending} className={buttonClass('secondary', 'w-full md:w-auto')}>
+                {refresh.isPending ? 'Synchronisation…' : 'Synchroniser'}
+              </button>
+              {/* Per-playlist export does not exist yet (YC-86): greyed like the tabs without a page. */}
+              <span aria-disabled="true" title={SOON} className={`${BUTTON_BASE} w-full cursor-not-allowed border border-line-strong text-content opacity-45 md:w-auto`}>
+                Exporter les notes · Bientôt
+              </span>
+            </div>
+            {refresh.isError && <InlineMessage tone="error">{(refresh.error as Error).message}</InlineMessage>}
+          </div>
+        </header>
 
-      <div className="mt-6">
-        <PlaylistNotes
-          playlistId={id as string}
-          context={{ eyebrow: `Note de playlist · ${data.videoCount} vidéo${data.videoCount > 1 ? 's' : ''}`, heading: data.title }}
-        />
-      </div>
+        <PlaylistAbout playlist={data} />
 
-      <ul className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-        {data.videos.map((v) => (
-          <li key={v.id}>
-            {isPlayable(v) ? (
-              <Link to={`/playlists/${id}/watch/${v.youtubeId}`} className="block transition hover:opacity-95">
-                <VideoCard video={v} />
-              </Link>
-            ) : (
-              // Not a link: the player could only show an error (YC-13).
-              <VideoCard video={v} />
-            )}
-          </li>
-        ))}
-      </ul>
-    </main>
+        <div className="flex flex-col gap-6 md:gap-8 xl:flex-row xl:items-start">
+          <section aria-labelledby="videos-titre" className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-yc-xl border border-line bg-surface p-2 md:p-3">
+            <div className="flex items-start justify-between px-3 py-2">
+              <h2 id="videos-titre" className="font-serif text-title-34 text-content">
+                Vidéos
+              </h2>
+              <p aria-hidden="true" className="font-mono text-mono-12 uppercase text-content-muted">
+                Durée
+              </p>
+            </div>
+            <ol className="flex flex-col gap-0.5">
+              {data.videos.map((v, i) => (
+                <PlaylistVideoRow
+                  key={v.id}
+                  video={v}
+                  number={i + 1}
+                  to={`/playlists/${data.id}/watch/${v.youtubeId}`}
+                  current={next?.video.id === v.id && !v.completed}
+                />
+              ))}
+            </ol>
+          </section>
+          <div className="w-full xl:w-[420px] xl:shrink-0">
+            <PlaylistNotes playlistId={data.id} context={{ eyebrow: `Note de playlist · ${data.videoCount} vidéo${data.videoCount > 1 ? 's' : ''}`, heading: data.title }} />
+          </div>
+        </div>
+      </main>
+    </div>
   )
 }

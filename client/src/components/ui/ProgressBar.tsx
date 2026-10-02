@@ -2,7 +2,7 @@
  * Figma « Barre de progression › Simple » 22:1425, for cards and playlists: « la légende dit ce qui
  * RESTE ». A 6 px track, the red signal for what is done, a mono caption under it.
  */
-export function ProgressBar({ done, total, label }: { done: number; total: number; label: string }) {
+export function ProgressBar({ done, total, label, unit }: { done: number; total: number; label: string; unit?: string }) {
   const value = total > 0 ? Math.min(done, total) : 0
   const pct = total > 0 ? (value / total) * 100 : 0
   const left = total - value
@@ -22,6 +22,7 @@ export function ProgressBar({ done, total, label }: { done: number; total: numbe
         <span>{left === 0 ? 'Terminée' : `${left} restante${left > 1 ? 's' : ''}`}</span>
         <span>
           {value}/{total}
+          {unit && ` ${unit}`}
         </span>
       </div>
     </div>

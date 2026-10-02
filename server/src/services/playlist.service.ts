@@ -129,6 +129,18 @@ export interface PlaylistDetail extends ImportedPlaylist {
   unavailable: UnavailableSummary
   /** Channel that owns the playlist on YouTube: the author of the creator notes (YC-14). */
   channelTitle: string | null
+  /**
+   * Whose videos these are, for the « À propos » card (YC-75): the one channel they all share, else
+   * the playlist's own when no video names one. A saved playlist belongs to the user's channel.
+   */
+  contentChannel: { title: string; avatarUrl: string | null } | null
+  /** The videos come from several channels. */
+  multipleChannels: boolean
+  privacyStatus: 'PUBLIC' | 'UNLISTED' | 'PRIVATE' | null
+  /** When the last video was added to the playlist on YouTube, if YouTube said. */
+  lastAddedAt: string | null
+  /** The playlist on YouTube; null for a playlist merged in Youcus, which exists nowhere else. */
+  youtubeUrl: string | null
 }
 
 function summarize(availabilities: Availability[]): UnavailableSummary {
@@ -217,10 +229,12 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
   const pl = await prisma.playlist.findFirst({
     where: { id, ownerId: userId },
     include: {
-      channel: { select: { title: true } },
+      channel: { select: { title: true, avatarUrl: true } },
       videos: {
         orderBy: { position: 'asc' },
-        include: { video: { include: { progress: { where: { userId } } } } },
+        include: {
+          video: { include: { progress: { where: { userId } }, channel: { select: { title: true, avatarUrl: true } } } },
+        },
       },
     },
   })
@@ -237,6 +251,10 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
     availability: availabilityOf(pv.video),
     creatorNote: pv.creatorNote,
   }))
+  const videoChannels = new Map<string, { title: string; avatarUrl: string | null }>()
+  for (const pv of pl.videos) if (pv.video.channel) videoChannels.set(pv.video.channel.title, pv.video.channel)
+  const addedDates = pl.videos.map((pv) => pv.addedAt?.getTime() ?? 0).filter((t) => t > 0)
+  const merged = pl.youtubeId.startsWith('merge:')
   return {
     id: pl.id,
     youtubeId: pl.youtubeId,
@@ -248,6 +266,12 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
     videos,
     unavailable: summarize(videos.map((v) => v.availability)),
     channelTitle: pl.channel?.title ?? null,
+    contentChannel:
+      videoChannels.size === 1 ? [...videoChannels.values()][0] : videoChannels.size === 0 ? (pl.channel ?? null) : null,
+    multipleChannels: videoChannels.size > 1,
+    privacyStatus: pl.privacyStatus ?? null,
+    lastAddedAt: addedDates.length ? new Date(Math.max(...addedDates)).toISOString() : null,
+    youtubeUrl: merged ? null : `https://www.youtube.com/playlist?list=${pl.youtubeId}`,
   }
 }
 

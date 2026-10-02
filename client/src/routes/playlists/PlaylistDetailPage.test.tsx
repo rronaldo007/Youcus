@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PlaylistDetailPage } from './PlaylistDetailPage'
@@ -53,5 +53,66 @@ describe('PlaylistDetailPage, unavailable videos (YC-13)', () => {
     })
     await screen.findByText(/Titre 0/)
     expect(screen.queryByRole('status')).toBeNull()
+  })
+})
+
+describe('PlaylistDetailPage, new design (YC-75)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const detail = {
+    videoCount: 4,
+    // The private one was seen before it went private: it no longer counts (YC-13).
+    videos: [video(0, { completed: true }), video(1, { watchedSeconds: 120 }), video(2), video(3, { availability: 'PRIVATE', completed: true })],
+    contentChannel: { title: 'JavaScript Mastery', avatarUrl: null },
+    multipleChannels: false,
+    privacyStatus: 'PUBLIC' as const,
+    lastAddedAt: '2026-09-02T10:00:00Z',
+    youtubeUrl: 'https://www.youtube.com/playlist?list=PL',
+  }
+
+  it('says whose videos, how many and how long, and what is seen', async () => {
+    renderWith(detail)
+    expect(await screen.findByText('JavaScript Mastery · 4 vidéos · 40 min')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'fullstack' })).toBeInTheDocument()
+    // Counted on the three playable videos (YC-13).
+    expect(screen.getByText('1/3 vues')).toBeInTheDocument()
+  })
+
+  it('resumes at the video started, marked in the list', async () => {
+    renderWith(detail)
+    expect(await screen.findByRole('link', { name: /Reprendre à la vidéo 2/ })).toHaveAttribute('href', '/playlists/p1/watch/y1')
+    expect(screen.getByText(/2\. Titre 1/).closest('a')).toHaveAttribute('aria-current', 'step')
+  })
+
+  it('shows only what YouTube gave: count, length, last addition, visibility, and a link to YouTube', async () => {
+    renderWith(detail)
+    const facts = await screen.findByRole('list', { name: 'En chiffres' })
+    expect(within(facts).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      '4 vidéos', '40 min au total', 'Dernier ajout le 2 sept. 2026', 'Publique',
+    ])
+    expect(screen.queryByText(/Créée le|Langue|Sujets/)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Voir sur YouTube' })).toHaveAttribute('href', 'https://www.youtube.com/playlist?list=PL')
+  })
+
+  it('a merged playlist has no link to YouTube and says « Plusieurs chaînes »', async () => {
+    renderWith({ ...detail, youtubeUrl: null, contentChannel: null, multipleChannels: true })
+    expect(await screen.findByText(/^Plusieurs chaînes · 4 vidéos/)).toBeInTheDocument()
+    expect(screen.queryByText('Voir sur YouTube')).not.toBeInTheDocument()
+  })
+
+  it('greys the per-playlist export until it exists (YC-86)', async () => {
+    renderWith(detail)
+    const exportNotes = await screen.findByText(/Exporter les notes/)
+    expect(exportNotes).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByRole('link', { name: /Exporter les notes/ })).not.toBeInTheDocument()
+  })
+
+  it('never shows a broken channel image: a disc takes its place', async () => {
+    renderWith({ ...detail, contentChannel: { title: 'JavaScript Mastery', avatarUrl: 'https://yt3.ggpht.com/x' } })
+    const name = await screen.findByText('JavaScript Mastery', { selector: 'p' })
+    const img = name.querySelector('img') as HTMLImageElement
+    expect(img).toHaveAttribute('src', 'https://yt3.ggpht.com/x')
+    fireEvent.error(img)
+    expect(name.querySelector('img')).toBeNull()
   })
 })
