@@ -75,6 +75,46 @@ describe('playlist.service (lecture / suppression)', () => {
     await expect(getPlaylist('u1', 'pX')).rejects.toMatchObject({ status: 404 })
   })
 
+  it('describes the playlist for the « À propos » card (YC-75)', async () => {
+    const ok = { status: 'AVAILABLE', embeddable: true, blockedRegions: null, progress: [], thumbnailUrl: null, durationSeconds: 60 }
+    const jsm = { title: 'JavaScript Mastery', avatarUrl: 'https://yt3/jsm.jpg' }
+    const base = {
+      id: 'p1', youtubeId: 'PLabc', title: 'fullstack', thumbnailUrl: null, description: null, privacyStatus: 'PUBLIC',
+      // Saved by the user: the playlist is on THEIR channel.
+      channel: { title: 'ronaldo rukundo', avatarUrl: null },
+    }
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      ...base,
+      videos: [
+        { position: 0, creatorNote: null, addedAt: new Date('2026-09-01T10:00:00Z'), video: { ...ok, id: 'a', youtubeId: 'ya', title: 'A', channel: jsm } },
+        { position: 1, creatorNote: null, addedAt: new Date('2026-09-02T10:00:00Z'), video: { ...ok, id: 'b', youtubeId: 'yb', title: 'B', channel: jsm } },
+        { position: 2, creatorNote: null, addedAt: null, video: { ...ok, id: 'c', youtubeId: 'yc', title: 'C', channel: null } },
+      ],
+    } as never)
+    expect(await getPlaylist('u1', 'p1')).toMatchObject({
+      channelTitle: 'ronaldo rukundo',
+      contentChannel: jsm,
+      multipleChannels: false,
+      privacyStatus: 'PUBLIC',
+      lastAddedAt: '2026-09-02T10:00:00.000Z',
+      youtubeUrl: 'https://www.youtube.com/playlist?list=PLabc',
+    })
+  })
+
+  it('a merged playlist has several channels and no page on YouTube (YC-75)', async () => {
+    const ok = { status: 'AVAILABLE', embeddable: true, blockedRegions: null, progress: [], thumbnailUrl: null, durationSeconds: 60 }
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      id: 'p2', youtubeId: 'merge:1234', title: 'Backend', thumbnailUrl: null, description: null, privacyStatus: null, channel: null,
+      videos: [
+        { position: 0, creatorNote: null, addedAt: null, video: { ...ok, id: 'a', youtubeId: 'ya', title: 'A', channel: { title: 'Fireship', avatarUrl: null } } },
+        { position: 1, creatorNote: null, addedAt: null, video: { ...ok, id: 'b', youtubeId: 'yb', title: 'B', channel: { title: 'freeCodeCamp', avatarUrl: null } } },
+      ],
+    } as never)
+    expect(await getPlaylist('u1', 'p2')).toMatchObject({
+      contentChannel: null, multipleChannels: true, privacyStatus: null, lastAddedAt: null, youtubeUrl: null,
+    })
+  })
+
   it('deletePlaylist scope par ownerId et renvoie 404 si rien supprimé', async () => {
     vi.mocked(prisma.playlist.deleteMany).mockResolvedValue({ count: 0 } as never)
     await expect(deletePlaylist('u1', 'pX')).rejects.toMatchObject({ status: 404 })

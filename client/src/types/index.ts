@@ -84,6 +84,14 @@ export interface PlaylistDetail extends Playlist {
   unavailable?: UnavailableSummary
   /** Channel that owns the playlist on YouTube, author of the creator notes (YC-14). */
   channelTitle?: string | null
+  /** Whose videos these are, for the « À propos » card (YC-75). */
+  contentChannel?: { title: string; avatarUrl: string | null } | null
+  multipleChannels?: boolean
+  privacyStatus?: 'PUBLIC' | 'UNLISTED' | 'PRIVATE' | null
+  /** When the last video was added on YouTube, if YouTube said. */
+  lastAddedAt?: string | null
+  /** Null for a playlist merged in Youcus, which exists nowhere else. */
+  youtubeUrl?: string | null
 }
 
 export type VideoStatus = 'AVAILABLE' | 'PRIVATE' | 'DELETED' | 'BLOCKED' | 'LIVE' | 'UPCOMING'

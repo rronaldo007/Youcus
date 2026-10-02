@@ -30,3 +30,14 @@ export function formatTimestamp(totalSeconds: number): string {
   const ss = (seconds % 60).toString().padStart(2, '0')
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
 }
+
+/**
+ * A playlist's total length (Figma « Fiche YouTube »: « 48 h au total »): minutes under an hour,
+ * hours and minutes under ten hours, whole hours beyond.
+ */
+export function formatTotalDuration(totalSeconds: number): string {
+  const minutes = Math.round(Math.max(0, totalSeconds) / 60)
+  if (minutes < 60) return `${minutes} min`
+  if (minutes < 600) return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
+  return `${Math.round(minutes / 60)} h`
+}
