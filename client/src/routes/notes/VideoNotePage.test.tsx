@@ -151,11 +151,9 @@ describe('VideoNotePage (YC-77)', () => {
     expect(screen.queryByRole('heading', { name: 'Notes' })).not.toBeInTheDocument()
   })
 
-  it('« Mes notes » is greyed until its page exists (YC-78)', async () => {
+  it('« ← Mes notes » leads back to every note (YC-78)', async () => {
     renderPage()
-    const back = await screen.findByText('← Mes notes · Bientôt')
-    expect(back).toHaveAttribute('aria-disabled', 'true')
-    expect(back.closest('a')).toBeNull()
+    expect(await screen.findByRole('link', { name: '← Mes notes' })).toHaveAttribute('href', '/notes')
   })
 
   it('says so when the video is not the user’s', async () => {

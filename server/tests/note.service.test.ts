@@ -2,7 +2,7 @@ import { DEFAULT_PREFERENCES } from '@/lib/notePage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import type { NoteDoc } from '@/lib/noteDoc'
-import { getPlaylistNote, getVideoNote, listPlaylistVideoNotes, savePlaylistNote, saveVideoNote } from '@/services/note.service'
+import { getPlaylistNote, getVideoNote, listNotes, listPlaylistVideoNotes, savePlaylistNote, saveVideoNote } from '@/services/note.service'
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
@@ -253,5 +253,97 @@ describe('listPlaylistVideoNotes (YC-77)', () => {
       { videoId: 'v2', markers: 0 },
       { videoId: 'v4', markers: 0 },
     ])
+  })
+})
+
+describe('listNotes (YC-78)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const line = (text: string, marker?: number) => ({
+    type: 'paragraph',
+    ...(marker === undefined ? {} : { attrs: { marker } }),
+    content: [{ type: 'text', text }],
+  })
+  const at = new Date('2026-10-02T20:00:00Z')
+
+  it('reads only the notes of THIS user, on what they can still open, the most recent first', async () => {
+    vi.mocked(prisma.note.findMany).mockResolvedValue([] as never)
+    await listNotes('u1')
+    const args = vi.mocked(prisma.note.findMany).mock.calls[0][0]
+    expect(args?.where).toEqual({
+      authorId: 'u1',
+      OR: [
+        { video: { OR: [{ playlists: { some: { playlist: { ownerId: 'u1' } } } }, { libraryEntries: { some: { userId: 'u1' } } }] } },
+        { playlist: { ownerId: 'u1' } },
+      ],
+    })
+    expect(args?.orderBy).toEqual({ updatedAt: 'desc' })
+    // The playlists of the video are THIS user's only, not those of someone else holding it.
+    expect(args?.select?.video).toMatchObject({ select: { playlists: { where: { playlist: { ownerId: 'u1' } } } } })
+  })
+
+  it('a video card: first line, three markers in time order, their count, its playlists', async () => {
+    vi.mocked(prisma.note.findMany).mockResolvedValue([
+      {
+        id: 'n1',
+        content: 'x',
+        updatedAt: at,
+        doc: { type: 'doc', content: [line(''), line('Après le rendu.'), line('d', 520), line('a', 65), line('c', 300), line('b', 120)] },
+        video: { id: 'v1', youtubeId: 'yt1', title: 'useEffect', playlists: [{ position: 3, playlist: { id: 'p1', title: 'fullstack' } }] },
+        playlist: null,
+      },
+    ] as never)
+    const { notes, totals } = await listNotes('u1')
+    expect(notes).toEqual([
+      {
+        id: 'n1',
+        kind: 'video',
+        updatedAt: at,
+        excerpt: 'Après le rendu.',
+        markers: [
+          { seconds: 65, text: 'a' },
+          { seconds: 120, text: 'b' },
+          { seconds: 300, text: 'c' },
+        ],
+        markerCount: 4,
+        video: { id: 'v1', youtubeId: 'yt1', title: 'useEffect' },
+        playlists: [{ id: 'p1', title: 'fullstack', position: 3 }],
+      },
+    ])
+    expect(totals).toEqual({ notes: 1, markers: 4, playlists: 1 })
+  })
+
+  it('a playlist note is a card too; an emptied note is none; playlists are counted once', async () => {
+    vi.mocked(prisma.note.findMany).mockResolvedValue([
+      {
+        id: 'n2',
+        content: 'Objectif',
+        updatedAt: at,
+        doc: { type: 'doc', content: [line('Objectif')] },
+        video: null,
+        playlist: { id: 'p1', title: 'fullstack', _count: { videos: 17 } },
+      },
+      { id: 'n3', content: '   ', updatedAt: at, doc: { type: 'doc', content: [] }, video: { id: 'v2', youtubeId: 'yt2', title: 'vide', playlists: [] }, playlist: null },
+      {
+        id: 'n4',
+        content: 'seule',
+        updatedAt: at,
+        doc: { type: 'doc', content: [line('seule', 10)] },
+        video: { id: 'v3', youtubeId: 'yt3', title: 'Vidéo seule', playlists: [{ position: 0, playlist: { id: 'p1', title: 'fullstack' } }, { position: 2, playlist: { id: 'p2', title: 'games' } }] },
+        playlist: null,
+      },
+    ] as never)
+    const { notes, totals } = await listNotes('u1')
+    expect(notes.map((n) => n.id)).toEqual(['n2', 'n4'])
+    expect(notes[0]).toMatchObject({ kind: 'playlist', excerpt: 'Objectif', playlist: { id: 'p1', title: 'fullstack', videoCount: 17 } })
+    expect(totals).toEqual({ notes: 2, markers: 1, playlists: 2 })
+  })
+
+  it('a note written before the rich editor (YC-40) is read from its Markdown', async () => {
+    vi.mocked(prisma.note.findMany).mockResolvedValue([
+      { id: 'n5', content: '# Titre\nla suite', updatedAt: at, doc: null, video: { id: 'v1', youtubeId: 'yt1', title: 't', playlists: [] }, playlist: null },
+    ] as never)
+    const { notes } = await listNotes('u1')
+    expect(notes[0]).toMatchObject({ excerpt: 'Titre', markerCount: 0, playlists: [] })
   })
 })

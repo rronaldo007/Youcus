@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
-import { getPlaylistNote, getVideoNote, listPlaylistVideoNotes, savePlaylistNote, saveVideoNote } from '@/services/note.service'
+import { getPlaylistNote, getVideoNote, listNotes, listPlaylistVideoNotes, savePlaylistNote, saveVideoNote } from '@/services/note.service'
 import { parseNoteDoc } from '@/lib/noteDoc'
 import { parseNotePage } from '@/lib/notePage'
 
@@ -74,5 +74,14 @@ noteRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.json(await listPlaylistVideoNotes(req.userId as string, req.params.playlistId))
+  }),
+)
+
+// Every note of the user, the most recent first, for « Mes notes » (YC-78).
+noteRouter.get(
+  '/notes',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await listNotes(req.userId as string))
   }),
 )
