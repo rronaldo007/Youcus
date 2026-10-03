@@ -27,19 +27,14 @@
 }
 
 /*
- * Changing the theme (YC-92): the day opens from the control in a circle of soft light, the night falls
- * from the top with a soft edge. Only the two pictures of the page move (view transitions); the
- * custom properties are registered so that the browser can interpolate them.
+ * Changing the theme (YC-92): the day opens from the control in a circle of soft light; the night is the
+ * same gesture played backwards, the light closing into the control (decision of Ronaldo). Only the two
+ * pictures of the page move (view transitions); the radius is registered so that it can be interpolated.
  */
 @property --yc-dawn {
   syntax: '<length>';
   inherits: false;
   initial-value: 0px;
-}
-@property --yc-dusk {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: 0%;
 }
 html[data-theme-shift] * {
   transition: none !important;
@@ -54,19 +49,16 @@ html[data-theme-shift='day']::view-transition-new(root) {
   mask-image: radial-gradient(circle at var(--yc-sun-x) var(--yc-sun-y), #000 calc(var(--yc-dawn) - var(--yc-dawn-feather)), transparent var(--yc-dawn));
   animation: yc-dawn 1200ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
-html[data-theme-shift='night']::view-transition-new(root) {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--yc-dusk) - 22%), transparent var(--yc-dusk));
-  mask-image: linear-gradient(to bottom, #000 calc(var(--yc-dusk) - 22%), transparent var(--yc-dusk));
-  animation: yc-dusk 1400ms cubic-bezier(0.45, 0, 0.25, 1) both;
+/* The night: the picture of the day stays on top and its light closes back into the control. */
+html[data-theme-shift='night']::view-transition-old(root) {
+  z-index: 1;
+  -webkit-mask-image: radial-gradient(circle at var(--yc-sun-x) var(--yc-sun-y), #000 calc(var(--yc-dawn) - var(--yc-dawn-feather)), transparent var(--yc-dawn));
+  mask-image: radial-gradient(circle at var(--yc-sun-x) var(--yc-sun-y), #000 calc(var(--yc-dawn) - var(--yc-dawn-feather)), transparent var(--yc-dawn));
+  animation: yc-dawn 1200ms cubic-bezier(0.4, 0, 0.2, 1) reverse both;
 }
 @keyframes yc-dawn {
   to {
     --yc-dawn: var(--yc-dawn-to);
-  }
-}
-@keyframes yc-dusk {
-  to {
-    --yc-dusk: 122%;
   }
 }
 
