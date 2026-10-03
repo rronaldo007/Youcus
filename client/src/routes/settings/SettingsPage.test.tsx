@@ -96,14 +96,16 @@ describe('SettingsPage', () => {
     )
   })
 
-  it('lists its sections, the first one current; « Objectif de la semaine » waits for YC-79', async () => {
+  it('lists its sections, the first one current; « Étude » holds the weekly goal since YC-79', async () => {
     renderSettings()
     const nav = await screen.findByRole('navigation', { name: 'Sections des réglages' })
     const links = within(nav).getAllByRole('link')
-    expect(links.map((l) => l.textContent)).toEqual(['Compte', 'YouTube', 'Apparence', 'Notes', 'Données'])
-    expect(links[4]).toHaveAttribute('href', '/settings#donnees')
+    expect(links.map((l) => l.textContent)).toEqual(['Compte', 'YouTube', 'Apparence', 'Notes', 'Étude', 'Données'])
+    expect(links[4]).toHaveAttribute('href', '/settings#etude')
+    expect(links[5]).toHaveAttribute('href', '/settings#donnees')
     expect(links[0]).toHaveAttribute('aria-current', 'true')
-    expect(screen.queryByText(/Objectif de la semaine/)).not.toBeInTheDocument()
+    // Where « Fixer un objectif » of the Statistiques page leads.
+    expect(screen.getByRole('heading', { name: 'Objectif de la semaine' }).closest('section')).toHaveAttribute('id', 'etude')
   })
 
   it('YouTube not connected: says so and offers to connect', async () => {

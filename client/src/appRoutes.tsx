@@ -14,6 +14,7 @@ import { SearchPage } from '@/routes/search/SearchPage'
 import { VideoNotePage } from '@/routes/notes/VideoNotePage'
 import { PlaylistNotePage } from '@/routes/notes/PlaylistNotePage'
 import { NotesPage } from '@/routes/notes/NotesPage'
+import { StatsPage } from '@/routes/stats/StatsPage'
 import { ErrorPage } from '@/routes/errors/ErrorPage'
 import { NotFoundPage } from '@/routes/errors/NotFoundPage'
 
@@ -51,6 +52,7 @@ export const routes: RouteObject[] = [
           { path: '/notes', element: <NotesPage /> },
           { path: '/notes/videos/:videoId', element: <VideoNotePage /> },
           { path: '/notes/playlists/:id', element: <PlaylistNotePage /> },
+          { path: '/statistiques', element: <StatsPage /> },
           // Any other address (Figma « Page introuvable » 98:30548).
           { path: '*', element: <NotFoundPage /> },
         ],
