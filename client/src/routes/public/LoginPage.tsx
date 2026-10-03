@@ -22,8 +22,11 @@ function BrandPanel() {
         <ThemeToggle />
       </div>
       <p className="font-serif text-[44px] leading-[42px] tracking-[-0.03em] sm:text-[72px] sm:leading-[68px] xl:text-[96px] xl:leading-[91px]">
-        <span className="block text-content">Regarde moins.</span>
-        <em className="block text-accent-text">Retiens plus.</em>
+        {/* The promise of the home page, said again as the door opens (YC-91). */}
+        <span className="block text-content motion-safe:animate-yc-enter">Regarde moins.</span>
+        <em className="block text-accent-text motion-safe:animate-yc-enter" style={{ animationDelay: '150ms' }}>
+          Retiens plus.
+        </em>
       </p>
       <p className="hidden font-mono text-mono-12 uppercase text-content-muted sm:block">
         APIs officielles YouTube · Rien n’est téléchargé
@@ -50,7 +53,10 @@ export function LoginPage() {
     <div className="flex min-h-screen flex-col bg-page xl:flex-row">
       <BrandPanel />
       <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-12 xl:pr-[max(3rem,calc((100vw_-_80rem)/2))]">
-        <div className="flex w-full max-w-[460px] flex-col gap-5 rounded-[24px] border border-line bg-surface px-6 py-8 sm:px-9 sm:py-10">
+        <div
+          className="flex w-full max-w-[460px] flex-col gap-5 rounded-[24px] border border-line bg-surface px-6 py-8 motion-safe:animate-yc-pop sm:px-9 sm:py-10"
+          style={{ animationDelay: '300ms' }}
+        >
           <h1 className="font-serif text-title-34 text-content sm:text-title-56">Ton cahier t’attend.</h1>
           <p className="text-body-16 text-content-muted">
             Une seule connexion, avec ton compte Google. Tes playlists, tes notes et ta progression te suivent partout.

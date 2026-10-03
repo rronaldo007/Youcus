@@ -30,7 +30,11 @@ function FrictionRow({ f, n }: { f: Friction; n: string }) {
         <p aria-hidden="true" className={`${enter} font-serif text-[34px] leading-9 tracking-[-0.01em] text-accent-text xl:w-16 xl:shrink-0 xl:text-title-56`}>
           {n}
         </p>
-        <div style={after(500)} className={`xl:order-last xl:w-[140px] xl:shrink-0 ${enter}`}>
+        {/* The state arrives last, with a bounce: the verdict of the row. */}
+        <div
+          style={after(550)}
+          className={`xl:order-last xl:w-[140px] xl:shrink-0 ${shown ? 'motion-safe:animate-yc-bounce-in' : 'motion-safe:opacity-0'}`}
+        >
           <State shipped={f.shipped} />
         </div>
       </div>
@@ -53,6 +57,7 @@ function FrictionRow({ f, n }: { f: Friction; n: string }) {
  */
 export function WhatWeFixPage() {
   const ads = useReveal<HTMLDivElement>()
+  const table = useReveal<HTMLDivElement>()
   return (
     <div className="min-h-screen bg-page">
       <PublicNav />
@@ -73,7 +78,11 @@ export function WhatWeFixPage() {
         </section>
 
         <section aria-label="Les six frictions" className="px-4 pb-14 md:px-8 xl:px-gutter xl:pb-24">
-          <div aria-hidden="true" className="hidden gap-10 border-b border-line-strong pb-3.5 font-mono text-mono-12 uppercase text-content-muted xl:flex">
+          {/* The rule under the heads of the table draws itself, from the number to the state. */}
+          <div ref={table.ref} aria-hidden="true" className="relative hidden gap-10 pb-3.5 font-mono text-mono-12 uppercase text-content-muted xl:flex">
+            <span
+              className={`absolute inset-x-0 bottom-0 h-px origin-left bg-line-strong ${table.shown ? 'motion-safe:animate-yc-draw-x' : 'motion-safe:scale-x-0'}`}
+            />
             <p className="w-16 shrink-0">N°</p>
             <p className="flex-1">La friction</p>
             <p className="flex-1">Notre correction</p>

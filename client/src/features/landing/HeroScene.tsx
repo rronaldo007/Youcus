@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { TimestampChip } from '@/components/ui/Timestamp'
+import { useRef, type PointerEvent } from 'react'
 import { useFitScale } from '@/features/landing/useFitScale'
+import { motionWelcome } from '@/features/landing/useReveal'
 
 const WIDTH = 600
 const HEIGHT = 520
@@ -48,66 +50,80 @@ const DISTRACTIONS = [
  */
 export function HeroScene() {
   const { ref, scale } = useFitScale<HTMLDivElement>(WIDTH)
+  // The scene leans toward the pointer, 5° at most (YC-91); a mouse only, never under reduced motion.
+  const tilt = useRef<HTMLDivElement>(null)
+  const lean = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse' || !motionWelcome() || !tilt.current) return
+    const box = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - box.left) / box.width - 0.5
+    const y = (e.clientY - box.top) / box.height - 0.5
+    tilt.current.style.transform = `perspective(700px) rotateX(${(-y * 5).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg)`
+  }
+  const rest = () => {
+    if (tilt.current) tilt.current.style.transform = ''
+  }
   return (
-    <div ref={ref} aria-hidden="true" className="w-full max-w-[600px]" style={{ height: HEIGHT * scale }}>
-      <div className="relative origin-top-left" style={{ width: WIDTH, height: HEIGHT, transform: `scale(${scale})` }}>
-        <div
-          className="absolute left-0 top-[30px] h-[315px] w-[560px] overflow-hidden rounded-yc-lg bg-stage shadow-modal motion-safe:animate-yc-pop"
-          style={{ animationDelay: '150ms' }}
-        >
-          <span className="absolute left-[258px] top-[135px] flex size-11 items-center justify-center rounded-full bg-accent text-on-accent">
-            <Icon name="play" />
-          </span>
-          <div className="absolute left-6 top-[261px] h-4 w-[512px]">
-            {CHAPTERS.map((c) => (
-              <span key={c.left} className="absolute top-1.5 h-1 rounded-sm bg-line" style={{ left: c.left, right: c.right }} />
-            ))}
-            <div
-              data-playhead=""
-              className="absolute left-0 top-0 flex h-4 w-[var(--yc-playhead-to)] items-center motion-safe:animate-yc-playhead"
-              style={{ '--yc-playhead-to': PLAYHEAD_AT, animationDelay: '450ms' } as CSSProperties}
-            >
-              <span className="-mr-2 h-1 flex-1 rounded-sm bg-accent" />
-              <span className="size-4 shrink-0 rounded-full border-2 border-[color:var(--yc-text-on-stage)] bg-stage" />
+    <div ref={ref} aria-hidden="true" onPointerMove={lean} onPointerLeave={rest} className="w-full max-w-[600px]" style={{ height: HEIGHT * scale }}>
+      <div ref={tilt} data-tilt="" className="size-full transition-transform duration-300 ease-out">
+        <div className="relative origin-top-left" style={{ width: WIDTH, height: HEIGHT, transform: `scale(${scale})` }}>
+          <div
+            className="absolute left-0 top-[30px] h-[315px] w-[560px] overflow-hidden rounded-yc-lg bg-stage shadow-modal motion-safe:animate-yc-pop"
+            style={{ animationDelay: '150ms' }}
+          >
+            <span className="absolute left-[258px] top-[135px] flex size-11 items-center justify-center rounded-full bg-accent text-on-accent">
+              <Icon name="play" />
+            </span>
+            <div className="absolute left-6 top-[261px] h-4 w-[512px]">
+              {CHAPTERS.map((c) => (
+                <span key={c.left} className="absolute top-1.5 h-1 rounded-sm bg-line" style={{ left: c.left, right: c.right }} />
+              ))}
+              <div
+                data-playhead=""
+                className="absolute left-0 top-0 flex h-4 w-[var(--yc-playhead-to)] items-center motion-safe:animate-yc-playhead"
+                style={{ '--yc-playhead-to': PLAYHEAD_AT, animationDelay: '450ms' } as CSSProperties}
+              >
+                <span className="-mr-2 h-1 flex-1 rounded-sm bg-accent" />
+                <span className="size-4 shrink-0 rounded-full border-2 border-[color:var(--yc-text-on-stage)] bg-stage" />
+              </div>
             </div>
           </div>
-        </div>
-        <div className="absolute left-[243px] top-[285px] motion-safe:animate-yc-rise" style={{ animationDelay: '300ms' }}>
-          <div className="flex w-[340px] -rotate-2 flex-col gap-3 rounded-[14px] border border-line bg-surface px-[22px] py-5 shadow-toast">
-            <p className="font-serif text-title-24 text-content">Mes notes</p>
-            {NOTES.map((n, i) => (
-              <p
-                key={n.seconds}
-                className="flex items-center gap-2.5 whitespace-nowrap text-body-15 text-content motion-safe:animate-yc-note"
-                style={{ animationDelay: `${NOTE_AT[i]}ms` }}
+          <div className="absolute left-[243px] top-[285px] motion-safe:animate-yc-rise" style={{ animationDelay: '300ms' }}>
+            <div className="flex w-[340px] -rotate-2 flex-col gap-3 rounded-[14px] border border-line bg-surface px-[22px] py-5 shadow-toast">
+              <p className="font-serif text-title-24 text-content">Mes notes</p>
+              {NOTES.map((n, i) => (
+                <p
+                  key={n.seconds}
+                  className="flex items-center gap-2.5 whitespace-nowrap text-body-15 text-content motion-safe:animate-yc-note"
+                  style={{ animationDelay: `${NOTE_AT[i]}ms` }}
+                >
+                  <TimestampChip seconds={n.seconds} />
+                  {n.text}
+                </p>
+              ))}
+            </div>
+          </div>
+          {/* They come in with the video, then leave. */}
+          <div className="absolute inset-0 motion-safe:animate-yc-pop" style={{ animationDelay: '150ms' }}>
+            {DISTRACTIONS.map((d, i) => (
+              <span
+                key={d.text}
+                data-distraction=""
+                className="absolute hidden whitespace-nowrap rounded-full border border-line bg-surface px-3.5 py-2 text-small-13 font-semibold text-content-muted shadow-toast motion-safe:block motion-safe:animate-yc-shed"
+                style={
+                  {
+                    left: d.left,
+                    top: d.top,
+                    '--yc-dx': `${d.dx}px`,
+                    '--yc-dy': `${d.dy}px`,
+                    '--yc-r': `${d.r}deg`,
+                    animationDelay: `${900 + i * 120}ms`,
+                  } as CSSProperties
+                }
               >
-                <TimestampChip seconds={n.seconds} />
-                {n.text}
-              </p>
+                {d.text}
+              </span>
             ))}
           </div>
-        </div>
-        {/* They come in with the video, then leave. */}
-        <div className="absolute inset-0 motion-safe:animate-yc-pop" style={{ animationDelay: '150ms' }}>
-          {DISTRACTIONS.map((d, i) => (
-            <span
-              key={d.text}
-              data-distraction=""
-              className="absolute hidden whitespace-nowrap rounded-full border border-line bg-surface px-3.5 py-2 text-small-13 font-semibold text-content-muted shadow-toast motion-safe:block motion-safe:animate-yc-shed"
-              style={
-                {
-                  left: d.left,
-                  top: d.top,
-                  '--yc-dx': `${d.dx}px`,
-                  '--yc-dy': `${d.dy}px`,
-                  '--yc-r': `${d.r}deg`,
-                  animationDelay: `${900 + i * 120}ms`,
-                } as CSSProperties
-              }
-            >
-              {d.text}
-            </span>
-          ))}
         </div>
       </div>
     </div>
