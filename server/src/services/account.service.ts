@@ -23,7 +23,9 @@ export interface AccountExport {
     description: string | null
     videos: { youtubeId: string; title: string; position: number }[]
   }[]
-  progress: { videoId: string; completed: boolean; watchedSeconds: number }[]
+  progress: { videoId: string; completed: boolean; watchedSeconds: number; completedAt: Date | null }[]
+  /** Seconds really played, day by day (YC-79). */
+  studyDays: { day: string; seconds: number }[]
   /** Videos kept on their own, outside any playlist (YC-61). */
   libraryVideos: { videoId: string; youtubeId: string; title: string; addedAt: Date }[]
   /** Images of the notes (YC-50): what was stored, not the files themselves. */
@@ -46,6 +48,7 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
         },
       },
       progress: true,
+      studyDays: { orderBy: { day: 'asc' } },
       notes: true,
       libraryVideos: { orderBy: { addedAt: 'asc' }, include: { video: { select: { youtubeId: true, title: true } } } },
       noteImages: { orderBy: { createdAt: 'asc' } },
@@ -78,7 +81,9 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       videoId: pr.videoId,
       completed: pr.completed,
       watchedSeconds: pr.watchedSeconds,
+      completedAt: pr.completedAt,
     })),
+    studyDays: user.studyDays.map((d) => ({ day: d.day.toISOString().slice(0, 10), seconds: d.seconds })),
     libraryVideos: user.libraryVideos.map((lv) => ({
       videoId: lv.videoId,
       youtubeId: lv.video.youtubeId,

@@ -37,7 +37,8 @@ describe('exportUserData', () => {
           videos: [{ position: 0, video: { youtubeId: 'v1', title: 'Intro' } }],
         },
       ],
-      progress: [{ videoId: 'v1', completed: true, watchedSeconds: 42 }],
+      progress: [{ videoId: 'v1', completed: true, watchedSeconds: 42, completedAt: new Date('2026-10-03T12:00:00Z') }],
+      studyDays: [{ day: new Date('2026-10-03T00:00:00Z'), seconds: 900 }],
       notes: [{ videoId: 'v1', playlistId: null, content: '# Note', updatedAt: new Date('2026-02-02') }],
       libraryVideos: [{ videoId: 'v2', addedAt: new Date('2026-10-01'), video: { youtubeId: 'yt2', title: 'Seule' } }],
       noteImages: [{ id: 'img1', key: 'notes/u1/img1.webp', name: 'schema.png', width: 800, height: 600, bytes: 42000, createdAt: new Date('2026-10-01') }],
@@ -47,7 +48,9 @@ describe('exportUserData', () => {
 
     expect(data.profile).toMatchObject({ id: 'u1', email: 'jane@example.com', youtubeConnected: true })
     expect(data.playlists[0].videos[0]).toEqual({ youtubeId: 'v1', title: 'Intro', position: 0 })
-    expect(data.progress[0]).toEqual({ videoId: 'v1', completed: true, watchedSeconds: 42 })
+    expect(data.progress[0]).toEqual({ videoId: 'v1', completed: true, watchedSeconds: 42, completedAt: new Date('2026-10-03T12:00:00Z') })
+    // The study log is personal data too (YC-79): every day, as the user's calendar day.
+    expect(data.studyDays).toEqual([{ day: '2026-10-03', seconds: 900 }])
     expect(data.notes[0].content).toBe('# Note')
     // Videos kept on their own are personal data too (YC-61).
     expect(data.libraryVideos).toEqual([{ videoId: 'v2', youtubeId: 'yt2', title: 'Seule', addedAt: new Date('2026-10-01') }])

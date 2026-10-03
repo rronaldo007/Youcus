@@ -11,7 +11,7 @@ import { CONTACT_EMAIL } from '@/lib/contact'
  * changes what it stores or where, this page changes in the same pull request.
  */
 
-const LAST_UPDATED = '30 septembre 2026'
+const LAST_UPDATED = '3 octobre 2026'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -71,7 +71,8 @@ export function PrivacyPage() {
             </li>
             <li>
               <strong className="text-content">Ce que tu crées dans Youcus</strong> : les playlists importées, tes
-              notes et ta progression de lecture.
+              notes, ta progression de lecture et ton temps d’étude : les secondes de vidéo regardées chaque jour, et
+              la date où tu marques une vidéo comme vue.
             </li>
             <li>
               <strong className="text-content">Les informations publiques des vidéos</strong> : titres, descriptions,
@@ -131,11 +132,11 @@ export function PrivacyPage() {
           <ul className="list-disc space-y-2 pl-5">
             <li>
               <strong className="text-content">Récupérer tes données</strong> : Réglages, puis « Exporter mes données ».
-              Tu reçois un fichier avec ton profil, tes playlists, tes notes et ta progression.
+              Tu reçois un fichier avec ton profil, tes playlists, tes notes, ta progression et ton temps d’étude.
             </li>
             <li>
               <strong className="text-content">Tout effacer</strong> : Réglages, puis « Supprimer mon compte ». Ton
-              compte, tes playlists, tes notes, ta progression et ton accès YouTube sont supprimés immédiatement.
+              compte, tes playlists, tes notes, ta progression, ton temps d’étude et ton accès YouTube sont supprimés immédiatement.
             </li>
             <li>
               <strong className="text-content">Retirer l’accès de Youcus à ton compte Google</strong> : dans{' '}
