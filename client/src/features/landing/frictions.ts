@@ -41,7 +41,7 @@ export const FRICTIONS: Friction[] = [
     title: 'Les vidéos de quatre heures',
     problem: 'Les chapitres existent, perdus en bas d’une description que personne n’ouvre.',
     fix: 'Une table des matières cliquable.',
-    how: 'Comment : les horodatages de la description sont lus à l’import et listés à côté du lecteur ; un clic y saute.',
+    how: 'Comment : les horodatages de la description sont lus à l’import, marqués sur la barre sous la vidéo et listés en dessous ; un clic y saute.',
     shipped: true,
   },
   {

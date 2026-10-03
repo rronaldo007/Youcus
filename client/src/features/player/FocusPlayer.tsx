@@ -105,6 +105,8 @@ interface FocusPlayerProps {
   autoplay?: boolean
   /** Shown in place of the video, at its size or taller (the end card, YC-60). */
   overlay?: ReactNode
+  /** Right under the video, inside the stage: the bar cut at the chapters (YC-88). */
+  below?: ReactNode
 }
 
 /** The language of the captions shown, null when none or unknown. */
@@ -154,6 +156,7 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
     onPlay,
     autoplay = false,
     overlay,
+    below,
   },
   ref,
 ) {
@@ -309,6 +312,7 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
         </div>
         {overlay}
       </div>
+      {below}
       {/* Inside the stage, whose rounded corners cut what touches them (seen on the note page, YC-77). */}
       <p className="px-4 pb-3 pt-2 text-xs text-content-muted">
         Youcus retire les recommandations et l'habillage qui font dériver. Les publicités, elles,

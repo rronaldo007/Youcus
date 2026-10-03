@@ -6,6 +6,7 @@ import { PlayerPanel } from '@/features/player/PlayerPanel'
 import { PlayerShell } from '@/features/player/PlayerShell'
 import { PlayerTitle } from '@/features/player/PlayerTitle'
 import { VideoChaptersOf } from '@/features/player/VideoChapters'
+import { ChapterBarOf } from '@/features/player/ChapterBar'
 import { useOnline } from '@/features/player/useOnline'
 import { FocusPlayer } from '@/features/player/FocusPlayer'
 import { EndCard } from '@/features/player/EndCard'
@@ -109,6 +110,7 @@ export function SingleVideoPage() {
         }}
         onPlay={() => setEndedAt(null)}
         autoplay={autoplay}
+        below={<ChapterBarOf videoId={video.id} currentSeconds={currentSeconds} onSeek={seek} />}
         overlay={endedAt !== null && <EndCard context={{ kind: 'single', homeTo: '/' }} seconds={endedAt} onSave={saveSentence} onReplay={replay} />}
         onTimeUpdate={setCurrentSeconds}
         rate={rate}
