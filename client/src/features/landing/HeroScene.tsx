@@ -24,9 +24,26 @@ const NOTES = [
   { seconds: 754, text: 'Les pièges à éviter' },
 ]
 
+/** When each note is written, while the playhead runs (it starts at 450 ms, for 6 s). */
+const NOTE_AT = [1500, 2900, 4300]
+
+/**
+ * What YouTube puts around a course (canvas of 29/09, YC-91): seen for a moment, then each one leaves
+ * the scene its own way. Under prefers-reduced-motion they are not drawn at all: the end of the story.
+ */
+const DISTRACTIONS = [
+  { text: 'Recommandé pour toi', left: 330, top: 0, dx: 90, dy: -80, r: 3 },
+  { text: 'Shorts', left: 10, top: 120, dx: -120, dy: -10, r: -5 },
+  { text: 'Lecture auto dans 5 s', left: 390, top: 170, dx: 130, dy: 20, r: 4 },
+  { text: '12 notifications', left: 20, top: 300, dx: -110, dy: 70, r: -3 },
+  { text: 'Tendances', left: 140, top: 8, dx: -60, dy: -110, r: -2 },
+  { text: '2,4 k commentaires', left: 30, top: 430, dx: -80, dy: 90, r: 2 },
+]
+
 /**
  * The scene of the hero (Figma « Accueil » 13:38): a video on the stage, its playhead running, and
- * a page of notes laid across it. Drawn at 600 × 520 and scaled down to its box. Decorative: the
+ * a page of notes laid across it, written while it plays; around it, the distractions of YouTube leave
+ * (YC-91). Drawn at 600 × 520 and scaled down to its box. Decorative: the
  * text of the hero says the same thing.
  */
 export function HeroScene() {
@@ -58,13 +75,39 @@ export function HeroScene() {
         <div className="absolute left-[243px] top-[285px] motion-safe:animate-yc-rise" style={{ animationDelay: '300ms' }}>
           <div className="flex w-[340px] -rotate-2 flex-col gap-3 rounded-[14px] border border-line bg-surface px-[22px] py-5 shadow-toast">
             <p className="font-serif text-title-24 text-content">Mes notes</p>
-            {NOTES.map((n) => (
-              <p key={n.seconds} className="flex items-center gap-2.5 whitespace-nowrap text-body-15 text-content">
+            {NOTES.map((n, i) => (
+              <p
+                key={n.seconds}
+                className="flex items-center gap-2.5 whitespace-nowrap text-body-15 text-content motion-safe:animate-yc-note"
+                style={{ animationDelay: `${NOTE_AT[i]}ms` }}
+              >
                 <TimestampChip seconds={n.seconds} />
                 {n.text}
               </p>
             ))}
           </div>
+        </div>
+        {/* They come in with the video, then leave. */}
+        <div className="absolute inset-0 motion-safe:animate-yc-pop" style={{ animationDelay: '150ms' }}>
+          {DISTRACTIONS.map((d, i) => (
+            <span
+              key={d.text}
+              data-distraction=""
+              className="absolute hidden whitespace-nowrap rounded-full border border-line bg-surface px-3.5 py-2 text-small-13 font-semibold text-content-muted shadow-toast motion-safe:block motion-safe:animate-yc-shed"
+              style={
+                {
+                  left: d.left,
+                  top: d.top,
+                  '--yc-dx': `${d.dx}px`,
+                  '--yc-dy': `${d.dy}px`,
+                  '--yc-r': `${d.r}deg`,
+                  animationDelay: `${900 + i * 120}ms`,
+                } as CSSProperties
+              }
+            >
+              {d.text}
+            </span>
+          ))}
         </div>
       </div>
     </div>

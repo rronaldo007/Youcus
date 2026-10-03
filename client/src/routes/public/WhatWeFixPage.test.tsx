@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
+import { expectMotionOnlyWhenWelcome } from '@/test/motion'
 import { FRICTIONS, SHIPPED_LABEL, SOON_LABEL } from '@/features/landing/frictions'
 import { WhatWeFixPage } from './WhatWeFixPage'
 
@@ -55,5 +56,10 @@ describe('WhatWeFixPage', () => {
   it('says what it does not fix: the ads, which pay the people who make the courses', () => {
     renderPage()
     expect(screen.getByRole('heading', { level: 2, name: 'Ce qu’on ne corrige pas : les publicités.' })).toBeInTheDocument()
+  })
+
+  it('moves only when motion is welcome (YC-91)', () => {
+    const { container } = renderPage()
+    expectMotionOnlyWhenWelcome(container)
   })
 })

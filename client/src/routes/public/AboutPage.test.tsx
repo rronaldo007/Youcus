@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
+import { expectMotionOnlyWhenWelcome } from '@/test/motion'
 import { AboutPage } from './AboutPage'
 
 /** YC-70: every sentence of the page was checked against the code on 02/10; the tests keep it so. */
@@ -41,5 +42,10 @@ describe('AboutPage', () => {
     renderPage()
     expect(screen.getByRole('link', { name: 'Rencontrer le créateur' })).toHaveAttribute('href', '/le-createur')
     expect(screen.queryByText(/Rencontrer le créateur · Bientôt/)).not.toBeInTheDocument()
+  })
+
+  it('moves only when motion is welcome (YC-91)', () => {
+    const { container } = renderPage()
+    expectMotionOnlyWhenWelcome(container)
   })
 })

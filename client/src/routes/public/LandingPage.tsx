@@ -6,6 +6,8 @@ import { CatalogCard } from '@/components/ui/CatalogCard'
 import { SOON } from '@/components/layout/navItems'
 import { HeroScene } from '@/features/landing/HeroScene'
 import { CATALOG_SAMPLES } from '@/features/landing/catalogSamples'
+import { after, revealClass, useReveal } from '@/features/landing/useReveal'
+import { RecClock } from '@/features/landing/CountUp'
 
 /** What Youcus takes away from YouTube, said in the band under the hero. */
 const PROMISES = ['Aucune recommandation', 'Aucun Short', 'Aucune lecture automatique', 'Des notes horodatées']
@@ -20,32 +22,48 @@ const STEPS = [
   { time: '00:03', title: 'Retiens', text: 'Chaque repère garde l’heure de la vidéo. Un clic, et tu es au passage exact.' },
 ]
 
-/** The entrances of the hero, one after the other (Figma « Mouvement »: 300 ms, ease-out, one axis). */
-const RISE = 'motion-safe:animate-yc-rise'
-const after = (ms: number) => ({ animationDelay: `${ms}ms` })
+/** The entrances of the hero, one after the other (canvas of 29/09, YC-91). */
+const RISE = 'motion-safe:animate-yc-enter'
+
+/** A card lifts under the pointer; under reduced motion it only changes its border. */
+const LIFT = 'transition-[transform,border-color] duration-200 ease-out motion-safe:hover:-translate-y-1.5 hover:border-line-strong'
 
 function Hero() {
   return (
-    <section className="flex flex-col items-start gap-10 px-4 pb-14 pt-10 md:gap-12 md:px-8 md:pb-24 md:pt-14 xl:flex-row xl:gap-16 xl:px-gutter xl:pb-24 xl:pt-[88px]">
+    // The distractions of the scene fly out of it: clipped here, never a sideways scroll on a phone.
+    <section className="flex flex-col items-start gap-10 overflow-x-clip px-4 pb-14 pt-10 md:gap-12 md:px-8 md:pb-24 md:pt-14 xl:flex-row xl:gap-16 xl:px-gutter xl:pb-24 xl:pt-[88px]">
       <div className="flex w-full min-w-0 flex-col items-start gap-7 xl:flex-1">
         <p style={after(0)} className={`font-mono text-mono-12 uppercase text-content-muted ${RISE}`}>
-          <span aria-hidden="true">● </span>REC 00:00:00 · Mode étude
+          <span aria-hidden="true" className="inline-block text-accent motion-safe:animate-yc-rec">
+            ●
+          </span>{' '}
+          REC <RecClock /> · Mode étude
         </p>
         <h1 className="flex flex-col gap-7 font-serif text-[56px] leading-[54px] tracking-[-0.03em] text-content md:text-[80px] md:leading-[76px] xl:text-[clamp(80px,7.2vw,104px)] xl:leading-[0.92]">
-          <span style={after(60)} className={`whitespace-nowrap ${RISE}`}>
+          <span style={after(120)} className={`whitespace-nowrap ${RISE}`}>
             Regarde moins.
           </span>
-          <em style={after(120)} className={`whitespace-nowrap text-accent-text ${RISE}`}>
+          <em style={after(240)} className={`whitespace-nowrap text-accent-text ${RISE}`}>
             Retiens plus.
           </em>
         </h1>
-        <p style={after(180)} className={`max-w-[640px] text-lead text-content-muted ${RISE}`}>
-          Youcus transforme tes playlists YouTube en vrai cours : un lecteur sans détour, des notes qui gardent l’heure exacte, et ta
+        <p style={after(360)} className={`max-w-[640px] text-lead text-content-muted ${RISE}`}>
+          Youcus transforme tes playlists YouTube en{' '}
+          <span className="relative z-0 whitespace-nowrap text-on-mark motion-safe:animate-yc-ink-on-mark" style={after(1300)}>
+            <span
+              aria-hidden="true"
+              className="absolute -inset-x-1 bottom-[4%] top-[12%] -z-10 origin-left bg-mark motion-safe:animate-yc-draw-x"
+              style={after(1300)}
+            />
+            vrai cours
+          </span>{' '}
+          : un lecteur sans détour, des notes qui gardent l’heure exacte, et ta
           progression, vidéo après vidéo.
         </p>
-        <div style={after(240)} className={`flex w-full flex-col gap-4 md:w-auto md:flex-row ${RISE}`}>
-          <Link to="/login" className={buttonClass('primary', 'w-full md:w-auto')}>
-            Continuer avec Google →
+        <div style={after(480)} className={`flex w-full flex-col gap-4 md:w-auto md:flex-row ${RISE}`}>
+          {/* The arrow steps forward under the pointer (YC-91). */}
+          <Link to="/login" className={buttonClass('primary', 'group w-full md:w-auto')}>
+            Continuer avec Google <span className="inline-block transition-transform duration-200 ease-out motion-safe:group-hover:translate-x-1">→</span>
           </Link>
           <Link to="/ce-qu-on-corrige" className={buttonClass('ghost', 'w-full md:w-auto')}>
             Voir ce qu’on corrige
@@ -98,6 +116,7 @@ function Band() {
  * A visitor adds one by signing in; the full catalogue is not built yet (YC-65).
  */
 function ToStudyTonight() {
+  const { ref, shown } = useReveal<HTMLUListElement>()
   return (
     <section aria-labelledby="a-etudier-titre" className="flex flex-col gap-10 px-4 pb-10 pt-14 md:px-8 md:pt-20 xl:px-gutter xl:pt-[120px]">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -111,9 +130,15 @@ function ToStudyTonight() {
           Publiés par leurs auteurs sur YouTube. Choisis-en un, Youcus en fait un cours.
         </p>
       </div>
-      <ul className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 xl:gap-8">
+      <ul ref={ref} className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 xl:gap-8">
         {CATALOG_SAMPLES.map((item, i) => (
-          <li key={item.title} className={i === CATALOG_SAMPLES.length - 1 ? 'md:col-span-2 xl:col-span-1' : undefined}>
+          <li
+            key={item.title}
+            style={after(i * 120)}
+            className={`transition-transform duration-200 ease-out motion-safe:hover:-translate-y-1.5 ${revealClass(shown)} ${
+              i === CATALOG_SAMPLES.length - 1 ? 'md:col-span-2 xl:col-span-1' : ''
+            }`}
+          >
             {/* The full-width card of a tablet keeps the 202 px of the frame instead of a 433 px thumbnail. */}
             <CatalogCard
               item={item}
@@ -131,6 +156,7 @@ function ToStudyTonight() {
 }
 
 function ThreeSteps() {
+  const { ref, shown } = useReveal<HTMLOListElement>()
   return (
     <section
       id="trois-gestes"
@@ -140,9 +166,13 @@ function ThreeSteps() {
       <h2 id="trois-gestes-titre" className="font-serif text-title-34 text-content md:text-title-56 md:tracking-[-0.01em]">
         Trois gestes. Pas un de plus.
       </h2>
-      <ol className="flex flex-col gap-6 xl:flex-row">
-        {STEPS.map((s) => (
-          <li key={s.time} className="flex min-w-0 flex-1 flex-col gap-4 rounded-yc-xl border border-line bg-surface p-8">
+      <ol ref={ref} className="flex flex-col gap-6 xl:flex-row">
+        {STEPS.map((s, i) => (
+          <li
+            key={s.time}
+            style={after(150 + i * 150)}
+            className={`flex min-w-0 flex-1 flex-col gap-4 rounded-yc-xl border border-line bg-surface p-8 ${LIFT} ${revealClass(shown)}`}
+          >
             <p className="font-mono text-[40px] font-bold leading-[44px] text-accent-text">{s.time}</p>
             <h3 className="font-serif text-title-34 text-content">{s.title}</h3>
             <p className="text-body-16 text-content-muted">{s.text}</p>

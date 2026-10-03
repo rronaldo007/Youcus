@@ -42,7 +42,8 @@ export const MILESTONES: Milestone[] = [
 ]
 
 /** 556 client and 356 server tests on 03/10/2026 (the frame said 90): « 900+ » stays true as they grow. */
-export const TESTS_LABEL = '900+'
+export const TESTS_COUNT = 900
+export const TESTS_LABEL = `${TESTS_COUNT}+`
 
 export const LINKS = {
   github: { label: 'GitHub · rronaldo007', href: 'https://github.com/rronaldo007' },
