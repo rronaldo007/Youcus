@@ -40,6 +40,7 @@ describe('PrivacyPage', () => {
     const text = container.textContent ?? ''
     expect(text).toContain('les secondes de vidéo regardées chaque jour')
     expect(text).toContain('la date où tu marques une vidéo comme vue')
+    expect(text).toContain('ton objectif de la semaine si tu en fixes un')
     expect(text).toContain('ta progression et ton temps d’étude.')
     expect(text).toContain('ton temps d’étude et ton accès YouTube sont supprimés')
   })

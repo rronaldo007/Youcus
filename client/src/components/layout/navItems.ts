@@ -21,7 +21,8 @@ export const APP_TABS: NavItem[] = [
   { label: 'Catalogue', icon: 'star' },
   // Every note, and the note pages opened from it (YC-77, YC-78).
   { label: 'Mes notes', icon: 'bookmark', to: '/notes', match: (p) => p.startsWith('/notes') },
-  { label: 'Statistiques', icon: 'gauge' },
+  // The study log, the week and the month (YC-79).
+  { label: 'Statistiques', icon: 'gauge', to: '/statistiques', match: (p) => p.startsWith('/statistiques') },
 ]
 
 /** The public site's links (Figma « Navigation publique » 87:59). */

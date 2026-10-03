@@ -16,6 +16,8 @@ export interface AccountExport {
     youtubeConnected: boolean
     /** Starting settings of new notes (YC-48); null = never set. */
     notePreferences: unknown
+    /** Minutes of study aimed at each week (YC-79); null = none. */
+    weeklyGoalMinutes: number | null
   }
   playlists: {
     youtubeId: string
@@ -66,6 +68,7 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       createdAt: user.createdAt,
       youtubeConnected: Boolean(user.ytAccessToken),
       notePreferences: user.notePreferences ?? null,
+      weeklyGoalMinutes: user.weeklyGoalMinutes,
     },
     playlists: user.playlists.map((p) => ({
       youtubeId: p.youtubeId,

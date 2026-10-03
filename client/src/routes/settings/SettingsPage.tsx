@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { useDeleteAccount, useDisconnectYouTube, useExportData } from '@/features/account/useAccount'
 import { useTheme, type ThemePreference } from '@/features/theme/useTheme'
 import { googleYoutubeConnectUrl } from '@/lib/api'
+import { StudyGoalSettings } from '@/features/stats/StudyGoalSettings'
 
 // Réglages › Notes (YC-48) brings the editor's styles and fonts: loaded only on this page.
 const NoteSettings = lazy(() => import('@/features/notes/NoteSettings'))
@@ -17,6 +18,7 @@ const SECTIONS = [
   { id: 'youtube', label: 'YouTube' },
   { id: 'apparence', label: 'Apparence' },
   { id: 'notes', label: 'Notes' },
+  { id: 'etude', label: 'Étude' },
   { id: 'donnees', label: 'Données' },
 ] as const
 
@@ -182,6 +184,11 @@ export function SettingsPage() {
                 <NoteSettings />
               </Suspense>
             </div>
+          </Card>
+
+          {/* Figma « Étude » 17:1289 (YC-79): the goal the Statistiques page measures the week against. */}
+          <Card id="etude" title="Objectif de la semaine">
+            <StudyGoalSettings />
           </Card>
 
           <Card id="donnees" title="Tes données">

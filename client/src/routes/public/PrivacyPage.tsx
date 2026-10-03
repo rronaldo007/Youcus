@@ -72,7 +72,7 @@ export function PrivacyPage() {
             <li>
               <strong className="text-content">Ce que tu crées dans Youcus</strong> : les playlists importées, tes
               notes, ta progression de lecture et ton temps d’étude : les secondes de vidéo regardées chaque jour, et
-              la date où tu marques une vidéo comme vue.
+              la date où tu marques une vidéo comme vue, et ton objectif de la semaine si tu en fixes un.
             </li>
             <li>
               <strong className="text-content">Les informations publiques des vidéos</strong> : titres, descriptions,

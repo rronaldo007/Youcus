@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { HttpError } from '@/middleware/errorHandler'
 import { parseNotePreferences, readNotePreferences } from '@/lib/notePage'
 import type { Prisma } from '@prisma/client'
+import { z } from 'zod'
 
 export const accountRouter = Router()
 
@@ -60,5 +61,32 @@ accountRouter.put(
       data: { notePreferences: parsed.preferences as unknown as Prisma.InputJsonValue },
     })
     return res.json(parsed.preferences)
+  }),
+)
+
+// Réglages › Étude (YC-79): the minutes of study aimed at each week, null for none.
+const studyGoalSchema = z.object({ minutes: z.number().int().min(15).max(6000).nullable() })
+
+accountRouter.get(
+  '/account/study-goal',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { weeklyGoalMinutes: true } })
+    return res.json({ minutes: user?.weeklyGoalMinutes ?? null })
+  }),
+)
+
+accountRouter.put(
+  '/account/study-goal',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = studyGoalSchema.safeParse(req.body)
+    if (!parsed.success) throw new HttpError(400, 'Un objectif va de 15 à 6000 minutes par semaine.')
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { weeklyGoalMinutes: parsed.data.minutes },
+      select: { weeklyGoalMinutes: true },
+    })
+    return res.json({ minutes: user.weeklyGoalMinutes })
   }),
 )

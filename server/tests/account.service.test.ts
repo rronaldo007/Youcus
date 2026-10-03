@@ -27,6 +27,7 @@ describe('exportUserData', () => {
       displayName: 'Jane',
       avatarUrl: null,
       createdAt: new Date('2026-01-01'),
+      weeklyGoalMinutes: 300,
       ytAccessToken: 'SECRET-TOKEN',
       playlists: [
         {
@@ -46,7 +47,7 @@ describe('exportUserData', () => {
 
     const data = await exportUserData('u1')
 
-    expect(data.profile).toMatchObject({ id: 'u1', email: 'jane@example.com', youtubeConnected: true })
+    expect(data.profile).toMatchObject({ id: 'u1', email: 'jane@example.com', youtubeConnected: true, weeklyGoalMinutes: 300 })
     expect(data.playlists[0].videos[0]).toEqual({ youtubeId: 'v1', title: 'Intro', position: 0 })
     expect(data.progress[0]).toEqual({ videoId: 'v1', completed: true, watchedSeconds: 42, completedAt: new Date('2026-10-03T12:00:00Z') })
     // The study log is personal data too (YC-79): every day, as the user's calendar day.
