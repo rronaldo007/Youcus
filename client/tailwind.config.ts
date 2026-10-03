@@ -6,6 +6,11 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      spacing: {
+        // The side margin of the public pages (YC-90): 80 px, then whatever keeps the content in a
+        // centred 1440 px column on a wider screen (80 + 1280 + 80), backgrounds staying full width.
+        gutter: 'max(5rem, calc((100% - 80rem) / 2))',
+      },
       colors: {
         // Design system tokens (YC-66), light and dark through CSS variables (styles/tokens.css).
         page: 'var(--yc-bg-page)',

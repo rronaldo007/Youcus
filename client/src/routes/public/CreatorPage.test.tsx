@@ -50,9 +50,10 @@ describe('CreatorPage (YC-72)', () => {
     expect(document.body.textContent).not.toMatch(/\[TON|\[TA PHOTO/)
   })
 
-  it('lit in the public navigation, and no wider than the app', () => {
+  it('lit in the public navigation, with the side margin of every public page (YC-90)', () => {
     open()
     expect(screen.getAllByRole('link', { name: 'Le créateur' })[0]).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('main')).toHaveClass('max-w-[1440px]')
+    // The width itself is measured in a browser (1920 px: 320 to 1600); jsdom has no layout.
+    for (const section of screen.getByRole('main').querySelectorAll('section')) expect(section).toHaveClass('xl:px-gutter')
   })
 })

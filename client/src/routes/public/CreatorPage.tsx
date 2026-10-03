@@ -15,9 +15,8 @@ export function CreatorPage() {
   return (
     <div className="min-h-screen bg-page">
       <PublicNav />
-      {/* As wide as the app at most (YC-90: the public pages stretched on a wide screen). */}
-      <main className="mx-auto w-full max-w-[1440px]">
-        <section className="flex flex-col gap-8 px-4 pb-10 pt-12 md:px-8 md:py-16 xl:flex-row xl:items-center xl:gap-16 xl:px-20 xl:py-24">
+      <main>
+        <section className="flex flex-col gap-8 px-4 pb-10 pt-12 md:px-8 md:py-16 xl:flex-row xl:items-center xl:gap-16 xl:px-gutter xl:py-24">
           <div className="flex min-w-0 flex-1 flex-col gap-6">
             <p className="font-mono text-mono-12 uppercase text-content-muted">Le créateur · Développeur</p>
             <h1 className="flex flex-col font-serif text-[88px] leading-[79px] tracking-[-0.03em] text-content md:text-[140px] md:leading-[124px] xl:text-[200px] xl:leading-[176px]">
@@ -44,7 +43,7 @@ export function CreatorPage() {
           </div>
         </section>
 
-        <ul aria-label="Technologies" className="flex flex-wrap gap-3 px-4 pb-16 md:px-8 xl:px-20 xl:pb-24">
+        <ul aria-label="Technologies" className="flex flex-wrap gap-3 px-4 pb-16 md:px-8 xl:px-gutter xl:pb-24">
           {STACK.map((tech) => (
             <li key={tech} className="rounded-full border border-line px-5 py-3 font-mono text-base leading-4 tracking-[0.04em] text-content">
               {tech}
@@ -52,7 +51,7 @@ export function CreatorPage() {
           ))}
         </ul>
 
-        <section aria-labelledby="journal-titre" className="flex flex-col gap-8 px-4 pb-16 md:px-8 xl:flex-row xl:gap-24 xl:px-20 xl:pb-24">
+        <section aria-labelledby="journal-titre" className="flex flex-col gap-8 px-4 pb-16 md:px-8 xl:flex-row xl:gap-24 xl:px-gutter xl:pb-24">
           <div className="flex flex-col gap-5 xl:w-[420px] xl:shrink-0">
             <h2 id="journal-titre" className="font-serif text-title-34 text-content xl:text-title-56">
               Journal de bord.
@@ -73,7 +72,7 @@ export function CreatorPage() {
           </ol>
         </section>
 
-        <div className="px-4 pb-16 md:px-8 xl:px-20 xl:pb-24">
+        <div className="px-4 pb-16 md:px-8 xl:px-gutter xl:pb-24">
           <dl className="flex flex-col gap-6 rounded-[28px] bg-surface p-7 md:flex-row md:p-14">
             {[
               { value: TESTS_LABEL, label: 'tests automatisés, serveur et client' },
@@ -88,7 +87,7 @@ export function CreatorPage() {
           </dl>
         </div>
 
-        <section aria-labelledby="contact-titre" className="flex flex-col gap-6 px-4 pb-16 md:px-8 xl:flex-row xl:items-end xl:justify-between xl:px-20 xl:pb-24">
+        <section aria-labelledby="contact-titre" className="flex flex-col gap-6 px-4 pb-16 md:px-8 xl:flex-row xl:items-end xl:justify-between xl:px-gutter xl:pb-24">
           <h2 id="contact-titre" className="flex flex-col font-serif text-[56px] leading-[56px] tracking-[-0.03em] md:text-display">
             <span className="text-content">On en parle ?</span>
             <span className="italic text-accent-text">Je suis disponible.</span>

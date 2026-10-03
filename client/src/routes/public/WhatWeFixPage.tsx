@@ -47,7 +47,7 @@ export function WhatWeFixPage() {
     <div className="min-h-screen bg-page">
       <PublicNav />
       <main>
-        <section className="flex flex-col gap-5 px-4 py-14 md:px-8 md:pb-16 md:pt-20 xl:flex-row xl:items-end xl:gap-12 xl:px-20 xl:pb-[72px] xl:pt-[120px]">
+        <section className="flex flex-col gap-5 px-4 py-14 md:px-8 md:pb-16 md:pt-20 xl:flex-row xl:items-end xl:gap-12 xl:px-gutter xl:pb-[72px] xl:pt-[120px]">
           <h1 className="flex flex-col font-serif text-[52px] leading-[55px] tracking-[-0.03em] text-content md:text-[80px] md:leading-[76px] xl:flex-1 xl:text-display">
             <span>Ce qu’on corrige,</span>
             <em className="text-accent-text">et comment.</em>
@@ -58,7 +58,7 @@ export function WhatWeFixPage() {
           </p>
         </section>
 
-        <section aria-label="Les six frictions" className="px-4 pb-14 md:px-8 xl:px-20 xl:pb-24">
+        <section aria-label="Les six frictions" className="px-4 pb-14 md:px-8 xl:px-gutter xl:pb-24">
           <div aria-hidden="true" className="hidden gap-10 border-b border-line-strong pb-3.5 font-mono text-mono-12 uppercase text-content-muted xl:flex">
             <p className="w-16 shrink-0">N°</p>
             <p className="flex-1">La friction</p>
@@ -72,7 +72,7 @@ export function WhatWeFixPage() {
           </ol>
         </section>
 
-        <section className="px-4 pb-14 md:px-8 xl:px-20 xl:pb-[120px]">
+        <section className="px-4 pb-14 md:px-8 xl:px-gutter xl:pb-[120px]">
           <div className="flex flex-col gap-4 rounded-[28px] bg-inverse px-6 py-10 text-content-inverse md:p-16">
             <h2 className="font-serif text-title-34 tracking-[-0.01em] md:text-title-56">Ce qu’on ne corrige pas : les publicités.</h2>
             <p className="text-lead">

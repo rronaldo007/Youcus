@@ -40,7 +40,7 @@ export function AboutPage() {
     <div className="min-h-screen bg-page">
       <PublicNav />
       <main>
-        <section className="flex flex-col gap-6 px-4 py-14 md:px-8 md:pb-16 md:pt-20 xl:px-20 xl:pb-24 xl:pt-[120px]">
+        <section className="flex flex-col gap-6 px-4 py-14 md:px-8 md:pb-16 md:pt-20 xl:px-gutter xl:pb-24 xl:pt-[120px]">
           <p className="font-mono text-mono-12 uppercase text-content-muted">À propos</p>
           <h1 className="font-serif text-[52px] leading-[55px] tracking-[-0.03em] md:text-[72px] md:leading-[72px] xl:text-display">
             <span className="block text-content">YouTube est la plus grande école du monde.</span>
@@ -48,7 +48,7 @@ export function AboutPage() {
           </h1>
         </section>
 
-        <section className="flex flex-col gap-6 px-4 pb-14 md:flex-row md:gap-12 md:px-8 md:pb-16 xl:gap-24 xl:px-20 xl:pb-[120px]">
+        <section className="flex flex-col gap-6 px-4 pb-14 md:flex-row md:gap-12 md:px-8 md:pb-16 xl:gap-24 xl:px-gutter xl:pb-[120px]">
           <p className="font-serif text-[26px] leading-[27px] text-content md:flex-1 xl:text-title-34">
             Les meilleurs cours du monde sont gratuits, et ils sont sur YouTube. Mais la page qui les entoure est faite pour que
             tu restes, pas pour que tu retiennes.
@@ -60,7 +60,7 @@ export function AboutPage() {
           </p>
         </section>
 
-        <section aria-labelledby="principes" className="flex flex-col gap-10 px-4 pb-14 md:px-8 md:pb-16 xl:px-20 xl:pb-[120px]">
+        <section aria-labelledby="principes" className="flex flex-col gap-10 px-4 pb-14 md:px-8 md:pb-16 xl:px-gutter xl:pb-[120px]">
           <h2 id="principes" className="font-serif text-title-34 tracking-[-0.01em] text-content xl:text-title-56">
             Quatre principes, tenus dans le code.
           </h2>
@@ -77,7 +77,7 @@ export function AboutPage() {
           </ol>
         </section>
 
-        <section aria-label="En chiffres" className="bg-inverse px-4 py-14 md:px-8 md:py-16 xl:px-20 xl:py-[72px]">
+        <section aria-label="En chiffres" className="bg-inverse px-4 py-14 md:px-8 md:py-16 xl:px-gutter xl:py-[72px]">
           <dl className="grid gap-6 md:grid-cols-2 md:gap-y-12 xl:grid-cols-4">
             {FIGURES.map((f) => (
               <div key={f.label} className="flex flex-col-reverse gap-2">
@@ -94,7 +94,7 @@ export function AboutPage() {
           </dl>
         </section>
 
-        <section className="flex flex-col gap-6 px-4 py-14 md:px-8 md:py-16 xl:flex-row xl:items-center xl:justify-between xl:px-20 xl:py-[120px]">
+        <section className="flex flex-col gap-6 px-4 py-14 md:px-8 md:py-16 xl:flex-row xl:items-center xl:justify-between xl:px-gutter xl:py-[120px]">
           <h2 className="font-serif text-title-34 tracking-[-0.01em] text-content md:text-[40px] md:leading-[44px] xl:w-[760px] xl:text-title-56">
             Un projet mené seul, du cahier des charges à la production.
           </h2>
