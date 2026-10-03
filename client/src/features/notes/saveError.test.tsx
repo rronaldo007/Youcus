@@ -2,7 +2,7 @@ import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Editor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NoteDoc } from './noteDoc'
 import { VideoNotes } from './VideoNotes'
 
@@ -30,6 +30,10 @@ async function ready() {
   await waitFor(() => expect(el).toHaveTextContent('première'))
   return (el as unknown as { editor: Editor }).editor
 }
+
+// The editor's code (lazy, YC-40) is loaded once here, not inside the first test's budget: on a
+// loaded machine its first load alone took more than the 5 s a test waits for the editor (YC-89).
+beforeAll(() => import('./NoteEditor'), 30000)
 
 /** An edit, as typing does: the autosave sends it a second later. */
 const edit = (editor: Editor, text: string) => act(() => void editor.commands.insertContentAt(editor.state.doc.content.size - 1, text))
@@ -135,6 +139,66 @@ describe('a save the server did not take (YC-62)', () => {
     const leaving = new Event('beforeunload', { cancelable: true })
     window.dispatchEvent(leaving)
     expect(leaving.defaultPrevented).toBe(true)
+  })
+})
+
+describe('a note still loading (YC-89)', () => {
+  let puts: unknown[]
+  beforeEach(() => {
+    puts = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          puts.push(JSON.parse(init.body as string))
+          return new Response(JSON.stringify({ doc: { type: 'doc', content: [] }, updatedAt: 'x' }), { status: 200 })
+        }
+        // A slow network: the editor is there long before the note.
+        await new Promise((r) => setTimeout(r, 1500))
+        return new Response(JSON.stringify({ doc: { type: 'doc', content: [para('première ligne')] }, page: null, updatedAt: '2026-10-01T15:04:00Z' }), { status: 200 })
+      }),
+    )
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('is never written while it loads, and leaving asks nothing', async () => {
+    // The editor's code is already loaded, as on any page after the first one.
+    await import('./NoteEditor')
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <VideoNotes videoId="v1" />
+      </QueryClientProvider>,
+    )
+    const el = await screen.findByRole('textbox', { name: 'Note de la vidéo' })
+    // Before: the empty editor counted as an edit and its autosave wrote an empty note over the
+    // stored one, a second later, while the note was still on its way.
+    await new Promise((r) => setTimeout(r, 1100))
+    expect(el).not.toHaveTextContent('première')
+    expect(puts).toHaveLength(0)
+    const leaving = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(leaving)
+    expect(leaving.defaultPrevented).toBe(false)
+    await waitFor(() => expect(el).toHaveTextContent('première'), { timeout: 3000 })
+    await new Promise((r) => setTimeout(r, 1100))
+    expect(puts).toHaveLength(0)
+  })
+
+  it('a change that lands while the next video loads is never written to it', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const view = (videoId: string) => (
+      <QueryClientProvider client={client}>
+        <VideoNotes videoId={videoId} />
+      </QueryClientProvider>
+    )
+    const { rerender } = render(view('v1'))
+    const el = await screen.findByRole('textbox', { name: 'Note de la vidéo' })
+    await waitFor(() => expect(el).toHaveTextContent('première'), { timeout: 3000 })
+    // « Lire la suivante »: same editor, the next note is on its way; an image sent before lands now.
+    rerender(view('v2'))
+    const editor = (el as unknown as { editor: Editor }).editor
+    act(() => void editor.commands.insertContentAt(editor.state.doc.content.size, para('image arrivée')))
+    await new Promise((r) => setTimeout(r, 1100))
+    expect(puts).toHaveLength(0)
   })
 })
 

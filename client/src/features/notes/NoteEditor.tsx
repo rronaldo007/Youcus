@@ -332,11 +332,19 @@ export function NoteEditor({
   const slashActions = useRef<SlashActions>({ image: () => imageInput.current?.click(), link: () => setLinkOpen(true) })
   const extensions = useMemo(() => buildExtensions(openLink, addMarker, seek, onImageFiles, slashActions), [])
 
+  // Nothing is a draft before the note of THIS target is in the editor (YC-89): while it loads, the
+  // empty editor gets a paragraph from a plugin, TipTap calls that an update, and its autosave
+  // wrote an empty note over the stored one when the note took more than a second to come.
+  const target = useRef(resetKey)
+  target.current = resetKey
   const editor = useEditor({
     extensions,
     content: EMPTY_DOC,
     editorProps: { attributes: { 'aria-label': editorLabel, 'aria-multiline': 'true', role: 'textbox' } },
-    onUpdate: ({ editor }) => setDraft(editor.getJSON() as NoteDoc),
+    onUpdate: ({ editor }) => {
+      if (seeded.current?.editor !== editor || seeded.current.key !== target.current) return
+      setDraft(editor.getJSON() as NoteDoc)
+    },
   })
 
   liveEditor.current = editor
