@@ -26,7 +26,7 @@ const after = (ms: number) => ({ animationDelay: `${ms}ms` })
 
 function Hero() {
   return (
-    <section className="flex flex-col items-start gap-10 px-4 pb-14 pt-10 md:gap-12 md:px-8 md:pb-24 md:pt-14 xl:flex-row xl:gap-16 xl:px-20 xl:pb-24 xl:pt-[88px]">
+    <section className="flex flex-col items-start gap-10 px-4 pb-14 pt-10 md:gap-12 md:px-8 md:pb-24 md:pt-14 xl:flex-row xl:gap-16 xl:px-gutter xl:pb-24 xl:pt-[88px]">
       <div className="flex w-full min-w-0 flex-col items-start gap-7 xl:flex-1">
         <p style={after(0)} className={`font-mono text-mono-12 uppercase text-content-muted ${RISE}`}>
           <span aria-hidden="true">● </span>REC 00:00:00 · Mode étude
@@ -99,7 +99,7 @@ function Band() {
  */
 function ToStudyTonight() {
   return (
-    <section aria-labelledby="a-etudier-titre" className="flex flex-col gap-10 px-4 pb-10 pt-14 md:px-8 md:pt-20 xl:px-20 xl:pt-[120px]">
+    <section aria-labelledby="a-etudier-titre" className="flex flex-col gap-10 px-4 pb-10 pt-14 md:px-8 md:pt-20 xl:px-gutter xl:pt-[120px]">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex flex-col gap-3">
           <p className="font-mono text-mono-12 uppercase text-content-muted">À étudier ce soir</p>
@@ -135,7 +135,7 @@ function ThreeSteps() {
     <section
       id="trois-gestes"
       aria-labelledby="trois-gestes-titre"
-      className="flex scroll-mt-4 flex-col gap-10 px-4 py-14 md:px-8 md:py-20 xl:px-20 xl:py-[120px]"
+      className="flex scroll-mt-4 flex-col gap-10 px-4 py-14 md:px-8 md:py-20 xl:px-gutter xl:py-[120px]"
     >
       <h2 id="trois-gestes-titre" className="font-serif text-title-34 text-content md:text-title-56 md:tracking-[-0.01em]">
         Trois gestes. Pas un de plus.

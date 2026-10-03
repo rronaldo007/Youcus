@@ -9,10 +9,12 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 /**
  * The brand half (Figma « Marque »): always dark, whatever the theme, so it carries the `dark` class
  * and the tokens resolve to their dark values inside it.
+ * On a wide screen its text starts where the other public pages start (YC-90), the dark half still
+ * reaching the edge.
  */
 function BrandPanel() {
   return (
-    <div className="dark flex flex-col bg-page px-5 py-8 sm:p-16 xl:min-h-screen xl:flex-1 xl:justify-between">
+    <div className="dark flex flex-col bg-page px-5 py-8 sm:p-16 xl:min-h-screen xl:flex-1 xl:justify-between xl:pl-[max(4rem,calc((100vw_-_80rem)/2))]">
       <div className="flex items-center justify-between gap-4">
         <Link to="/" aria-label="Youcus, accueil" className="flex shrink-0 items-center rounded-yc-sm">
           <Logo size="public" />
@@ -47,7 +49,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col bg-page xl:flex-row">
       <BrandPanel />
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-12">
+      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-12 xl:pr-[max(3rem,calc((100vw_-_80rem)/2))]">
         <div className="flex w-full max-w-[460px] flex-col gap-5 rounded-[24px] border border-line bg-surface px-6 py-8 sm:px-9 sm:py-10">
           <h1 className="font-serif text-title-34 text-content sm:text-title-56">Ton cahier t’attend.</h1>
           <p className="text-body-16 text-content-muted">

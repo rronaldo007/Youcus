@@ -12,7 +12,7 @@ import { PUBLIC_LINKS, SOON } from '@/components/layout/navItems'
 export function PublicNav() {
   const { pathname } = useLocation()
   return (
-    <header className="flex h-16 items-center justify-between gap-10 border-b border-line px-4 sm:h-[88px] sm:px-8 xl:justify-start xl:px-20">
+    <header className="flex h-16 items-center justify-between gap-10 border-b border-line px-4 sm:h-[88px] sm:px-8 xl:justify-start xl:px-gutter">
       <Link to="/" aria-label="Youcus, accueil" className="flex h-11 shrink-0 items-center rounded-yc-sm">
         <Logo size="public" />
       </Link>
