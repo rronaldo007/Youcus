@@ -8,6 +8,7 @@ import { videoRouter } from '@/routes/video.route'
 import { libraryRouter } from '@/routes/library.route'
 import { noteImageRouter } from '@/routes/noteImage.route'
 import { searchRouter } from '@/routes/search.route'
+import { studyRouter } from '@/routes/study.route'
 
 export const apiRouter = Router()
 
@@ -20,3 +21,4 @@ apiRouter.use(videoRouter)
 apiRouter.use(libraryRouter)
 apiRouter.use(noteImageRouter)
 apiRouter.use(searchRouter)
+apiRouter.use(studyRouter)

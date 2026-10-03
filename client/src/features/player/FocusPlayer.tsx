@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, type ReactNode } from 'react'
+import { STUDY_REPORT_SECONDS, reportStudySeconds } from './studyLog'
 
 // Types minimaux de la YouTube IFrame Player API.
 interface YTPlayer {
@@ -233,6 +234,13 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
     let interval: ReturnType<typeof setInterval> | undefined
 
     let ticks = 0
+    // Seconds really played since the last report (YC-79): counted by the clock while it plays, so a
+    // seek adds nothing and a video at 2× counts the time spent, not the minutes of video.
+    let played = 0
+    const reportPlayed = () => {
+      if (played > 0) reportStudySeconds(played)
+      played = 0
+    }
 
     const report = () => {
       const t = Math.floor(player?.getCurrentTime() ?? 0)
@@ -243,6 +251,8 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
       onTimeUpdateRef.current?.(player?.getCurrentTime() ?? 0)
       ticks += 1
       if (ticks % 5 === 0) report()
+      played += 1
+      if (played >= STUDY_REPORT_SECONDS) reportPlayed()
     }
 
     loadYouTubeApi().then(() => {
@@ -285,6 +295,7 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
               interval = undefined
               onTimeUpdateRef.current?.(player?.getCurrentTime() ?? 0)
               report()
+              reportPlayed()
               if (e.data === YT.PlayerState.ENDED) onEndedRef.current?.()
             }
           },
@@ -295,6 +306,7 @@ export const FocusPlayer = forwardRef<FocusPlayerHandle, FocusPlayerProps>(funct
     return () => {
       cancelled = true
       if (interval) clearInterval(interval)
+      reportPlayed()
       player?.destroy()
       playerRef.current = null
     }

@@ -34,6 +34,13 @@ export async function setProgress(userId: string, input: SetProgressInput): Prom
   })
   if (!video) throw new HttpError(404, 'Vidéo introuvable')
 
+  // The day it became seen (YC-79), kept while it stays seen, gone when it is unmarked.
+  const before =
+    input.completed === true
+      ? await prisma.progress.findUnique({ where: { userId_videoId: { userId, videoId: input.videoId } }, select: { completed: true } })
+      : null
+  const completedAt = input.completed === undefined || before?.completed ? {} : { completedAt: input.completed ? new Date() : null }
+
   const progress = await prisma.progress.upsert({
     where: { userId_videoId: { userId, videoId: input.videoId } },
     create: {
@@ -41,10 +48,12 @@ export async function setProgress(userId: string, input: SetProgressInput): Prom
       videoId: input.videoId,
       completed: input.completed ?? false,
       watchedSeconds: input.watchedSeconds ?? 0,
+      ...completedAt,
     },
     update: {
       ...(input.completed !== undefined ? { completed: input.completed } : {}),
       ...(input.watchedSeconds !== undefined ? { watchedSeconds: input.watchedSeconds } : {}),
+      ...completedAt,
     },
   })
 

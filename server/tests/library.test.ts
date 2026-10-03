@@ -19,7 +19,7 @@ const tx = vi.hoisted(() => ({
 const db = vi.hoisted(() => ({
   libraryVideo: { findMany: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn() },
   video: { findFirst: vi.fn() },
-  progress: { upsert: vi.fn() },
+  progress: { upsert: vi.fn(), findUnique: vi.fn() },
   $transaction: vi.fn(),
 }))
 vi.mock('@/lib/prisma', () => ({ prisma: db }))

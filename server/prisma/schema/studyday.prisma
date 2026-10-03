@@ -1,0 +1,12 @@
+// The time a user really played videos, day by day (YC-79): seconds of playback counted by the
+// player while it plays (a seek adds nothing), on the user's own calendar day. The only history of
+// study the app keeps: Progress holds the last position of each video, not when it was watched.
+model StudyDay {
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  // The calendar day where the user is (sent by the client), not the server's UTC day.
+  day     DateTime @db.Date
+  seconds Int      @default(0)
+
+  @@id([userId, day])
+}
