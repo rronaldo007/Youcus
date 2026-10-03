@@ -102,4 +102,24 @@ describe('FocusPlayerPage, new design (YC-76)', () => {
     fireEvent(window, new Event('online'))
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Pas de réseau' })).not.toBeInTheDocument())
   })
+
+  it('a video with chapters: the bar cut at them, in the stage, right under the video (YC-88)', async () => {
+    const detail = {
+      id: 'v1', youtubeId: 'yt1xxxxxx', title: 'Vidéo 1', thumbnailUrl: null, durationSeconds: 600, description: null,
+      publishedAt: null, categoryId: null, viewCount: null, likeCount: null, status: 'AVAILABLE', embeddable: true,
+      blockedRegions: null, topics: null, hasPaidPromotion: false, definition: null, hasCaptions: false, syncedAt: null,
+      channel: null, chapters: [{ position: 0, startSeconds: 0, title: 'Intro' }, { position: 1, startSeconds: 240, title: 'Le cœur' }],
+    }
+    const base = vi.mocked(fetch).getMockImplementation() as (url: string) => Promise<Response>
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url.endsWith('/videos/v1') ? new Response(JSON.stringify(detail), { status: 200 }) : base(url))))
+    renderPlayer('yt1xxxxxx')
+    const slider = await screen.findByRole('slider', { name: 'Position dans la vidéo' })
+    expect(slider.querySelectorAll('[data-chapter-segment]')).toHaveLength(2)
+    // Inside the stage, after the video and before the note on ads; YouTube keeps its own bar.
+    const stage = slider.closest('.bg-stage') as HTMLElement
+    expect(stage).not.toBeNull()
+    const video = stage.querySelector('[title="Vidéo 1"]') as HTMLElement
+    expect(video.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(stage.textContent).toMatch(/00:00 · Intro.*10:00.*Youcus retire les recommandations/)
+  })
 })

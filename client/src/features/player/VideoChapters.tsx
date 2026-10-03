@@ -40,8 +40,9 @@ export function VideoChapters({
       <h2 id="chapitres-titre" className="sr-only">
         Chapitres ({chapters.length})
       </h2>
-      {/* Three rows show, like the frame; the others scroll, and the list follows the playback. */}
-      <ol ref={listRef} className="relative flex max-h-[140px] flex-col gap-0.5 overflow-y-auto">
+      {/* Seven rows show (three in the frame: too few, Ronaldo 03/10, YC-88); the others scroll, and the
+          list follows the playback. */}
+      <ol ref={listRef} className="relative flex max-h-[320px] flex-col gap-0.5 overflow-y-auto">
         {chapters.map((chapter, i) => {
           const isCurrent = i === current
           const isPast = current >= 0 && i < current

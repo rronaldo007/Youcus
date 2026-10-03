@@ -73,6 +73,16 @@ describe('SingleVideoPage (YC-61)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('n’est pas dans ta bibliothèque')
   })
 
+  it('a video with chapters: the bar cut at them, under the video (YC-88)', async () => {
+    const detail = { id: 'v1', youtubeId: ID, title: 'Comprendre useEffect', durationSeconds: 612, chapters: [{ position: 0, startSeconds: 0, title: 'Intro' }, { position: 1, startSeconds: 245, title: 'Les dépendances' }] }
+    const base = vi.mocked(fetch).getMockImplementation() as (url: string, init?: RequestInit) => Promise<Response>
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => (url.endsWith('/videos/v1') ? new Response(JSON.stringify(detail), { status: 200 }) : base(url, init))))
+    renderPage()
+    const slider = await screen.findByRole('slider', { name: 'Position dans la vidéo' })
+    expect(slider.querySelectorAll('[data-chapter-segment]')).toHaveLength(2)
+    expect(slider).toHaveAttribute('aria-valuemax', '612')
+  })
+
   it('plays the video, with its title, the study controls and its note', async () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: 'Comprendre useEffect' })).toBeInTheDocument()
