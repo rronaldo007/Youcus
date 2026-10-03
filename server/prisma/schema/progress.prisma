@@ -2,6 +2,9 @@ model Progress {
   id             String   @id @default(cuid())
   watchedSeconds Int      @default(0)
   completed      Boolean  @default(false)
+  // When the video was marked seen (YC-79): « vidéos terminées cette semaine ». Null before YC-79
+  // and when it is unmarked.
+  completedAt    DateTime?
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId         String
   // Décision CS-70 (25/07) : progression GLOBALE par vidéo — vue dans une playlist = vue partout.
