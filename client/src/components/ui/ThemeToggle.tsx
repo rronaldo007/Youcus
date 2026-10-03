@@ -1,9 +1,10 @@
 import { IconButton } from '@/components/ui/IconButton'
 import { useTheme } from '@/features/theme/useTheme'
+import { originOf } from '@/features/theme/themeShift'
 
 /** Bouton de bascule du thème clair/sombre, dans la barre : la lune en clair, le soleil en sombre. */
 export function ThemeToggle() {
   const { theme, toggle } = useTheme()
   const isDark = theme === 'dark'
-  return <IconButton icon={isDark ? 'sun' : 'moon'} label={isDark ? 'Activer le thème clair' : 'Activer le thème sombre'} onClick={toggle} />
+  return <IconButton icon={isDark ? 'sun' : 'moon'} label={isDark ? 'Activer le thème clair' : 'Activer le thème sombre'} onClick={(e) => toggle(originOf(e.currentTarget))} />
 }

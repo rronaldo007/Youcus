@@ -26,6 +26,50 @@
   --yc-content-muted: var(--yc-text-muted);
 }
 
+/*
+ * Changing the theme (YC-92): the day opens from the control in a circle of soft light, the night falls
+ * from the top with a soft edge. Only the two pictures of the page move (view transitions); the
+ * custom properties are registered so that the browser can interpolate them.
+ */
+@property --yc-dawn {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --yc-dusk {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+html[data-theme-shift] * {
+  transition: none !important;
+}
+html[data-theme-shift]::view-transition-old(root),
+html[data-theme-shift]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html[data-theme-shift='day']::view-transition-new(root) {
+  -webkit-mask-image: radial-gradient(circle at var(--yc-sun-x) var(--yc-sun-y), #000 calc(var(--yc-dawn) - var(--yc-dawn-feather)), transparent var(--yc-dawn));
+  mask-image: radial-gradient(circle at var(--yc-sun-x) var(--yc-sun-y), #000 calc(var(--yc-dawn) - var(--yc-dawn-feather)), transparent var(--yc-dawn));
+  animation: yc-dawn 1200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+html[data-theme-shift='night']::view-transition-new(root) {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--yc-dusk) - 22%), transparent var(--yc-dusk));
+  mask-image: linear-gradient(to bottom, #000 calc(var(--yc-dusk) - 22%), transparent var(--yc-dusk));
+  animation: yc-dusk 1400ms cubic-bezier(0.45, 0, 0.25, 1) both;
+}
+@keyframes yc-dawn {
+  to {
+    --yc-dawn: var(--yc-dawn-to);
+  }
+}
+@keyframes yc-dusk {
+  to {
+    --yc-dusk: 122%;
+  }
+}
+
 body {
   background-color: var(--yc-bg-page);
   color: var(--yc-text-primary);

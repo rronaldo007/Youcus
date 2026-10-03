@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/Icon'
 import { useTheme, type ThemePreference } from '@/features/theme/useTheme'
+import { originOf } from '@/features/theme/themeShift'
 
 const OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'light', label: 'Clair' },
@@ -25,7 +26,7 @@ export function ThemeChoice() {
               type="button"
               role="radio"
               aria-checked={active}
-              onClick={() => setPreference(o.value)}
+              onClick={(e) => setPreference(o.value, originOf(e.currentTarget))}
               className={`flex min-h-[38px] min-w-0 flex-1 items-center justify-center rounded-full px-3 text-label-14 font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus ${
                 active ? 'bg-inverse text-content-inverse' : 'text-content hover:bg-sunken'
               }`}
