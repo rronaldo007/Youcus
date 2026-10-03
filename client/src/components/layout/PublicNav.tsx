@@ -11,8 +11,9 @@ import { PUBLIC_LINKS, SOON } from '@/components/layout/navItems'
  */
 export function PublicNav() {
   const { pathname } = useLocation()
+  // Full width, as the bar of the app; the content under it keeps the 1440 px column (Ronaldo, 03/10, YC-90).
   return (
-    <header className="flex h-16 items-center justify-between gap-10 border-b border-line px-4 sm:h-[88px] sm:px-8 xl:justify-start xl:px-gutter">
+    <header className="flex h-16 items-center justify-between gap-10 border-b border-line px-4 sm:h-[88px] sm:px-8 xl:justify-start xl:px-20">
       <Link to="/" aria-label="Youcus, accueil" className="flex h-11 shrink-0 items-center rounded-yc-sm">
         <Logo size="public" />
       </Link>
