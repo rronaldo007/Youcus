@@ -10,6 +10,7 @@ import { SettingsPage } from '@/routes/settings/SettingsPage'
 import { PrivacyPage } from '@/routes/public/PrivacyPage'
 import { WhatWeFixPage } from '@/routes/public/WhatWeFixPage'
 import { AboutPage } from '@/routes/public/AboutPage'
+import { CreatorPage } from '@/routes/public/CreatorPage'
 import { SearchPage } from '@/routes/search/SearchPage'
 import { VideoNotePage } from '@/routes/notes/VideoNotePage'
 import { PlaylistNotePage } from '@/routes/notes/PlaylistNotePage'
@@ -34,6 +35,7 @@ export const routes: RouteObject[] = [
           { path: '/confidentialite', element: <PrivacyPage /> },
           { path: '/ce-qu-on-corrige', element: <WhatWeFixPage /> },
           { path: '/a-propos', element: <AboutPage /> },
+          { path: '/le-createur', element: <CreatorPage /> },
           { path: '/settings', element: <SettingsPage /> },
           // The window over the dashboard, as Figma « Import » 17:2025 draws it (YC-81).
           {

@@ -37,11 +37,9 @@ describe('AboutPage', () => {
     expect(within(figures).getByText('lecture automatique')).toBeInTheDocument()
   })
 
-  it('greys « Rencontrer le créateur » until its page exists (YC-72)', () => {
+  it('« Rencontrer le créateur » leads to his page (YC-72)', () => {
     renderPage()
-    const cta = screen.getByText(/Rencontrer le créateur/)
-    expect(cta).toHaveAttribute('aria-disabled', 'true')
-    expect(cta).toHaveTextContent('Bientôt')
-    expect(screen.queryByRole('link', { name: /Rencontrer le créateur/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Rencontrer le créateur' })).toHaveAttribute('href', '/le-createur')
+    expect(screen.queryByText(/Rencontrer le créateur · Bientôt/)).not.toBeInTheDocument()
   })
 })
