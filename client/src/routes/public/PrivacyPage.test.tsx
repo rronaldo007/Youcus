@@ -35,6 +35,15 @@ describe('PrivacyPage', () => {
     expect(text).toContain('10 minutes')
   })
 
+  it('says the study time is kept, exported and deleted with the account (YC-79)', () => {
+    const { container } = render(<PrivacyPage />)
+    const text = container.textContent ?? ''
+    expect(text).toContain('les secondes de vidéo regardées chaque jour')
+    expect(text).toContain('la date où tu marques une vidéo comme vue')
+    expect(text).toContain('ta progression et ton temps d’étude.')
+    expect(text).toContain('ton temps d’étude et ton accès YouTube sont supprimés')
+  })
+
   it('links to the Google policy and to revoking access in the Google account', () => {
     render(<PrivacyPage />)
     expect(screen.getByRole('link', { name: 'Google API Services User Data Policy' })).toHaveAttribute(
