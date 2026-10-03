@@ -20,11 +20,17 @@ export interface CatalogItem {
  */
 export function CatalogCard({ item, addTo, thumbClassName = 'aspect-video' }: { item: CatalogItem; addTo: string; thumbClassName?: string }) {
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-yc-lg border border-line bg-surface">
+    <article className="group flex h-full flex-col overflow-hidden rounded-yc-lg border border-line bg-surface">
       {/* 16:9 by default: a real YouTube thumbnail carries text, and a fixed height would crop it. */}
       <div className={`relative shrink-0 bg-stage ${thumbClassName}`}>
-        <img src={item.thumbnailUrl} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-        <span aria-hidden="true" className="absolute left-1/2 top-1/2 flex size-[52px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent text-on-accent">
+        {/* The course comes closer under the pointer (YC-91). */}
+        <img
+          src={item.thumbnailUrl}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 size-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover:scale-105"
+        />
+        <span aria-hidden="true" className="absolute left-1/2 top-1/2 flex size-[52px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent text-on-accent transition-transform duration-300 ease-out motion-safe:group-hover:scale-110">
           <Icon name="play" />
         </span>
         <span className="absolute left-3 top-3">

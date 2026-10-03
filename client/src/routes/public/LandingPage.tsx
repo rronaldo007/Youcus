@@ -8,6 +8,7 @@ import { HeroScene } from '@/features/landing/HeroScene'
 import { CATALOG_SAMPLES } from '@/features/landing/catalogSamples'
 import { after, revealClass, useReveal } from '@/features/landing/useReveal'
 import { RecClock } from '@/features/landing/CountUp'
+import { Reveal } from '@/features/landing/Reveal'
 
 /** What Youcus takes away from YouTube, said in the band under the hero. */
 const PROMISES = ['Aucune recommandation', 'Aucun Short', 'Aucune lecture automatique', 'Des notes horodatées']
@@ -96,10 +97,10 @@ function Band() {
         ))}
       </ul>
       <div aria-hidden="true" className="font-serif text-[34px] italic leading-10 tracking-[-0.03em] text-content-inverse">
-        {/* Computer: one line, as drawn. */}
-        <div className="hidden gap-10 whitespace-nowrap px-20 xl:flex">{line('wide')}</div>
-        {/* Narrower: twice the line, sliding by half, so it never ends. */}
-        <div className="flex w-max gap-10 whitespace-nowrap pl-4 motion-safe:animate-yc-marquee motion-reduce:hidden xl:hidden">
+        {/* Under reduced motion on a computer: one line, as drawn. */}
+        <div className="hidden gap-10 whitespace-nowrap px-20 xl:motion-reduce:flex">{line('wide')}</div>
+        {/* Elsewhere: twice the line, sliding by half, so it never ends; it waits under the pointer (YC-91). */}
+        <div className="flex w-max gap-10 whitespace-nowrap pl-4 hover:[animation-play-state:paused] motion-safe:animate-yc-marquee motion-reduce:hidden">
           {line('a')}
           <span className="not-italic text-[color:var(--yc-text-accent-on-inverse)]">●</span>
           {line('b')}
@@ -119,7 +120,7 @@ function ToStudyTonight() {
   const { ref, shown } = useReveal<HTMLUListElement>()
   return (
     <section aria-labelledby="a-etudier-titre" className="flex flex-col gap-10 px-4 pb-10 pt-14 md:px-8 md:pt-20 xl:px-gutter xl:pt-[120px]">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <Reveal className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex flex-col gap-3">
           <p className="font-mono text-mono-12 uppercase text-content-muted">À étudier ce soir</p>
           <h2 id="a-etudier-titre" className="font-serif text-title-34 text-content md:text-title-56 md:tracking-[-0.01em]">
@@ -129,7 +130,7 @@ function ToStudyTonight() {
         <p className="max-w-[380px] text-body-16 text-content-muted">
           Publiés par leurs auteurs sur YouTube. Choisis-en un, Youcus en fait un cours.
         </p>
-      </div>
+      </Reveal>
       <ul ref={ref} className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 xl:gap-8">
         {CATALOG_SAMPLES.map((item, i) => (
           <li
@@ -163,9 +164,11 @@ function ThreeSteps() {
       aria-labelledby="trois-gestes-titre"
       className="flex scroll-mt-4 flex-col gap-10 px-4 py-14 md:px-8 md:py-20 xl:px-gutter xl:py-[120px]"
     >
-      <h2 id="trois-gestes-titre" className="font-serif text-title-34 text-content md:text-title-56 md:tracking-[-0.01em]">
-        Trois gestes. Pas un de plus.
-      </h2>
+      <Reveal>
+        <h2 id="trois-gestes-titre" className="font-serif text-title-34 text-content md:text-title-56 md:tracking-[-0.01em]">
+          Trois gestes. Pas un de plus.
+        </h2>
+      </Reveal>
       <ol ref={ref} className="flex flex-col gap-6 xl:flex-row">
         {STEPS.map((s, i) => (
           <li

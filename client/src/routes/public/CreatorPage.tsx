@@ -81,7 +81,8 @@ export function CreatorPage() {
               height={800}
               className="absolute left-8 top-8 size-[272px] rounded-full md:left-10 md:top-10 md:size-[340px]"
             />
-            <p className="absolute left-[120px] top-[300px] -rotate-6 whitespace-nowrap rounded-full bg-mark px-3 py-2 text-label-14 font-semibold text-on-mark md:left-[150px] md:top-[346px] md:px-4 md:py-2.5">
+            {/* It floats a little: an offer that is open. */}
+            <p className="absolute left-[120px] top-[300px] -rotate-6 whitespace-nowrap motion-safe:animate-yc-float rounded-full bg-mark px-3 py-2 text-label-14 font-semibold text-on-mark md:left-[150px] md:top-[346px] md:px-4 md:py-2.5">
               Ouvert à un poste de développeur
             </p>
           </div>
@@ -117,7 +118,15 @@ export function CreatorPage() {
             />
             <ol className="flex flex-col">
               {MILESTONES.map((m, i) => (
-                <li key={m.title} style={after(300 + i * 400)} className={`flex flex-col gap-1.5 pb-8 ${revealClass(journal.shown)}`}>
+                <li key={m.title} style={after(300 + i * 400)} className={`relative flex flex-col gap-1.5 pb-8 ${revealClass(journal.shown)}`}>
+                {/* A point on the spine for each milestone, the last one in the mark: where it stands today. */}
+                <span
+                  aria-hidden="true"
+                  style={after(200 + i * 400)}
+                  className={`absolute -left-[39px] top-0.5 size-4 rounded-full ${i === MILESTONES.length - 1 ? 'bg-mark' : 'bg-accent'} ${
+                    journal.shown ? 'motion-safe:animate-yc-bounce-in' : 'motion-safe:opacity-0'
+                  }`}
+                />
                   <p className={`font-mono text-mono-12 uppercase ${i === MILESTONES.length - 1 ? 'text-accent-text' : 'text-content-muted'}`}>{m.date}</p>
                   <h3 className="font-serif text-title-34 text-content">{m.title}</h3>
                   <p className="text-body-16 text-content-muted">{m.text}</p>
@@ -147,13 +156,15 @@ export function CreatorPage() {
         <section
           ref={contact.ref}
           aria-labelledby="contact-titre"
-          className={`flex flex-col gap-6 px-4 pb-16 md:px-8 xl:flex-row xl:items-end xl:justify-between xl:px-gutter xl:pb-24 ${revealClass(contact.shown)}`}
+          className="flex flex-col gap-6 px-4 pb-16 md:px-8 xl:flex-row xl:items-end xl:justify-between xl:px-gutter xl:pb-24"
         >
           <h2 id="contact-titre" className="flex flex-col font-serif text-[56px] leading-[56px] tracking-[-0.03em] md:text-display">
-            <span className="text-content">On en parle ?</span>
-            <span className="italic text-accent-text">Je suis disponible.</span>
+            <span className={`text-content ${revealClass(contact.shown)}`}>On en parle ?</span>
+            <span style={after(200)} className={`italic text-accent-text ${revealClass(contact.shown)}`}>
+              Je suis disponible.
+            </span>
           </h2>
-          <div className="flex flex-col items-start gap-3 xl:items-end">
+          <div style={after(400)} className={`flex flex-col items-start gap-3 xl:items-end ${revealClass(contact.shown)}`}>
             <a href={LINKS.github.href} {...external} className={buttonClass('primary')}>
               {LINKS.github.label}
             </a>

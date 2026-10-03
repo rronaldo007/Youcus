@@ -122,6 +122,14 @@ export default {
         'yc-rec': { '0%, 100%': { opacity: '1', transform: 'scale(1)' }, '50%': { opacity: '0.35', transform: 'scale(0.8)' } },
         'yc-blink': { '0%, 49%': { opacity: '1' }, '50%, 100%': { opacity: '0' } },
         'yc-orbit': { to: { transform: 'rotate(360deg)' } },
+        // A small thing that arrives with a bounce: a status, a point of the journal.
+        'yc-bounce-in': {
+          '0%': { opacity: '0', transform: 'scale(0.6)' },
+          '60%': { opacity: '1', transform: 'scale(1.08)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        // The badge of the creator floats, keeping its tilt.
+        'yc-float': { from: { transform: 'translateY(0) rotate(-6deg)' }, to: { transform: 'translateY(-8px) rotate(-4deg)' } },
       },
       animation: {
         'yc-pulse': 'yc-pulse 1.2s ease-in-out infinite',
@@ -141,6 +149,8 @@ export default {
         'yc-rec': 'yc-rec 1.6s ease-in-out infinite',
         'yc-blink': 'yc-blink 1s steps(1) infinite',
         'yc-orbit': 'yc-orbit 40s linear infinite',
+        'yc-bounce-in': 'yc-bounce-in 500ms ease-out backwards',
+        'yc-float': 'yc-float 3s ease-in-out infinite alternate',
       },
       minHeight: { touch: 'var(--yc-size-touch-min)' },
       minWidth: { touch: 'var(--yc-size-touch-min)' },
