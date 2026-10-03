@@ -1,7 +1,7 @@
+import { Link } from 'react-router-dom'
 import { PublicFooter } from '@/components/layout/PublicFooter'
 import { PublicNav } from '@/components/layout/PublicNav'
-import { SOON } from '@/components/layout/navItems'
-import { BUTTON_BASE } from '@/components/ui/buttonStyles'
+import { buttonClass } from '@/components/ui/buttonStyles'
 
 /** Each one checked against the code on 02/10 (YC-70): the sign-in scopes, the import, the export. */
 const PRINCIPLES = [
@@ -98,14 +98,10 @@ export function AboutPage() {
           <h2 className="font-serif text-title-34 tracking-[-0.01em] text-content md:text-[40px] md:leading-[44px] xl:w-[760px] xl:text-title-56">
             Un projet mené seul, du cahier des charges à la production.
           </h2>
-          {/* « Le créateur » has no page yet (YC-72): greyed with « Bientôt », like the tabs without a page. */}
-          <span
-            aria-disabled="true"
-            title={SOON}
-            className={`${BUTTON_BASE} w-full cursor-not-allowed bg-inverse text-content-inverse opacity-45 xl:w-auto`}
-          >
-            Rencontrer le créateur · Bientôt
-          </span>
+          {/* The page of the maker, since YC-72. */}
+          <Link to="/le-createur" className={buttonClass('primary', 'w-full xl:w-auto')}>
+            Rencontrer le créateur
+          </Link>
         </section>
       </main>
       <PublicFooter />
