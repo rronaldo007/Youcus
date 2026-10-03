@@ -46,6 +46,18 @@ describe('shiftTheme (YC-92)', () => {
     expect(root.dataset.themeShift).toBeUndefined()
   })
 
+  it('brings running entrances to their end before the pictures are taken, and leaves loops alone', () => {
+    reduceMotion(false)
+    withViewTransitions()
+    const entrance = { effect: { getComputedTiming: () => ({ endTime: 900 }) }, finish: vi.fn() }
+    const loop = { effect: { getComputedTiming: () => ({ endTime: Infinity }) }, finish: vi.fn() }
+    ;(document as unknown as { getAnimations: () => unknown[] }).getAnimations = () => [entrance, loop]
+    shiftTheme('dark', undefined, vi.fn())
+    expect(entrance.finish).toHaveBeenCalled()
+    expect(loop.finish).not.toHaveBeenCalled()
+    delete (document as unknown as { getAnimations?: unknown }).getAnimations
+  })
+
   it('lets the night fall when going dark', () => {
     reduceMotion(false)
     withViewTransitions()
