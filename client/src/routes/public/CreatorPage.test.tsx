@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
+import { expectMotionOnlyWhenWelcome } from '@/test/motion'
 import { CreatorPage } from './CreatorPage'
 
 // « Le créateur » (YC-72): the facts are checked, not copied from the frame.
@@ -15,7 +16,8 @@ const open = () =>
 describe('CreatorPage (YC-72)', () => {
   it('the name, the portrait and what is sought', () => {
     open()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('RonaldoRukundo')
+    // The letters are drawn one by one (YC-91): the heading still says the name once, whole.
+    expect(screen.getByRole('heading', { level: 1, name: 'Ronaldo Rukundo' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Ronaldo Rukundo' })).toBeInTheDocument()
     expect(screen.getByText('Ouvert à un poste de développeur')).toBeInTheDocument()
   })
@@ -55,5 +57,10 @@ describe('CreatorPage (YC-72)', () => {
     expect(screen.getAllByRole('link', { name: 'Le créateur' })[0]).toHaveAttribute('aria-current', 'page')
     // The width itself is measured in a browser (1920 px: 320 to 1600); jsdom has no layout.
     for (const section of screen.getByRole('main').querySelectorAll('section')) expect(section).toHaveClass('xl:px-gutter')
+  })
+
+  it('moves only when motion is welcome (YC-91)', () => {
+    const { container } = open()
+    expectMotionOnlyWhenWelcome(container)
   })
 })

@@ -24,7 +24,10 @@ export function PublicNav() {
               key={l.label}
               to={l.to}
               aria-current={pathname === l.to ? 'page' : undefined}
-              className={`whitespace-nowrap text-body-15 hover:text-content ${pathname === l.to ? 'text-content' : 'text-content-muted'}`}
+              // The canvas of 29/09 (YC-91): a line in the signal slides in under the link the pointer is on.
+              className={`relative whitespace-nowrap text-body-15 after:absolute after:inset-x-0 after:-bottom-1.5 after:h-px after:origin-left after:scale-x-0 after:bg-accent after:transition-transform after:duration-200 after:ease-out hover:text-content hover:after:scale-x-100 ${
+                pathname === l.to ? 'text-content' : 'text-content-muted'
+              }`}
             >
               {l.label}
             </Link>

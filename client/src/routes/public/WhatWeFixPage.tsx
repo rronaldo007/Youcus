@@ -2,6 +2,9 @@ import { PublicFooter } from '@/components/layout/PublicFooter'
 import { PublicNav } from '@/components/layout/PublicNav'
 import { StatusPill } from '@/components/ui/StatusPill'
 import { FRICTIONS, SHIPPED_LABEL, SOON_LABEL, type Friction } from '@/features/landing/frictions'
+import { after, revealClass, useReveal } from '@/features/landing/useReveal'
+
+const ENTER = 'motion-safe:animate-yc-enter'
 
 /** « Pastille d'état » 56:14: Neutre for what is in the app, Contour (to do) for what is not yet. */
 function State({ shipped }: { shipped: boolean }) {
@@ -14,22 +17,28 @@ function State({ shipped }: { shipped: boolean }) {
   )
 }
 
+/**
+ * A row enters when it scrolls into view: the friction first, then, a beat later, its correction
+ * (the before and after of the canvas, told once instead of in a loop: YC-91, decision of Ronaldo).
+ */
 function FrictionRow({ f, n }: { f: Friction; n: string }) {
+  const { ref, shown } = useReveal<HTMLLIElement>()
+  const enter = revealClass(shown)
   return (
-    <li className="flex flex-col gap-3 border-b border-line py-6 xl:flex-row xl:items-start xl:gap-10 xl:py-8">
+    <li ref={ref} className="flex flex-col gap-3 border-b border-line py-6 xl:flex-row xl:items-start xl:gap-10 xl:py-8">
       <div className="flex items-center justify-between xl:contents">
-        <p aria-hidden="true" className="font-serif text-[34px] leading-9 tracking-[-0.01em] text-accent-text xl:w-16 xl:shrink-0 xl:text-title-56">
+        <p aria-hidden="true" className={`${enter} font-serif text-[34px] leading-9 tracking-[-0.01em] text-accent-text xl:w-16 xl:shrink-0 xl:text-title-56`}>
           {n}
         </p>
-        <div className="xl:order-last xl:w-[140px] xl:shrink-0">
+        <div style={after(500)} className={`xl:order-last xl:w-[140px] xl:shrink-0 ${enter}`}>
           <State shipped={f.shipped} />
         </div>
       </div>
-      <div className="flex min-w-0 flex-col gap-2 xl:flex-1">
+      <div style={after(80)} className={`flex min-w-0 flex-col gap-2 xl:flex-1 ${enter}`}>
         <h2 className="font-serif text-[24px] leading-[25px] text-content xl:text-title-34">{f.title}</h2>
         <p className="text-body-15 text-content-muted">{f.problem}</p>
       </div>
-      <div className="flex min-w-0 flex-col gap-2 xl:flex-1">
+      <div style={after(350)} className={`flex min-w-0 flex-col gap-2 xl:flex-1 ${enter}`}>
         <p className="text-[17px] font-semibold leading-5 text-content">{f.fix}</p>
         <p className="text-body-15 text-content-muted">{f.how}</p>
       </div>
@@ -43,16 +52,21 @@ function FrictionRow({ f, n }: { f: Friction; n: string }) {
  * « Reprendre » to the next video, chapters on a seek bar and a question per chapter, which do not exist.
  */
 export function WhatWeFixPage() {
+  const ads = useReveal<HTMLDivElement>()
   return (
     <div className="min-h-screen bg-page">
       <PublicNav />
       <main>
         <section className="flex flex-col gap-5 px-4 py-14 md:px-8 md:pb-16 md:pt-20 xl:flex-row xl:items-end xl:gap-12 xl:px-gutter xl:pb-[72px] xl:pt-[120px]">
           <h1 className="flex flex-col font-serif text-[52px] leading-[55px] tracking-[-0.03em] text-content md:text-[80px] md:leading-[76px] xl:flex-1 xl:text-display">
-            <span>Ce qu’on corrige,</span>
-            <em className="text-accent-text">et comment.</em>
+            <span style={after(100)} className={ENTER}>
+              Ce qu’on corrige,
+            </span>
+            <em style={after(300)} className={`text-accent-text ${ENTER}`}>
+              et comment.
+            </em>
           </h1>
-          <p className="text-body-16 text-content-muted xl:w-[380px] xl:shrink-0">
+          <p style={after(500)} className={`text-body-16 text-content-muted xl:w-[380px] xl:shrink-0 ${ENTER}`}>
             Six frictions qui transforment une heure de cours en trois heures de dérive. Pour chacune : ce qu’on change, et la
             mécanique derrière.
           </p>
@@ -73,7 +87,10 @@ export function WhatWeFixPage() {
         </section>
 
         <section className="px-4 pb-14 md:px-8 xl:px-gutter xl:pb-[120px]">
-          <div className="flex flex-col gap-4 rounded-[28px] bg-inverse px-6 py-10 text-content-inverse md:p-16">
+          <div
+            ref={ads.ref}
+            className={`flex flex-col gap-4 rounded-[28px] bg-inverse px-6 py-10 text-content-inverse md:p-16 ${revealClass(ads.shown)}`}
+          >
             <h2 className="font-serif text-title-34 tracking-[-0.01em] md:text-title-56">Ce qu’on ne corrige pas : les publicités.</h2>
             <p className="text-lead">
               Les conditions de YouTube interdisent de les bloquer ou de les modifier dans le lecteur intégré, et c’est ce qui

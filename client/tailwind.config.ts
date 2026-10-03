@@ -105,6 +105,23 @@ export default {
         // « Le playhead suit la vidéo, jamais d'easing sur une mesure » : linear.
         'yc-playhead': { from: { width: '0%' }, to: { width: 'var(--yc-playhead-to)' } },
         'yc-marquee': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } },
+        // The public site moves as the canvas of 29/09 drew it (YC-91, decision of Ronaldo): longer
+        // entrances than the app, a scene in the hero. The app keeps the 300 ms of « Mouvement ».
+        'yc-enter': { from: { opacity: '0', transform: 'translateY(28px)' }, to: { opacity: '1', transform: 'none' } },
+        'yc-note': { from: { opacity: '0', transform: 'translateY(10px)' }, to: { opacity: '1', transform: 'none' } },
+        'yc-letter': { from: { opacity: '0', transform: 'translateY(110%) rotate(8deg)' }, to: { opacity: '1', transform: 'none' } },
+        // A distraction of YouTube leaves the scene, each one its own way (--yc-dx, --yc-dy, --yc-r).
+        'yc-shed': {
+          from: { opacity: '1', transform: 'translate(0, 0) rotate(var(--yc-r))' },
+          to: { opacity: '0', transform: 'translate(var(--yc-dx), var(--yc-dy)) rotate(var(--yc-r)) scale(0.85)' },
+        },
+        'yc-draw-x': { from: { transform: 'scaleX(0)' }, to: { transform: 'scaleX(1)' } },
+        'yc-draw-y': { from: { transform: 'scaleY(0)' }, to: { transform: 'scaleY(1)' } },
+        // The words under a mark keep the ink of the page until the mark is under them (dark theme: light ink).
+        'yc-ink-on-mark': { from: { color: 'var(--yc-text-primary)' }, to: { color: 'var(--yc-text-on-mark)' } },
+        'yc-rec': { '0%, 100%': { opacity: '1', transform: 'scale(1)' }, '50%': { opacity: '0.35', transform: 'scale(0.8)' } },
+        'yc-blink': { '0%, 49%': { opacity: '1' }, '50%, 100%': { opacity: '0' } },
+        'yc-orbit': { to: { transform: 'rotate(360deg)' } },
       },
       animation: {
         'yc-pulse': 'yc-pulse 1.2s ease-in-out infinite',
@@ -113,6 +130,17 @@ export default {
         'yc-pop': 'yc-pop 300ms ease-out both',
         'yc-playhead': 'yc-playhead 6s linear both',
         'yc-marquee': 'yc-marquee 40s linear infinite',
+        // `backwards`, not `both`: once in, the block gives its transform back, so a hover can lift it.
+        'yc-enter': 'yc-enter 900ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards',
+        'yc-note': 'yc-note 400ms ease-out backwards',
+        'yc-letter': 'yc-letter 900ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards',
+        'yc-shed': 'yc-shed 1s cubic-bezier(0.5, 0, 0.2, 1) both',
+        'yc-draw-x': 'yc-draw-x 1s cubic-bezier(0.6, 0, 0.2, 1) backwards',
+        'yc-draw-y': 'yc-draw-y 2.4s cubic-bezier(0.6, 0, 0.2, 1) backwards',
+        'yc-ink-on-mark': 'yc-ink-on-mark 1s cubic-bezier(0.6, 0, 0.2, 1) backwards',
+        'yc-rec': 'yc-rec 1.6s ease-in-out infinite',
+        'yc-blink': 'yc-blink 1s steps(1) infinite',
+        'yc-orbit': 'yc-orbit 40s linear infinite',
       },
       minHeight: { touch: 'var(--yc-size-touch-min)' },
       minWidth: { touch: 'var(--yc-size-touch-min)' },

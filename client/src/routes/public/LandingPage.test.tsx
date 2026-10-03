@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
+import { expectMotionOnlyWhenWelcome } from '@/test/motion'
 import { LandingPage } from './LandingPage'
 
 function renderLanding() {
@@ -59,9 +60,17 @@ describe('LandingPage (Figma 13:2, YC-69)', () => {
 
   it('moves only when motion is welcome (prefers-reduced-motion)', () => {
     const { container } = renderLanding()
-    const animated = [...container.querySelectorAll('*')].flatMap((el) => [...el.classList].filter((c) => c.includes('animate-')))
-    expect(animated.length).toBeGreaterThan(0)
-    expect(animated.filter((c) => !c.startsWith('motion-safe:'))).toEqual([])
+    expectMotionOnlyWhenWelcome(container)
+  })
+
+  it('lets the distractions of YouTube leave the hero, and draws none without motion (YC-91)', () => {
+    const { container } = renderLanding()
+    const distractions = [...container.querySelectorAll('[data-distraction]')]
+    expect(distractions.map((d) => d.textContent)).toContain('Shorts')
+    for (const d of distractions) {
+      expect(d).toHaveClass('hidden', 'motion-safe:block', 'motion-safe:animate-yc-shed')
+      expect(d.closest('[aria-hidden="true"]')).not.toBeNull()
+    }
   })
 
   it('links to the privacy policy (YC-38)', () => {
