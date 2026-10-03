@@ -1,4 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
+import { flushSync } from 'react-dom'
+import { shiftTheme, type ShiftOrigin } from './themeShift'
 
 export type Theme = 'light' | 'dark'
 /** What the person chose: a theme, or « Auto », which follows the system (Figma « Menu du compte » 108:142). */
@@ -41,10 +43,17 @@ function ensureLoaded() {
   apply()
 }
 
-function setPreferenceValue(next: ThemePreference) {
+function setPreferenceValue(next: ThemePreference, from?: ShiftOrigin) {
+  const before = theme
   preference = next
   localStorage.setItem(STORAGE_KEY, next)
-  apply()
+  const after = next === 'system' ? systemTheme() : next
+  if (after === before) {
+    apply()
+    return
+  }
+  // The page must be painted in its new theme, icons included, before the picture « after » is taken.
+  shiftTheme(after, from, () => flushSync(apply))
 }
 
 function subscribe(listener: () => void) {
@@ -70,7 +79,7 @@ export function useTheme() {
   ensureLoaded()
   const current = useSyncExternalStore(subscribe, () => theme)
   const pref = useSyncExternalStore(subscribe, () => preference ?? 'system')
-  const toggle = useCallback(() => setPreferenceValue(theme === 'dark' ? 'light' : 'dark'), [])
-  const setPreference = useCallback((next: ThemePreference) => setPreferenceValue(next), [])
+  const toggle = useCallback((from?: ShiftOrigin) => setPreferenceValue(theme === 'dark' ? 'light' : 'dark', from), [])
+  const setPreference = useCallback((next: ThemePreference, from?: ShiftOrigin) => setPreferenceValue(next, from), [])
   return { theme: current, preference: pref, toggle, setPreference }
 }
