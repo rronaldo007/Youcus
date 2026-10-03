@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { PublicFooter } from '@/components/layout/PublicFooter'
 import { PublicNav } from '@/components/layout/PublicNav'
+import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
  * Public privacy policy (YC-38), required by Google to publish the OAuth app. No frame in Figma: it wears
@@ -10,7 +11,6 @@ import { PublicNav } from '@/components/layout/PublicNav'
  * changes what it stores or where, this page changes in the same pull request.
  */
 
-const CONTACT_EMAIL = 'rukundoronaldo4@gmail.com'
 const LAST_UPDATED = '30 septembre 2026'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

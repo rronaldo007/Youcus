@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { SOON } from '@/components/layout/navItems'
 import { BUTTON_BASE, buttonClass, type ButtonVariant } from '@/components/ui/buttonStyles'
@@ -48,7 +49,8 @@ function ActionButton({ action, variant }: { action: PageStateAction; variant: B
 interface PageStateProps {
   kind: PageStateKind
   title: string
-  text: string
+  /** A sentence, or a sentence with a link in it (the address of the error page, YC-83). */
+  text: ReactNode
   action?: PageStateAction
   secondaryAction?: PageStateAction
 }
