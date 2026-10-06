@@ -71,7 +71,7 @@ export function PrivacyPage() {
             </li>
             <li>
               <strong className="text-content">Ce que tu crées dans Youcus</strong> : les playlists importées et
-              celles que tu fusionnes (une fusion garde les playlists qui la composent, avec leurs notes), tes notes, ta progression de lecture et ton temps d’étude : les secondes de vidéo regardées chaque jour, et
+              celles que tu fusionnes (une fusion garde les playlists qui la composent, avec leurs notes), l’ordre que tu donnes à leurs vidéos, tes notes, ta progression de lecture et ton temps d’étude : les secondes de vidéo regardées chaque jour, et
               la date où tu marques une vidéo comme vue, et ton objectif de la semaine si tu en fixes un.
             </li>
             <li>
