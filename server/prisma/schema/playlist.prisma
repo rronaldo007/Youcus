@@ -26,6 +26,8 @@ model Playlist {
   mergedInto    Playlist?        @relation("PlaylistMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   mergedIntoId  String?
   sources       Playlist[]       @relation("PlaylistMerge")
+  // The user reordered the videos (YC-101): a refresh keeps their order, new videos go last.
+  customOrder   Boolean          @default(false)
   videos        PlaylistVideo[]
   notes         Note[]
   createdAt     DateTime         @default(now())

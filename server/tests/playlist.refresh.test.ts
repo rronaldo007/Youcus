@@ -92,8 +92,8 @@ describe('refreshPlaylist', () => {
     expect(prisma.playlistVideo.deleteMany).toHaveBeenCalledWith({ where: { playlistId: 'p1' } })
     expect(prisma.playlistVideo.createMany).toHaveBeenCalledWith({
       data: [
-        { playlistId: 'p1', videoId: 'vid1', position: 0, creatorNote: null, addedAt: null },
-        { playlistId: 'p1', videoId: 'vid2', position: 1, creatorNote: null, addedAt: null },
+        { playlistId: 'p1', videoId: 'vid1', position: 0, sourcePosition: 0, creatorNote: null, addedAt: null },
+        { playlistId: 'p1', videoId: 'vid2', position: 1, sourcePosition: 1, creatorNote: null, addedAt: null },
       ],
     })
     expect(res).toMatchObject({ id: 'p1', title: 'Titre MAJ', videoCount: 2 })
@@ -168,7 +168,7 @@ describe('refreshPlaylist', () => {
 
     expect(prisma.playlistVideo.createMany).toHaveBeenCalledWith({
       data: [
-        { playlistId: 'p1', videoId: 'vid1', position: 0, creatorNote: 'Start here', addedAt: new Date('2025-01-02T00:00:00Z') },
+        { playlistId: 'p1', videoId: 'vid1', position: 0, sourcePosition: 0, creatorNote: 'Start here', addedAt: new Date('2025-01-02T00:00:00Z') },
       ],
     })
     // No chapter list in "Intro": old chapters are cleared, none created.
