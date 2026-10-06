@@ -3,6 +3,8 @@
 *
 !package.json
 !package-lock.json
+# Written by deploy.sh, read by /api/health (YC-106).
+!VERSION
 !client
 !server
 **/node_modules
