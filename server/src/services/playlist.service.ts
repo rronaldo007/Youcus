@@ -27,12 +27,15 @@ function fetchPlaylistCached(playlistId: string, accessToken?: string): Promise<
  * seules les lignes de jonction PlaylistVideo sont remplacées. Les Note et Progress
  * qui pointent vers les Video survivent donc au refresh par construction (corrige CS-68).
  * Retourne le nombre d'entrées de la playlist.
+ * A playlist the user reordered (`customOrder`, YC-101) keeps their order: the videos still there keep their
+ * place, the new ones go last in YouTube's order. `sourcePosition` always takes YouTube's.
  */
 async function syncVideos(
   tx: Prisma.TransactionClient,
   playlistId: string,
   videos: YouTubeVideo[],
   channelIds: Map<string, string> = new Map(),
+  customOrder = false,
 ): Promise<number> {
   // Une même vidéo peut apparaître deux fois dans une playlist YouTube :
   // on garde la première occurrence (la jonction a une PK composite).
@@ -57,16 +60,39 @@ async function syncVideos(
       playlistId,
       videoId: video.id,
       position: v.position,
+      sourcePosition: v.position,
       creatorNote: v.creatorNote ?? null,
       addedAt: v.addedAt ? new Date(v.addedAt) : null,
     })
   }
 
+  if (customOrder) await keepUserOrder(tx, playlistId, rows)
   await tx.playlistVideo.deleteMany({ where: { playlistId } })
   if (rows.length > 0) {
     await tx.playlistVideo.createMany({ data: rows })
   }
   return rows.length
+}
+
+/** Re-numbers fresh rows by the user's order (YC-101): known videos first as they were, new ones after. */
+async function keepUserOrder(
+  tx: Prisma.TransactionClient,
+  playlistId: string,
+  rows: Prisma.PlaylistVideoCreateManyInput[],
+): Promise<void> {
+  const before = await tx.playlistVideo.findMany({ where: { playlistId }, select: { videoId: true, position: true } })
+  const placed = new Map(before.map((pv) => [pv.videoId, pv.position]))
+  const ordered = [...rows].sort((a, b) => {
+    const pa = placed.get(a.videoId)
+    const pb = placed.get(b.videoId)
+    if (pa !== undefined && pb !== undefined) return pa - pb
+    if (pa !== undefined) return -1
+    if (pb !== undefined) return 1
+    return (a.sourcePosition ?? 0) - (b.sourcePosition ?? 0)
+  })
+  ordered.forEach((row, i) => {
+    row.position = i
+  })
 }
 
 /** Playlist columns filled from playlists.list (YC-1). */
@@ -160,6 +186,8 @@ export interface PlaylistDetail extends ImportedPlaylist {
   sources: PlaylistSource[]
   /** The merge this playlist is a source of, which hides it from the library (YC-95). */
   mergedIntoId: string | null
+  /** The user put the videos in their own order (YC-101): the page offers to go back to the original one. */
+  customOrder: boolean
 }
 
 /** A playlist inside a merge (YC-95): hidden from the library, so its note is shown here. */
@@ -331,6 +359,7 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
       youtubeUrl: `https://www.youtube.com/playlist?list=${src.youtubeId}`,
     })),
     mergedIntoId: pl.mergedIntoId,
+    customOrder: pl.customOrder,
   }
 }
 
@@ -380,7 +409,7 @@ export async function importPlaylist(
       },
     })
 
-    const count = await syncVideos(tx, pl.id, data.videos, channelIds)
+    const count = await syncVideos(tx, pl.id, data.videos, channelIds, pl.customOrder)
     return { playlist: pl, videoCount: count }
   })
 
@@ -453,11 +482,12 @@ async function appendSourceToMerge(mergeId: string, sourceId: string): Promise<v
     })
     const seen = new Set(inMerge.map((pv) => pv.videoId))
     let position = inMerge.reduce((max, pv) => Math.max(max, pv.position), -1) + 1
-    const added: { playlistId: string; videoId: string; position: number }[] = []
+    const added: { playlistId: string; videoId: string; position: number; sourcePosition: number }[] = []
     for (const pv of fromSource) {
       if (seen.has(pv.videoId)) continue
       seen.add(pv.videoId)
-      added.push({ playlistId: mergeId, videoId: pv.videoId, position: position++ })
+      added.push({ playlistId: mergeId, videoId: pv.videoId, position, sourcePosition: position })
+      position++
     }
     if (added.length > 0) await tx.playlistVideo.createMany({ data: added })
   })
@@ -508,7 +538,7 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
         ...playlistMetadata(data, channelIds),
       },
     })
-    const count = await syncVideos(tx, pl.id, data.videos, channelIds)
+    const count = await syncVideos(tx, pl.id, data.videos, channelIds, pl.customOrder)
     return { playlist: pl, videoCount: count }
   })
 
@@ -588,7 +618,7 @@ export async function mergePlaylists(
           },
         })
     if (added.length > 0) {
-      await tx.playlistVideo.createMany({ data: added.map((r) => ({ playlistId: pl.id, ...r })) })
+      await tx.playlistVideo.createMany({ data: added.map((r) => ({ playlistId: pl.id, ...r, sourcePosition: r.position })) })
     }
     await tx.playlist.updateMany({
       where: { id: { in: sources.map((s) => s.id) }, ownerId: userId },
@@ -668,4 +698,53 @@ export async function detachSource(userId: string, mergeId: string, sourceId: st
     merge: dissolved ? null : await describeMerge(mergeId),
     mergeNote,
   }
+}
+
+/**
+ * The user's own order for the videos of a playlist (YC-101), any playlist, a merge too. The list must hold
+ * every video of the playlist exactly once, else nothing is written (400): a stale screen never loses a video.
+ * A later refresh keeps this order (`customOrder`).
+ */
+export async function reorderPlaylist(userId: string, id: string, videoIds: string[]): Promise<void> {
+  const playlist = await prisma.playlist.findFirst({ where: { id, ownerId: userId }, select: { id: true } })
+  if (!playlist) throw new HttpError(404, 'Playlist introuvable')
+  const current = await prisma.playlistVideo.findMany({ where: { playlistId: id }, select: { videoId: true } })
+  const known = new Set(current.map((pv) => pv.videoId))
+  const sent = new Set(videoIds)
+  if (sent.size !== videoIds.length || sent.size !== known.size || videoIds.some((v) => !known.has(v))) {
+    throw new HttpError(400, 'La liste doit contenir chaque vidéo de la playlist une seule fois')
+  }
+  await prisma.$transaction(async (tx) => {
+    for (const [position, videoId] of videoIds.entries()) {
+      await tx.playlistVideo.update({ where: { playlistId_videoId: { playlistId: id, videoId } }, data: { position } })
+    }
+    await tx.playlist.update({ where: { id }, data: { customOrder: true } })
+  })
+}
+
+/**
+ * Back to the order the playlist came with (YC-101): YouTube's, or the merge's as it was built. No call to
+ * YouTube: that order is kept in `sourcePosition`. A video without one (none expected) goes last.
+ */
+export async function resetPlaylistOrder(userId: string, id: string): Promise<void> {
+  const playlist = await prisma.playlist.findFirst({ where: { id, ownerId: userId }, select: { id: true } })
+  if (!playlist) throw new HttpError(404, 'Playlist introuvable')
+  const rows = await prisma.playlistVideo.findMany({
+    where: { playlistId: id },
+    select: { videoId: true, position: true, sourcePosition: true },
+  })
+  const ordered = [...rows].sort(
+    (a, b) =>
+      (a.sourcePosition ?? Number.MAX_SAFE_INTEGER) - (b.sourcePosition ?? Number.MAX_SAFE_INTEGER) ||
+      a.position - b.position,
+  )
+  await prisma.$transaction(async (tx) => {
+    for (const [position, row] of ordered.entries()) {
+      await tx.playlistVideo.update({
+        where: { playlistId_videoId: { playlistId: id, videoId: row.videoId } },
+        data: { position },
+      })
+    }
+    await tx.playlist.update({ where: { id }, data: { customOrder: false } })
+  })
 }

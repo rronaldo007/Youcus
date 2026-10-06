@@ -25,6 +25,8 @@ export interface AccountExport {
     description: string | null
     /** The merge this playlist is a source of, by its youtubeId (YC-95); null when it stands alone. */
     mergedInto: string | null
+    /** The videos are in the user's own order (YC-101): `position` is theirs, not YouTube's. */
+    customOrder: boolean
     videos: { youtubeId: string; title: string; position: number }[]
   }[]
   progress: { videoId: string; completed: boolean; watchedSeconds: number; completedAt: Date | null }[]
@@ -78,6 +80,7 @@ export async function exportUserData(userId: string): Promise<AccountExport> {
       title: p.title,
       description: p.description,
       mergedInto: p.mergedInto?.youtubeId ?? null,
+      customOrder: p.customOrder,
       videos: p.videos.map((pv) => ({
         youtubeId: pv.video.youtubeId,
         title: pv.video.title,
