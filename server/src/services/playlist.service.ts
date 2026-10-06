@@ -7,6 +7,7 @@ import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
 import { availabilityOf, type Availability } from '@/lib/availability'
 import { syncChannels, syncChapters, videoMetadata } from '@/services/videoMetadata.service'
 import { optionalAccessToken } from '@/services/youtubeToken.service'
+import { sameNameKey } from '@/lib/playlistTitle'
 
 /**
  * Lecture des métadonnées d'une playlist YouTube en cache-aside (CS-67).
@@ -96,6 +97,19 @@ export interface ImportedPlaylist {
   multipleChannels?: boolean
   /** Last time the user watched or marked one of its videos, for the « Récentes » filter (YC-74). */
   lastActivityAt?: string | null
+}
+
+/** The merge an import went into (YC-96): the client tells it, and offers to undo it. */
+export interface MergedInto {
+  id: string
+  title: string
+  /** Its playlists, oldest import first. */
+  sources: { id: string; title: string }[]
+}
+
+export interface ImportResult extends ImportedPlaylist {
+  /** Null when the import stands on its own. */
+  merged: MergedInto | null
 }
 
 /** Unavailable videos of a playlist, by reason (YC-13). */
@@ -328,14 +342,21 @@ export async function deletePlaylist(userId: string, id: string): Promise<void> 
 /**
  * Importe (ou ré-importe) une playlist YouTube pour un utilisateur.
  * Upsert de la Playlist sur (ownerId, youtubeId) puis synchronisation de ses vidéos.
+ * Une première importation qui porte le nom d'une playlist visible la rejoint dans une fusion (YC-96) ;
+ * ré-importer la même playlist la rafraîchit seulement, et si elle est déjà source d'une fusion, ses
+ * nouvelles vidéos y entrent.
  */
 export async function importPlaylist(
   userId: string,
   input: string,
   accessToken?: string,
-): Promise<ImportedPlaylist> {
+): Promise<ImportResult> {
   const playlistId = extractPlaylistId(input)
   const data = await fetchPlaylistCached(playlistId, accessToken)
+  const prior = await prisma.playlist.findUnique({
+    where: { ownerId_youtubeId: { ownerId: userId, youtubeId: data.youtubeId } },
+    select: { mergedIntoId: true },
+  })
 
   const { playlist, videoCount } = await prisma.$transaction(async (tx) => {
     const channelIds = await syncChannels(tx, data.channels)
@@ -362,13 +383,90 @@ export async function importPlaylist(
     return { playlist: pl, videoCount: count }
   })
 
+  let merged: MergedInto | null = null
+  if (prior?.mergedIntoId) {
+    await appendSourceToMerge(prior.mergedIntoId, playlist.id)
+    merged = await describeMerge(prior.mergedIntoId)
+  } else if (!prior) {
+    const visible = await prisma.playlist.findMany({
+      where: { ownerId: userId, mergedIntoId: null, id: { not: playlist.id } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, title: true, youtubeId: true },
+    })
+    const plan = planImportMerge(playlist, visible)
+    if (plan) {
+      const merge = await mergePlaylists(userId, plan.ids, plan.title)
+      merged = await describeMerge(merge.id)
+    }
+  }
+
   return {
     id: playlist.id,
     youtubeId: playlist.youtubeId,
     title: playlist.title,
     thumbnailUrl: playlist.thumbnailUrl,
     videoCount,
+    merged,
   }
+}
+
+interface PlaylistName {
+  id: string
+  title: string
+  youtubeId: string
+}
+
+/**
+ * What a first import merges with (YC-96): the visible playlists of the same name (sameNameKey), oldest
+ * first. A merge of that name takes the import in, with any other playlist of that name, so there is
+ * never a merge of merges; without one, a new merge is created under the oldest playlist's title. Two
+ * merges of the same name: nothing is merged, the user chooses (the command of YC-105 leaves them too).
+ */
+export function planImportMerge(
+  imported: PlaylistName,
+  visible: PlaylistName[],
+): { ids: string[]; title: string } | null {
+  const key = sameNameKey(imported.title)
+  const same = visible.filter((p) => p.id !== imported.id && sameNameKey(p.title) === key)
+  if (same.length === 0) return null
+  const merges = same.filter(isMerge)
+  if (merges.length > 1) return null
+  const into = merges[0]
+  const others = same.filter((p) => p !== into)
+  // The merge first: it keeps its videos and their order; the import's come last.
+  const ids = [...(into ? [into.id] : []), ...others.map((p) => p.id), imported.id]
+  return { ids, title: (into ?? same[0]).title }
+}
+
+/** A source re-imported (YC-96): its new videos join the end of its merge; none is removed here. */
+async function appendSourceToMerge(mergeId: string, sourceId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const inMerge = await tx.playlistVideo.findMany({
+      where: { playlistId: mergeId },
+      select: { videoId: true, position: true },
+    })
+    const fromSource = await tx.playlistVideo.findMany({
+      where: { playlistId: sourceId },
+      orderBy: { position: 'asc' },
+      select: { videoId: true },
+    })
+    const seen = new Set(inMerge.map((pv) => pv.videoId))
+    let position = inMerge.reduce((max, pv) => Math.max(max, pv.position), -1) + 1
+    const added: { playlistId: string; videoId: string; position: number }[] = []
+    for (const pv of fromSource) {
+      if (seen.has(pv.videoId)) continue
+      seen.add(pv.videoId)
+      added.push({ playlistId: mergeId, videoId: pv.videoId, position: position++ })
+    }
+    if (added.length > 0) await tx.playlistVideo.createMany({ data: added })
+  })
+}
+
+async function describeMerge(mergeId: string): Promise<MergedInto | null> {
+  return prisma.playlist.findUnique({
+    where: { id: mergeId },
+    select: { id: true, title: true, sources: { orderBy: { createdAt: 'asc' }, select: { id: true, title: true } } },
+  })
 }
 
 /**
