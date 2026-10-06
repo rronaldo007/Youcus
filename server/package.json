@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/index.ts",
-    "build": "tsup src/index.ts --format esm --clean --sourcemap",
+    "build": "tsup src/index.ts src/jobs/mergeSameName.cli.ts --format esm --clean --sourcemap",
     "start": "node dist/index.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -19,6 +19,7 @@
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "metadata:refresh": "tsx src/jobs/refreshMetadata.cli.ts",
+    "playlists:merge-same-name": "tsx src/jobs/mergeSameName.cli.ts",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

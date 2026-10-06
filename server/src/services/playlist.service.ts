@@ -423,7 +423,7 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
 }
 
 /** A merge is a Youcus playlist: its synthetic id exists nowhere on YouTube. */
-function isMerge(playlist: { youtubeId: string }): boolean {
+export function isMerge(playlist: { youtubeId: string }): boolean {
   return playlist.youtubeId.startsWith('merge:')
 }
 
