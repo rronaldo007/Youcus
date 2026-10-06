@@ -217,7 +217,7 @@ export async function listNotes(userId: string): Promise<NoteList> {
           youtubeId: true,
           title: true,
           playlists: {
-            where: { playlist: { ownerId: userId } },
+            where: { playlist: { ownerId: userId, mergedIntoId: null } },
             orderBy: { position: 'asc' },
             select: { position: true, playlist: { select: { id: true, title: true } } },
           },

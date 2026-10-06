@@ -21,6 +21,11 @@ model Playlist {
   privacyStatus PlaylistPrivacy?
   // Last full metadata sync (30-day policy).
   syncedAt      DateTime?
+  // The merge this playlist is a source of (YC-95): hidden from the library, kept whole (videos, note).
+  // Deleting the merge sets it back to null, so the source shows again.
+  mergedInto    Playlist?        @relation("PlaylistMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  mergedIntoId  String?
+  sources       Playlist[]       @relation("PlaylistMerge")
   videos        PlaylistVideo[]
   notes         Note[]
   createdAt     DateTime         @default(now())
@@ -29,4 +34,5 @@ model Playlist {
   @@unique([ownerId, youtubeId])
   @@index([ownerId])
   @@index([channelId])
+  @@index([mergedIntoId])
 }

@@ -85,7 +85,8 @@ export async function getStats(userId: string, query: StatsQuery, now: Date = ne
     }),
     prisma.user.findUnique({ where: { id: userId }, select: { weeklyGoalMinutes: true } }),
     prisma.playlist.findMany({
-      where: { ownerId: userId },
+      // A source of a merge would count its videos twice (YC-95).
+      where: { ownerId: userId, mergedIntoId: null },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,

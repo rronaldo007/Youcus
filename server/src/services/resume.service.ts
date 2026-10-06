@@ -39,7 +39,7 @@ export async function findResume(userId: string): Promise<ResumeItem | null> {
           blockedRegions: true,
           // The user's playlists that hold it, the most recently imported first.
           playlists: {
-            where: { playlist: { ownerId: userId } },
+            where: { playlist: { ownerId: userId, mergedIntoId: null } },
             orderBy: { playlist: { createdAt: 'desc' } },
             take: 1,
             select: { position: true, playlist: { select: { id: true, title: true } } },

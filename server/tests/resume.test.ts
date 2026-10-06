@@ -37,7 +37,7 @@ describe('findResume (YC-74)', () => {
     expect(args.where).toEqual({ userId: 'u1', completed: false, watchedSeconds: { gt: 0 } })
     expect(args.orderBy).toEqual({ updatedAt: 'desc' })
     // Only the user's own playlists and library count.
-    expect(args.select.video.select.playlists.where).toEqual({ playlist: { ownerId: 'u1' } })
+    expect(args.select.video.select.playlists.where).toEqual({ playlist: { ownerId: 'u1', mergedIntoId: null } })
     expect(args.select.video.select.libraryEntries.where).toEqual({ userId: 'u1' })
   })
 

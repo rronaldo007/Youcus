@@ -279,7 +279,8 @@ describe('listNotes (YC-78)', () => {
     })
     expect(args?.orderBy).toEqual({ updatedAt: 'desc' })
     // The playlists of the video are THIS user's only, not those of someone else holding it.
-    expect(args?.select?.video).toMatchObject({ select: { playlists: { where: { playlist: { ownerId: 'u1' } } } } })
+    // A source of a merge is never named: the video belongs to the merge (YC-95).
+    expect(args?.select?.video).toMatchObject({ select: { playlists: { where: { playlist: { ownerId: 'u1', mergedIntoId: null } } } } })
   })
 
   it('a video card: first line, three markers in time order, their count, its playlists', async () => {
