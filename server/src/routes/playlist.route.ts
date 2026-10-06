@@ -5,6 +5,7 @@ import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
 import {
   deletePlaylist,
+  detachSource,
   getPlaylist,
   importPlaylist,
   listPlaylists,
@@ -118,6 +119,15 @@ playlistRouter.post(
     }
     const playlist = await mergePlaylists(req.userId as string, parsed.data.sourceIds, parsed.data.title)
     res.status(201).json(playlist)
+  }),
+)
+
+// Takes a source out of its merge; the last but one dissolves the merge (YC-97). Also the import toast's undo.
+playlistRouter.delete(
+  '/playlists/:id/sources/:sourceId',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await detachSource(req.userId as string, req.params.id, req.params.sourceId))
   }),
 )
 
