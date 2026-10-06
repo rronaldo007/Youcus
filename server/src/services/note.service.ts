@@ -3,7 +3,7 @@ import { accessibleBy } from '@/lib/videoAccess'
 import { Prisma } from '@prisma/client'
 import { HttpError } from '@/middleware/errorHandler'
 import { markdownToDoc } from '@/lib/markdownToDoc'
-import { EMPTY_DOC, docToPlainText, type NoteDoc, type NoteNode } from '@/lib/noteDoc'
+import { EMPTY_DOC, docToPlainText, parseNoteDoc, type NoteDoc, type NoteNode } from '@/lib/noteDoc'
 import { readNotePreferences, type NotePage } from '@/lib/notePage'
 
 export interface VideoNote {
@@ -277,4 +277,57 @@ export async function savePlaylistNote(userId: string, playlistId: string, doc: 
     select: NOTE_SELECT,
   })
   return toNote(note) as VideoNote
+}
+
+/**
+ * A note that holds another one below it (YC-97): the base first, then a heading naming where the added note
+ * came from, then the added note. Nothing of either is dropped.
+ */
+export function appendNoteDoc(base: NoteDoc, added: NoteDoc, heading: string): NoteDoc {
+  return {
+    type: 'doc',
+    content: [
+      ...base.content,
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: heading }] },
+      ...added.content,
+    ],
+  }
+}
+
+/** What became of the note of a dissolved merge: moved onto the playlist that stays, or added below its own. */
+export type CarriedNote = 'moved' | 'appended' | null
+
+/**
+ * The note of a merge being dissolved (YC-97) goes to the playlist that stays, never thrown away. If that
+ * playlist has its own note, the merge's is added below it under « Note de la fusion « X » » (decision of
+ * Ronaldo, 06/10). Runs inside the dissolution's transaction, before the merge is deleted.
+ */
+export async function carryMergeNote(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  merge: { id: string; title: string },
+  keptId: string,
+): Promise<CarriedNote> {
+  const mergeNote = await tx.note.findUnique({
+    where: { authorId_playlistId: { authorId: userId, playlistId: merge.id } },
+    select: { id: true, ...NOTE_SELECT },
+  })
+  if (!mergeNote) return null
+  const keptNote = await tx.note.findUnique({
+    where: { authorId_playlistId: { authorId: userId, playlistId: keptId } },
+    select: { id: true, ...NOTE_SELECT },
+  })
+  if (!keptNote) {
+    await tx.note.update({ where: { id: mergeNote.id }, data: { playlistId: keptId } })
+    return 'moved'
+  }
+  const joined = parseNoteDoc(
+    appendNoteDoc(toNote(keptNote)!.doc, toNote(mergeNote)!.doc, `Note de la fusion « ${merge.title} »`),
+  )
+  if (!joined.ok) {
+    throw new HttpError(413, 'Les deux notes sont trop longues pour être réunies : raccourcissez-en une')
+  }
+  await tx.note.update({ where: { id: keptNote.id }, data: stored(joined.doc, keptNote) })
+  await tx.note.delete({ where: { id: mergeNote.id } })
+  return 'appended'
 }

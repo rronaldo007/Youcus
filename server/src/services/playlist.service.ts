@@ -8,6 +8,7 @@ import { availabilityOf, type Availability } from '@/lib/availability'
 import { syncChannels, syncChapters, videoMetadata } from '@/services/videoMetadata.service'
 import { optionalAccessToken } from '@/services/youtubeToken.service'
 import { sameNameKey } from '@/lib/playlistTitle'
+import { carryMergeNote, type CarriedNote } from '@/services/note.service'
 
 /**
  * Lecture des métadonnées d'une playlist YouTube en cache-aside (CS-67).
@@ -602,5 +603,69 @@ export async function mergePlaylists(
     title: merged.title,
     thumbnailUrl: merged.thumbnailUrl,
     videoCount: rows.length + added.length,
+  }
+}
+
+/** What detaching a source did (YC-97): the client says it, and the import toast's « Annuler » uses it. */
+export interface DetachResult {
+  /** The playlist taken out, visible again with its videos and its note. */
+  detached: { id: string; title: string }
+  /** The merge had one source left: it is gone, and that source is visible again too. */
+  dissolved: boolean
+  /** The merge as it stays; null once dissolved. */
+  merge: MergedInto | null
+  /** Where the note of a dissolved merge went (never thrown away). */
+  mergeNote: CarriedNote
+}
+
+/**
+ * Takes a source out of its merge (YC-97). It shows again in the library, whole: it kept its videos and its
+ * note all along. The merge loses only the videos that came from that source and from no other one (a video
+ * of unknown origin, from a merge made before YC-95, stays). With a single source left, the merge is
+ * dissolved: that source shows again, the merge's note goes onto it, and the merge is deleted. Progress and
+ * video notes belong to the videos, which are never deleted here.
+ */
+export async function detachSource(userId: string, mergeId: string, sourceId: string): Promise<DetachResult> {
+  const merge = await prisma.playlist.findFirst({
+    where: { id: mergeId, ownerId: userId },
+    select: { id: true, title: true, youtubeId: true },
+  })
+  if (!merge || !isMerge(merge)) throw new HttpError(404, 'Fusion introuvable')
+  const source = await prisma.playlist.findFirst({
+    where: { id: sourceId, ownerId: userId, mergedIntoId: mergeId },
+    select: { id: true, title: true },
+  })
+  if (!source) throw new HttpError(404, 'Cette playlist ne fait pas partie de la fusion')
+
+  const { dissolved, mergeNote } = await prisma.$transaction(async (tx) => {
+    await tx.playlist.update({ where: { id: source.id }, data: { mergedIntoId: null } })
+    const remaining = await tx.playlist.findMany({ where: { mergedIntoId: mergeId }, select: { id: true } })
+
+    if (remaining.length <= 1) {
+      const kept = remaining[0]?.id ?? source.id
+      const carried = await carryMergeNote(tx, userId, merge, kept)
+      await tx.playlist.updateMany({ where: { mergedIntoId: mergeId }, data: { mergedIntoId: null } })
+      await tx.playlist.delete({ where: { id: mergeId } })
+      return { dissolved: true, mergeNote: carried }
+    }
+
+    const fromSource = await tx.playlistVideo.findMany({ where: { playlistId: source.id }, select: { videoId: true } })
+    const elsewhere = await tx.playlistVideo.findMany({
+      where: { playlistId: { in: remaining.map((p) => p.id) } },
+      select: { videoId: true },
+    })
+    const kept = new Set(elsewhere.map((pv) => pv.videoId))
+    const leaving = fromSource.map((pv) => pv.videoId).filter((id) => !kept.has(id))
+    if (leaving.length > 0) {
+      await tx.playlistVideo.deleteMany({ where: { playlistId: mergeId, videoId: { in: leaving } } })
+    }
+    return { dissolved: false, mergeNote: null }
+  })
+
+  return {
+    detached: source,
+    dissolved,
+    merge: dissolved ? null : await describeMerge(mergeId),
+    mergeNote,
   }
 }
