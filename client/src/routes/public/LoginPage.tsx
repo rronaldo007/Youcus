@@ -5,6 +5,10 @@ import { buttonClass } from '@/components/ui/buttonStyles'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useMinWidth } from '@/hooks/useMinWidth'
+
+/** Tailwind `xl`: from here the two halves stand side by side. */
+const SIDE_BY_SIDE = 1280
 
 /**
  * The brand half (Figma « Marque »): always dark, whatever the theme, so it carries the `dark` class
@@ -12,14 +16,15 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
  * On a wide screen its text starts where the other public pages start (YC-90), the dark half still
  * reaching the edge.
  */
-function BrandPanel() {
+function BrandPanel({ withTheme }: { withTheme: boolean }) {
   return (
     <div className="dark flex flex-col bg-page px-5 py-8 sm:p-16 xl:min-h-screen xl:flex-1 xl:justify-between xl:pl-[max(4rem,calc((100vw_-_80rem)/2))]">
-      <div className="flex items-center justify-between gap-4">
+      {/* 44 px, the height of the theme button: with or without it, the logo stays level with it. */}
+      <div className="flex min-h-11 items-center justify-between gap-4">
         <Link to="/" aria-label="Youcus, accueil" className="flex shrink-0 items-center rounded-yc-sm">
           <Logo size="public" />
         </Link>
-        <ThemeToggle />
+        {withTheme && <ThemeToggle />}
       </div>
       <p className="font-serif text-[44px] leading-[42px] tracking-[-0.03em] sm:text-[72px] sm:leading-[68px] xl:text-[96px] xl:leading-[91px]">
         {/* The promise of the home page, said again as the door opens (YC-91). */}
@@ -42,6 +47,9 @@ function BrandPanel() {
 export function LoginPage() {
   const { data: user, isLoading } = useCurrentUser()
   const [params] = useSearchParams()
+  // Side by side, the theme sits at the top right of the light half (decision of Ronaldo, YC-93); stacked,
+  // it stays in the bar of the dark half, at the top of the screen.
+  const sideBySide = useMinWidth(SIDE_BY_SIDE)
 
   if (isLoading) return null
   // Déjà connecté → pas d'écran de connexion, retour à l'app.
@@ -51,8 +59,13 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-page xl:flex-row">
-      <BrandPanel />
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-12 xl:pr-[max(3rem,calc((100vw_-_80rem)/2))]">
+      <BrandPanel withTheme={!sideBySide} />
+      <main className="relative flex flex-1 items-center justify-center px-4 py-10 sm:px-12 xl:pr-[max(3rem,calc((100vw_-_80rem)/2))]">
+        {sideBySide && (
+          <div data-theme-corner="" className="absolute right-[max(3rem,calc((100vw_-_80rem)/2))] top-16">
+            <ThemeToggle />
+          </div>
+        )}
         <div
           className="flex w-full max-w-[460px] flex-col gap-5 rounded-[24px] border border-line bg-surface px-6 py-8 motion-safe:animate-yc-pop sm:px-9 sm:py-10"
           style={{ animationDelay: '300ms' }}

@@ -53,6 +53,23 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /Activer le thème/ })).toBeInTheDocument()
   })
 
+  it('puts the theme at the top right of the light half side by side, in the dark bar when stacked (YC-93)', async () => {
+    const wide = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (q: string) => ({ matches: q.includes('min-width: 1280px'), media: q, addEventListener: () => {}, removeEventListener: () => {} }) as unknown as MediaQueryList,
+    )
+    const { unmount } = renderLogin()
+    const side = await screen.findByRole('button', { name: /Activer le thème/ })
+    expect(side.closest('[data-theme-corner]')).not.toBeNull()
+    expect(side.closest('.dark')).toBeNull()
+    unmount()
+
+    wide.mockRestore()
+    renderLogin()
+    const stacked = await screen.findByRole('button', { name: /Activer le thème/ })
+    expect(stacked.closest('[data-theme-corner]')).toBeNull()
+    expect(stacked.closest('.dark')).not.toBeNull()
+  })
+
   it('propose la connexion Google (vers /auth/google)', async () => {
     renderLogin()
     const cta = await screen.findByRole('link', { name: /Continuer avec Google/i })
