@@ -141,6 +141,24 @@ export interface PlaylistDetail extends ImportedPlaylist {
   lastAddedAt: string | null
   /** The playlist on YouTube; null for a playlist merged in Youcus, which exists nowhere else. */
   youtubeUrl: string | null
+  /** The playlists a merge is made of (YC-95), oldest import first; empty for any other playlist. */
+  sources: PlaylistSource[]
+  /** The merge this playlist is a source of, which hides it from the library (YC-95). */
+  mergedIntoId: string | null
+}
+
+/** A playlist inside a merge (YC-95): hidden from the library, so its note is shown here. */
+export interface PlaylistSource {
+  id: string
+  youtubeId: string
+  title: string
+  thumbnailUrl: string | null
+  channelTitle: string | null
+  videoCount: number
+  importedAt: string
+  /** Plain text of the user's note on this playlist, null when there is none. */
+  note: string | null
+  youtubeUrl: string
 }
 
 function summarize(availabilities: Availability[]): UnavailableSummary {
@@ -158,7 +176,8 @@ function summarize(availabilities: Availability[]): UnavailableSummary {
 /** Liste les playlists de l'utilisateur (résumé + nombre de vidéos), plus récentes d'abord. */
 export async function listPlaylists(userId: string): Promise<ImportedPlaylist[]> {
   const rows = await prisma.playlist.findMany({
-    where: { ownerId: userId },
+    // A source of a merge shows only inside its merge (YC-95).
+    where: { ownerId: userId, mergedIntoId: null },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -230,6 +249,19 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
     where: { id, ownerId: userId },
     include: {
       channel: { select: { title: true, avatarUrl: true } },
+      sources: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          youtubeId: true,
+          title: true,
+          thumbnailUrl: true,
+          createdAt: true,
+          channel: { select: { title: true } },
+          notes: { where: { authorId: userId }, select: { content: true } },
+          _count: { select: { videos: true } },
+        },
+      },
       videos: {
         orderBy: { position: 'asc' },
         include: {
@@ -254,7 +286,7 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
   const videoChannels = new Map<string, { title: string; avatarUrl: string | null }>()
   for (const pv of pl.videos) if (pv.video.channel) videoChannels.set(pv.video.channel.title, pv.video.channel)
   const addedDates = pl.videos.map((pv) => pv.addedAt?.getTime() ?? 0).filter((t) => t > 0)
-  const merged = pl.youtubeId.startsWith('merge:')
+  const merged = isMerge(pl)
   return {
     id: pl.id,
     youtubeId: pl.youtubeId,
@@ -272,6 +304,18 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
     privacyStatus: pl.privacyStatus ?? null,
     lastAddedAt: addedDates.length ? new Date(Math.max(...addedDates)).toISOString() : null,
     youtubeUrl: merged ? null : `https://www.youtube.com/playlist?list=${pl.youtubeId}`,
+    sources: pl.sources.map((src) => ({
+      id: src.id,
+      youtubeId: src.youtubeId,
+      title: src.title,
+      thumbnailUrl: src.thumbnailUrl,
+      channelTitle: src.channel?.title ?? null,
+      videoCount: src._count.videos,
+      importedAt: src.createdAt.toISOString(),
+      note: src.notes[0]?.content.trim() || null,
+      youtubeUrl: `https://www.youtube.com/playlist?list=${src.youtubeId}`,
+    })),
+    mergedIntoId: pl.mergedIntoId,
   }
 }
 
@@ -335,7 +379,7 @@ export async function importPlaylist(
 export async function refreshPlaylist(userId: string, id: string): Promise<ImportedPlaylist> {
   const existing = await prisma.playlist.findFirst({ where: { id, ownerId: userId } })
   if (!existing) throw new HttpError(404, 'Playlist introuvable')
-  if (existing.youtubeId.startsWith('merge:')) {
+  if (isMerge(existing)) {
     throw new HttpError(400, 'Une playlist fusionnée ne peut pas être rafraîchie')
   }
 
@@ -378,11 +422,16 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
   }
 }
 
+/** A merge is a Youcus playlist: its synthetic id exists nowhere on YouTube. */
+function isMerge(playlist: { youtubeId: string }): boolean {
+  return playlist.youtubeId.startsWith('merge:')
+}
+
 /**
- * Fusionne plusieurs playlists de l'utilisateur en une nouvelle playlist.
- * Avec le modèle N:N, la fusion référence directement les Video partagées :
- * déduplication par videoId, positions recalculées, sources conservées.
- * La fusion reçoit un `youtubeId` synthétique.
+ * Fusionne plusieurs playlists de l'utilisateur (YC-95).
+ * Les sources sont gardées entières (vidéos, note) et masquées de la bibliothèque par `mergedIntoId`.
+ * Si la sélection contient déjà une fusion, c'est elle qui accueille les autres : jamais de fusion de
+ * fusions. Vidéos dédupliquées par videoId, dans l'ordre des sources choisies.
  */
 export async function mergePlaylists(
   userId: string,
@@ -394,43 +443,66 @@ export async function mergePlaylists(
     throw new HttpError(400, 'Sélectionnez au moins 2 playlists à fusionner')
   }
 
-  const sources = await prisma.playlist.findMany({
+  const found = await prisma.playlist.findMany({
     where: { id: { in: uniqueIds }, ownerId: userId },
     include: { videos: { orderBy: { position: 'asc' } } },
   })
-  if (sources.length !== uniqueIds.length) {
+  if (found.length !== uniqueIds.length) {
     throw new HttpError(404, 'Une ou plusieurs playlists sont introuvables')
   }
+  if (found.some((p) => p.mergedIntoId)) {
+    throw new HttpError(400, 'Une de ces playlists fait déjà partie d’une fusion')
+  }
+  // In the order the user chose them, not the order the database returns.
+  const selected = uniqueIds.map((id) => found.find((p) => p.id === id)!)
+  const merges = selected.filter(isMerge)
+  if (merges.length > 1) {
+    throw new HttpError(400, 'Une seule fusion à la fois : ajoutez des playlists à une fusion existante')
+  }
+  const target = merges[0]
+  const sources = selected.filter((p) => p !== target)
 
   const seen = new Set<string>()
-  const mergedRows: { videoId: string; position: number }[] = []
+  const rows: { videoId: string; position: number }[] = []
+  for (const pv of target?.videos ?? []) {
+    seen.add(pv.videoId)
+    rows.push({ videoId: pv.videoId, position: rows.length })
+  }
+  const added: { videoId: string; position: number }[] = []
   for (const src of sources) {
     for (const pv of src.videos) {
       if (seen.has(pv.videoId)) continue
       seen.add(pv.videoId)
-      mergedRows.push({ videoId: pv.videoId, position: mergedRows.length })
+      added.push({ videoId: pv.videoId, position: rows.length + added.length })
     }
   }
 
-  const thumbnailUrl = sources.find((s) => s.thumbnailUrl)?.thumbnailUrl ?? null
-
-  const created = await prisma.$transaction(async (tx) => {
-    const pl = await tx.playlist.create({
-      data: { ownerId: userId, youtubeId: `merge:${randomUUID()}`, title, thumbnailUrl },
-    })
-    if (mergedRows.length > 0) {
-      await tx.playlistVideo.createMany({
-        data: mergedRows.map((r) => ({ playlistId: pl.id, ...r })),
-      })
+  const merged = await prisma.$transaction(async (tx) => {
+    const pl = target
+      ? await tx.playlist.update({ where: { id: target.id }, data: { title } })
+      : await tx.playlist.create({
+          data: {
+            ownerId: userId,
+            youtubeId: `merge:${randomUUID()}`,
+            title,
+            thumbnailUrl: sources.find((s) => s.thumbnailUrl)?.thumbnailUrl ?? null,
+          },
+        })
+    if (added.length > 0) {
+      await tx.playlistVideo.createMany({ data: added.map((r) => ({ playlistId: pl.id, ...r })) })
     }
+    await tx.playlist.updateMany({
+      where: { id: { in: sources.map((s) => s.id) }, ownerId: userId },
+      data: { mergedIntoId: pl.id },
+    })
     return pl
   })
 
   return {
-    id: created.id,
-    youtubeId: created.youtubeId,
-    title: created.title,
-    thumbnailUrl: created.thumbnailUrl,
-    videoCount: mergedRows.length,
+    id: merged.id,
+    youtubeId: merged.youtubeId,
+    title: merged.title,
+    thumbnailUrl: merged.thumbnailUrl,
+    videoCount: rows.length + added.length,
   }
 }

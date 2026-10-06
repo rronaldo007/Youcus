@@ -16,7 +16,7 @@ vi.mock('@/lib/prisma', () => ({
 describe('playlist.service (lecture / suppression)', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('listPlaylists mappe _count.videos vers videoCount et filtre par owner', async () => {
+  it('listPlaylists mappe _count.videos vers videoCount, filtre par owner et masque les sources d’une fusion (YC-95)', async () => {
     vi.mocked(prisma.playlist.findMany).mockResolvedValue([
       { id: 'p1', youtubeId: 'y1', title: 'T', thumbnailUrl: null, _count: { videos: 3 } },
     ] as never)
@@ -31,7 +31,7 @@ describe('playlist.service (lecture / suppression)', () => {
     const res = await listPlaylists('u1')
 
     expect(prisma.playlist.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { ownerId: 'u1' } }),
+      expect.objectContaining({ where: { ownerId: 'u1', mergedIntoId: null } }),
     )
     expect(res).toEqual([
       {
@@ -70,6 +70,41 @@ describe('playlist.service (lecture / suppression)', () => {
     expect(byId.none).toMatchObject({ channelTitle: null, multipleChannels: false, lastActivityAt: null })
   })
 
+  it('getPlaylist lists the sources of a merge, with the user’s note on each (YC-95)', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      id: 'm', youtubeId: 'merge:abc', title: 'Backend', thumbnailUrl: null, description: null, privacyStatus: null,
+      channel: null, mergedIntoId: null, videos: [],
+      sources: [
+        { id: 'a', youtubeId: 'PLa', title: 'Backend', thumbnailUrl: 'ta', createdAt: new Date('2026-09-02T08:00:00Z'),
+          channel: { title: 'freeCodeCamp' }, notes: [{ content: '  revoir les middlewares  ' }], _count: { videos: 12 } },
+        { id: 'b', youtubeId: 'PLb', title: 'backend', thumbnailUrl: null, createdAt: new Date('2026-09-14T08:00:00Z'),
+          channel: null, notes: [{ content: '   ' }], _count: { videos: 9 } },
+      ],
+    } as never)
+
+    const pl = await getPlaylist('u1', 'm')
+
+    // Only this user's note is read, oldest import first.
+    const arg = vi.mocked(prisma.playlist.findFirst).mock.calls[0][0] as { include: { sources: { orderBy: unknown; select: { notes: unknown } } } }
+    expect(arg.include.sources.orderBy).toEqual({ createdAt: 'asc' })
+    expect(arg.include.sources.select.notes).toEqual({ where: { authorId: 'u1' }, select: { content: true } })
+    expect(pl.sources).toEqual([
+      { id: 'a', youtubeId: 'PLa', title: 'Backend', thumbnailUrl: 'ta', channelTitle: 'freeCodeCamp', videoCount: 12,
+        importedAt: '2026-09-02T08:00:00.000Z', note: 'revoir les middlewares', youtubeUrl: 'https://www.youtube.com/playlist?list=PLa' },
+      { id: 'b', youtubeId: 'PLb', title: 'backend', thumbnailUrl: null, channelTitle: null, videoCount: 9,
+        importedAt: '2026-09-14T08:00:00.000Z', note: null, youtubeUrl: 'https://www.youtube.com/playlist?list=PLb' },
+    ])
+    expect(pl.youtubeUrl).toBeNull()
+  })
+
+  it('getPlaylist says which merge hides a source (YC-95)', async () => {
+    vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      id: 'a', youtubeId: 'PLa', title: 'Backend', thumbnailUrl: null, description: null, privacyStatus: null,
+      channel: null, mergedIntoId: 'm', videos: [], sources: [],
+    } as never)
+    expect(await getPlaylist('u1', 'a')).toMatchObject({ mergedIntoId: 'm', sources: [] })
+  })
+
   it('getPlaylist renvoie 404 quand la playlist n\'appartient pas à l\'utilisateur', async () => {
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue(null as never)
     await expect(getPlaylist('u1', 'pX')).rejects.toMatchObject({ status: 404 })
@@ -84,6 +119,8 @@ describe('playlist.service (lecture / suppression)', () => {
       channel: { title: 'ronaldo rukundo', avatarUrl: null },
     }
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      sources: [],
+      mergedIntoId: null,
       ...base,
       videos: [
         { position: 0, creatorNote: null, addedAt: new Date('2026-09-01T10:00:00Z'), video: { ...ok, id: 'a', youtubeId: 'ya', title: 'A', channel: jsm } },
@@ -104,6 +141,8 @@ describe('playlist.service (lecture / suppression)', () => {
   it('a merged playlist has several channels and no page on YouTube (YC-75)', async () => {
     const ok = { status: 'AVAILABLE', embeddable: true, blockedRegions: null, progress: [], thumbnailUrl: null, durationSeconds: 60 }
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      sources: [],
+      mergedIntoId: null,
       id: 'p2', youtubeId: 'merge:1234', title: 'Backend', thumbnailUrl: null, description: null, privacyStatus: null, channel: null,
       videos: [
         { position: 0, creatorNote: null, addedAt: null, video: { ...ok, id: 'a', youtubeId: 'ya', title: 'A', channel: { title: 'Fireship', avatarUrl: null } } },
@@ -149,6 +188,8 @@ describe('playlist.service (lecture / suppression)', () => {
       },
     })
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      sources: [],
+      mergedIntoId: null,
       id: 'p1', youtubeId: 'PL', title: 'T', thumbnailUrl: null, description: null,
       videos: [
         row('0', {}),
@@ -171,6 +212,8 @@ describe('playlist.service (lecture / suppression)', () => {
 
   it('getPlaylist reports no unavailable video when all can be played (YC-13)', async () => {
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      sources: [],
+      mergedIntoId: null,
       id: 'p1', youtubeId: 'PL', title: 'T', thumbnailUrl: null, description: null,
       videos: [{ position: 0, video: { id: 'a', youtubeId: 'ya', title: 'A', thumbnailUrl: null, durationSeconds: 1, progress: [], status: 'AVAILABLE', embeddable: true, blockedRegions: null } }],
     } as never)
@@ -180,6 +223,8 @@ describe('playlist.service (lecture / suppression)', () => {
 
   it('getPlaylist gives each video the creator note of THIS playlist, and the playlist channel (YC-14)', async () => {
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
+      sources: [],
+      mergedIntoId: null,
       id: 'p1', youtubeId: 'PL', title: 'T', thumbnailUrl: null, description: null,
       channel: { title: 'JavaScript Mastery' },
       videos: [

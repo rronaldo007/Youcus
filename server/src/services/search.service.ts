@@ -99,6 +99,8 @@ export async function search(userId: string, rawQuery: string): Promise<SearchRe
 async function searchPlaylists(userId: string, query: string, has: { contains: string }) {
   const where = {
     ownerId: userId,
+    // A source of a merge is found through its merge (YC-95).
+    mergedIntoId: null,
     OR: [{ title: has }, { channel: { title: has } }, { videos: { some: { video: { title: has } } } }],
   }
   const [total, rows] = await Promise.all([
@@ -148,7 +150,7 @@ async function searchVideos(userId: string, has: { contains: string }) {
         channel: { select: { title: true } },
         progress: { where: { userId }, select: { completed: true, watchedSeconds: true } },
         playlists: {
-          where: { playlist: { ownerId: userId } },
+          where: { playlist: { ownerId: userId, mergedIntoId: null } },
           orderBy: { playlist: { createdAt: 'desc' } },
           take: 1,
           select: { position: true, playlist: { select: { id: true, title: true, _count: { select: { videos: true } } } } },
@@ -186,7 +188,7 @@ async function searchNotes(userId: string, query: string, has: { contains: strin
         select: {
           youtubeId: true,
           title: true,
-          playlists: { where: { playlist: { ownerId: userId } }, orderBy: { playlist: { createdAt: 'desc' } }, take: 1, select: { playlist: { select: { id: true, title: true } } } },
+          playlists: { where: { playlist: { ownerId: userId, mergedIntoId: null } }, orderBy: { playlist: { createdAt: 'desc' } }, take: 1, select: { playlist: { select: { id: true, title: true } } } },
         },
       },
     },

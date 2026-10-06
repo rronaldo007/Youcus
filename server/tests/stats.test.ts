@@ -103,6 +103,8 @@ describe('getStats (YC-79)', () => {
     const { getStats } = await import('@/services/stats.service')
     const [p] = (await getStats('u1', { range: 'week', today: '2026-10-05', offsetMinutes: 0 }, now)).playlists
     expect(p).toEqual({ id: 'p1', title: 'fullstack', seen: 1, total: 3, advancedSeconds: 900, totalSeconds: 2700 })
+    // A source of a merge would count its videos twice (YC-95).
+    expect(db.playlist.findMany.mock.calls[0][0].where).toEqual({ ownerId: 'u1', mergedIntoId: null })
   })
 
   it('refuses a day far from the server\'s', async () => {

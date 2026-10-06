@@ -53,6 +53,12 @@ describe('GET /api/search (YC-22)', () => {
     expect(res.status).toBe(200)
     expect(res.body.query).toBe('useEffect')
     expect(db.playlist.findMany.mock.calls[0][0].where.ownerId).toBe('user-42')
+    // A source of a merge is found through its merge (YC-95).
+    expect(db.playlist.findMany.mock.calls[0][0].where.mergedIntoId).toBeNull()
+    expect(db.playlist.count.mock.calls[0][0].where.mergedIntoId).toBeNull()
+    // Nor is a source named as the playlist of a video, or of the video a note is on.
+    expect(db.video.findMany.mock.calls[0][0].select.playlists.where).toEqual({ playlist: { ownerId: 'user-42', mergedIntoId: null } })
+    expect(db.note.findMany.mock.calls[0][0].select.video.select.playlists.where).toEqual({ playlist: { ownerId: 'user-42', mergedIntoId: null } })
     expect(JSON.stringify(db.video.findMany.mock.calls[0][0].where.AND[0])).toContain('"ownerId":"user-42"')
     expect(JSON.stringify(db.video.findMany.mock.calls[0][0].where.AND[0])).toContain('"userId":"user-42"')
     expect(db.note.findMany.mock.calls[0][0].where).toEqual({ authorId: 'user-42', content: { contains: 'useEffect' } })
