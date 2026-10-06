@@ -6,7 +6,11 @@ model PlaylistVideo {
   playlistId  String
   video       Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
   videoId     String
+  // The order shown (CS-70); the user's own order once the playlist is reordered (YC-101).
   position    Int       @default(0)
+  // The order the playlist came with: YouTube's, or the merge's as it was built (YC-101). Kept so the
+  // user can go back to it without asking YouTube again.
+  sourcePosition Int?
   // Uploader note on the playlist item (playlistItems.contentDetails.note), 280 characters max (YC-14).
   creatorNote String?   @db.VarChar(280)
   // Date the video was added to the playlist, distinct from Video.publishedAt.

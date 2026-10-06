@@ -61,9 +61,9 @@ describe('mergePlaylists', () => {
     expect(createArg.data.youtubeId).toMatch(/^merge:/)
     const rowsArg = vi.mocked(prisma.playlistVideo.createMany).mock.calls[0][0] as { data: unknown[] }
     expect(rowsArg.data).toEqual([
-      { playlistId: 'merged', videoId: 'vid1', position: 0 },
-      { playlistId: 'merged', videoId: 'vid2', position: 1 },
-      { playlistId: 'merged', videoId: 'vid3', position: 2 },
+      { playlistId: 'merged', videoId: 'vid1', position: 0, sourcePosition: 0 },
+      { playlistId: 'merged', videoId: 'vid2', position: 1, sourcePosition: 1 },
+      { playlistId: 'merged', videoId: 'vid3', position: 2, sourcePosition: 2 },
     ])
   })
 
@@ -118,7 +118,7 @@ describe('mergePlaylists', () => {
     expect(prisma.playlist.update).toHaveBeenCalledWith({ where: { id: 'm' }, data: { title: 'Backend' } })
     // The merge keeps its videos and order; only what is new is added after them.
     const rowsArg = vi.mocked(prisma.playlistVideo.createMany).mock.calls[0][0] as { data: unknown[] }
-    expect(rowsArg.data).toEqual([{ playlistId: 'm', videoId: 'vid9', position: 2 }])
+    expect(rowsArg.data).toEqual([{ playlistId: 'm', videoId: 'vid9', position: 2, sourcePosition: 2 }])
     expect(prisma.playlist.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['c'] }, ownerId: 'u1' },
       data: { mergedIntoId: 'm' },

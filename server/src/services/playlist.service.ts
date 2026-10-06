@@ -7,6 +7,8 @@ import { cacheAside, invalidate, playlistKey } from '@/lib/cache'
 import { availabilityOf, type Availability } from '@/lib/availability'
 import { syncChannels, syncChapters, videoMetadata } from '@/services/videoMetadata.service'
 import { optionalAccessToken } from '@/services/youtubeToken.service'
+import { sameNameKey } from '@/lib/playlistTitle'
+import { carryMergeNote, type CarriedNote } from '@/services/note.service'
 
 /**
  * Lecture des métadonnées d'une playlist YouTube en cache-aside (CS-67).
@@ -25,12 +27,15 @@ function fetchPlaylistCached(playlistId: string, accessToken?: string): Promise<
  * seules les lignes de jonction PlaylistVideo sont remplacées. Les Note et Progress
  * qui pointent vers les Video survivent donc au refresh par construction (corrige CS-68).
  * Retourne le nombre d'entrées de la playlist.
+ * A playlist the user reordered (`customOrder`, YC-101) keeps their order: the videos still there keep their
+ * place, the new ones go last in YouTube's order. `sourcePosition` always takes YouTube's.
  */
 async function syncVideos(
   tx: Prisma.TransactionClient,
   playlistId: string,
   videos: YouTubeVideo[],
   channelIds: Map<string, string> = new Map(),
+  customOrder = false,
 ): Promise<number> {
   // Une même vidéo peut apparaître deux fois dans une playlist YouTube :
   // on garde la première occurrence (la jonction a une PK composite).
@@ -55,16 +60,39 @@ async function syncVideos(
       playlistId,
       videoId: video.id,
       position: v.position,
+      sourcePosition: v.position,
       creatorNote: v.creatorNote ?? null,
       addedAt: v.addedAt ? new Date(v.addedAt) : null,
     })
   }
 
+  if (customOrder) await keepUserOrder(tx, playlistId, rows)
   await tx.playlistVideo.deleteMany({ where: { playlistId } })
   if (rows.length > 0) {
     await tx.playlistVideo.createMany({ data: rows })
   }
   return rows.length
+}
+
+/** Re-numbers fresh rows by the user's order (YC-101): known videos first as they were, new ones after. */
+async function keepUserOrder(
+  tx: Prisma.TransactionClient,
+  playlistId: string,
+  rows: Prisma.PlaylistVideoCreateManyInput[],
+): Promise<void> {
+  const before = await tx.playlistVideo.findMany({ where: { playlistId }, select: { videoId: true, position: true } })
+  const placed = new Map(before.map((pv) => [pv.videoId, pv.position]))
+  const ordered = [...rows].sort((a, b) => {
+    const pa = placed.get(a.videoId)
+    const pb = placed.get(b.videoId)
+    if (pa !== undefined && pb !== undefined) return pa - pb
+    if (pa !== undefined) return -1
+    if (pb !== undefined) return 1
+    return (a.sourcePosition ?? 0) - (b.sourcePosition ?? 0)
+  })
+  ordered.forEach((row, i) => {
+    row.position = i
+  })
 }
 
 /** Playlist columns filled from playlists.list (YC-1). */
@@ -96,6 +124,19 @@ export interface ImportedPlaylist {
   multipleChannels?: boolean
   /** Last time the user watched or marked one of its videos, for the « Récentes » filter (YC-74). */
   lastActivityAt?: string | null
+}
+
+/** The merge an import went into (YC-96): the client tells it, and offers to undo it. */
+export interface MergedInto {
+  id: string
+  title: string
+  /** Its playlists, oldest import first. */
+  sources: { id: string; title: string }[]
+}
+
+export interface ImportResult extends ImportedPlaylist {
+  /** Null when the import stands on its own. */
+  merged: MergedInto | null
 }
 
 /** Unavailable videos of a playlist, by reason (YC-13). */
@@ -145,6 +186,8 @@ export interface PlaylistDetail extends ImportedPlaylist {
   sources: PlaylistSource[]
   /** The merge this playlist is a source of, which hides it from the library (YC-95). */
   mergedIntoId: string | null
+  /** The user put the videos in their own order (YC-101): the page offers to go back to the original one. */
+  customOrder: boolean
 }
 
 /** A playlist inside a merge (YC-95): hidden from the library, so its note is shown here. */
@@ -316,6 +359,7 @@ export async function getPlaylist(userId: string, id: string): Promise<PlaylistD
       youtubeUrl: `https://www.youtube.com/playlist?list=${src.youtubeId}`,
     })),
     mergedIntoId: pl.mergedIntoId,
+    customOrder: pl.customOrder,
   }
 }
 
@@ -328,14 +372,21 @@ export async function deletePlaylist(userId: string, id: string): Promise<void> 
 /**
  * Importe (ou ré-importe) une playlist YouTube pour un utilisateur.
  * Upsert de la Playlist sur (ownerId, youtubeId) puis synchronisation de ses vidéos.
+ * Une première importation qui porte le nom d'une playlist visible la rejoint dans une fusion (YC-96) ;
+ * ré-importer la même playlist la rafraîchit seulement, et si elle est déjà source d'une fusion, ses
+ * nouvelles vidéos y entrent.
  */
 export async function importPlaylist(
   userId: string,
   input: string,
   accessToken?: string,
-): Promise<ImportedPlaylist> {
+): Promise<ImportResult> {
   const playlistId = extractPlaylistId(input)
   const data = await fetchPlaylistCached(playlistId, accessToken)
+  const prior = await prisma.playlist.findUnique({
+    where: { ownerId_youtubeId: { ownerId: userId, youtubeId: data.youtubeId } },
+    select: { mergedIntoId: true },
+  })
 
   const { playlist, videoCount } = await prisma.$transaction(async (tx) => {
     const channelIds = await syncChannels(tx, data.channels)
@@ -358,9 +409,26 @@ export async function importPlaylist(
       },
     })
 
-    const count = await syncVideos(tx, pl.id, data.videos, channelIds)
+    const count = await syncVideos(tx, pl.id, data.videos, channelIds, pl.customOrder)
     return { playlist: pl, videoCount: count }
   })
+
+  let merged: MergedInto | null = null
+  if (prior?.mergedIntoId) {
+    await appendSourceToMerge(prior.mergedIntoId, playlist.id)
+    merged = await describeMerge(prior.mergedIntoId)
+  } else if (!prior) {
+    const visible = await prisma.playlist.findMany({
+      where: { ownerId: userId, mergedIntoId: null, id: { not: playlist.id } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, title: true, youtubeId: true },
+    })
+    const plan = planImportMerge(playlist, visible)
+    if (plan) {
+      const merge = await mergePlaylists(userId, plan.ids, plan.title)
+      merged = await describeMerge(merge.id)
+    }
+  }
 
   return {
     id: playlist.id,
@@ -368,7 +436,68 @@ export async function importPlaylist(
     title: playlist.title,
     thumbnailUrl: playlist.thumbnailUrl,
     videoCount,
+    merged,
   }
+}
+
+interface PlaylistName {
+  id: string
+  title: string
+  youtubeId: string
+}
+
+/**
+ * What a first import merges with (YC-96): the visible playlists of the same name (sameNameKey), oldest
+ * first. A merge of that name takes the import in, with any other playlist of that name, so there is
+ * never a merge of merges; without one, a new merge is created under the oldest playlist's title. Two
+ * merges of the same name: nothing is merged, the user chooses (the command of YC-105 leaves them too).
+ */
+export function planImportMerge(
+  imported: PlaylistName,
+  visible: PlaylistName[],
+): { ids: string[]; title: string } | null {
+  const key = sameNameKey(imported.title)
+  const same = visible.filter((p) => p.id !== imported.id && sameNameKey(p.title) === key)
+  if (same.length === 0) return null
+  const merges = same.filter(isMerge)
+  if (merges.length > 1) return null
+  const into = merges[0]
+  const others = same.filter((p) => p !== into)
+  // The merge first: it keeps its videos and their order; the import's come last.
+  const ids = [...(into ? [into.id] : []), ...others.map((p) => p.id), imported.id]
+  return { ids, title: (into ?? same[0]).title }
+}
+
+/** A source re-imported (YC-96): its new videos join the end of its merge; none is removed here. */
+async function appendSourceToMerge(mergeId: string, sourceId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const inMerge = await tx.playlistVideo.findMany({
+      where: { playlistId: mergeId },
+      select: { videoId: true, position: true },
+    })
+    const fromSource = await tx.playlistVideo.findMany({
+      where: { playlistId: sourceId },
+      orderBy: { position: 'asc' },
+      select: { videoId: true },
+    })
+    const seen = new Set(inMerge.map((pv) => pv.videoId))
+    let position = inMerge.reduce((max, pv) => Math.max(max, pv.position), -1) + 1
+    const added: { playlistId: string; videoId: string; position: number; sourcePosition: number }[] = []
+    for (const pv of fromSource) {
+      if (seen.has(pv.videoId)) continue
+      seen.add(pv.videoId)
+      added.push({ playlistId: mergeId, videoId: pv.videoId, position, sourcePosition: position })
+      position++
+    }
+    if (added.length > 0) await tx.playlistVideo.createMany({ data: added })
+  })
+}
+
+async function describeMerge(mergeId: string): Promise<MergedInto | null> {
+  return prisma.playlist.findUnique({
+    where: { id: mergeId },
+    select: { id: true, title: true, sources: { orderBy: { createdAt: 'asc' }, select: { id: true, title: true } } },
+  })
 }
 
 /**
@@ -409,7 +538,7 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
         ...playlistMetadata(data, channelIds),
       },
     })
-    const count = await syncVideos(tx, pl.id, data.videos, channelIds)
+    const count = await syncVideos(tx, pl.id, data.videos, channelIds, pl.customOrder)
     return { playlist: pl, videoCount: count }
   })
 
@@ -489,7 +618,7 @@ export async function mergePlaylists(
           },
         })
     if (added.length > 0) {
-      await tx.playlistVideo.createMany({ data: added.map((r) => ({ playlistId: pl.id, ...r })) })
+      await tx.playlistVideo.createMany({ data: added.map((r) => ({ playlistId: pl.id, ...r, sourcePosition: r.position })) })
     }
     await tx.playlist.updateMany({
       where: { id: { in: sources.map((s) => s.id) }, ownerId: userId },
@@ -505,4 +634,117 @@ export async function mergePlaylists(
     thumbnailUrl: merged.thumbnailUrl,
     videoCount: rows.length + added.length,
   }
+}
+
+/** What detaching a source did (YC-97): the client says it, and the import toast's « Annuler » uses it. */
+export interface DetachResult {
+  /** The playlist taken out, visible again with its videos and its note. */
+  detached: { id: string; title: string }
+  /** The merge had one source left: it is gone, and that source is visible again too. */
+  dissolved: boolean
+  /** The merge as it stays; null once dissolved. */
+  merge: MergedInto | null
+  /** Where the note of a dissolved merge went (never thrown away). */
+  mergeNote: CarriedNote
+}
+
+/**
+ * Takes a source out of its merge (YC-97). It shows again in the library, whole: it kept its videos and its
+ * note all along. The merge loses only the videos that came from that source and from no other one (a video
+ * of unknown origin, from a merge made before YC-95, stays). With a single source left, the merge is
+ * dissolved: that source shows again, the merge's note goes onto it, and the merge is deleted. Progress and
+ * video notes belong to the videos, which are never deleted here.
+ */
+export async function detachSource(userId: string, mergeId: string, sourceId: string): Promise<DetachResult> {
+  const merge = await prisma.playlist.findFirst({
+    where: { id: mergeId, ownerId: userId },
+    select: { id: true, title: true, youtubeId: true },
+  })
+  if (!merge || !isMerge(merge)) throw new HttpError(404, 'Fusion introuvable')
+  const source = await prisma.playlist.findFirst({
+    where: { id: sourceId, ownerId: userId, mergedIntoId: mergeId },
+    select: { id: true, title: true },
+  })
+  if (!source) throw new HttpError(404, 'Cette playlist ne fait pas partie de la fusion')
+
+  const { dissolved, mergeNote } = await prisma.$transaction(async (tx) => {
+    await tx.playlist.update({ where: { id: source.id }, data: { mergedIntoId: null } })
+    const remaining = await tx.playlist.findMany({ where: { mergedIntoId: mergeId }, select: { id: true } })
+
+    if (remaining.length <= 1) {
+      const kept = remaining[0]?.id ?? source.id
+      const carried = await carryMergeNote(tx, userId, merge, kept)
+      await tx.playlist.updateMany({ where: { mergedIntoId: mergeId }, data: { mergedIntoId: null } })
+      await tx.playlist.delete({ where: { id: mergeId } })
+      return { dissolved: true, mergeNote: carried }
+    }
+
+    const fromSource = await tx.playlistVideo.findMany({ where: { playlistId: source.id }, select: { videoId: true } })
+    const elsewhere = await tx.playlistVideo.findMany({
+      where: { playlistId: { in: remaining.map((p) => p.id) } },
+      select: { videoId: true },
+    })
+    const kept = new Set(elsewhere.map((pv) => pv.videoId))
+    const leaving = fromSource.map((pv) => pv.videoId).filter((id) => !kept.has(id))
+    if (leaving.length > 0) {
+      await tx.playlistVideo.deleteMany({ where: { playlistId: mergeId, videoId: { in: leaving } } })
+    }
+    return { dissolved: false, mergeNote: null }
+  })
+
+  return {
+    detached: source,
+    dissolved,
+    merge: dissolved ? null : await describeMerge(mergeId),
+    mergeNote,
+  }
+}
+
+/**
+ * The user's own order for the videos of a playlist (YC-101), any playlist, a merge too. The list must hold
+ * every video of the playlist exactly once, else nothing is written (400): a stale screen never loses a video.
+ * A later refresh keeps this order (`customOrder`).
+ */
+export async function reorderPlaylist(userId: string, id: string, videoIds: string[]): Promise<void> {
+  const playlist = await prisma.playlist.findFirst({ where: { id, ownerId: userId }, select: { id: true } })
+  if (!playlist) throw new HttpError(404, 'Playlist introuvable')
+  const current = await prisma.playlistVideo.findMany({ where: { playlistId: id }, select: { videoId: true } })
+  const known = new Set(current.map((pv) => pv.videoId))
+  const sent = new Set(videoIds)
+  if (sent.size !== videoIds.length || sent.size !== known.size || videoIds.some((v) => !known.has(v))) {
+    throw new HttpError(400, 'La liste doit contenir chaque vidéo de la playlist une seule fois')
+  }
+  await prisma.$transaction(async (tx) => {
+    for (const [position, videoId] of videoIds.entries()) {
+      await tx.playlistVideo.update({ where: { playlistId_videoId: { playlistId: id, videoId } }, data: { position } })
+    }
+    await tx.playlist.update({ where: { id }, data: { customOrder: true } })
+  })
+}
+
+/**
+ * Back to the order the playlist came with (YC-101): YouTube's, or the merge's as it was built. No call to
+ * YouTube: that order is kept in `sourcePosition`. A video without one (none expected) goes last.
+ */
+export async function resetPlaylistOrder(userId: string, id: string): Promise<void> {
+  const playlist = await prisma.playlist.findFirst({ where: { id, ownerId: userId }, select: { id: true } })
+  if (!playlist) throw new HttpError(404, 'Playlist introuvable')
+  const rows = await prisma.playlistVideo.findMany({
+    where: { playlistId: id },
+    select: { videoId: true, position: true, sourcePosition: true },
+  })
+  const ordered = [...rows].sort(
+    (a, b) =>
+      (a.sourcePosition ?? Number.MAX_SAFE_INTEGER) - (b.sourcePosition ?? Number.MAX_SAFE_INTEGER) ||
+      a.position - b.position,
+  )
+  await prisma.$transaction(async (tx) => {
+    for (const [position, row] of ordered.entries()) {
+      await tx.playlistVideo.update({
+        where: { playlistId_videoId: { playlistId: id, videoId: row.videoId } },
+        data: { position },
+      })
+    }
+    await tx.playlist.update({ where: { id }, data: { customOrder: false } })
+  })
 }

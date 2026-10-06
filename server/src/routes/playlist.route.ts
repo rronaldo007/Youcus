@@ -5,11 +5,14 @@ import { HttpError } from '@/middleware/errorHandler'
 import { requireAuth } from '@/middleware/requireAuth'
 import {
   deletePlaylist,
+  detachSource,
   getPlaylist,
   importPlaylist,
   listPlaylists,
   mergePlaylists,
   refreshPlaylist,
+  reorderPlaylist,
+  resetPlaylistOrder,
 } from '@/services/playlist.service'
 import { importSelectedPlaylists, listMyPlaylists } from '@/services/youtubeAccount.service'
 import { setProgress } from '@/services/progress.service'
@@ -32,6 +35,10 @@ const importSchema = z.object({
 const mergeSchema = z.object({
   sourceIds: z.array(z.string()).min(2, 'Sélectionnez au moins 2 playlists à fusionner'),
   title: z.string().min(1, 'Nom de la playlist fusionnée requis'),
+})
+
+const orderSchema = z.object({
+  videoIds: z.array(z.string().min(1)).min(1, 'Ordre des vidéos requis'),
 })
 
 const batchSchema = z.object({
@@ -118,6 +125,39 @@ playlistRouter.post(
     }
     const playlist = await mergePlaylists(req.userId as string, parsed.data.sourceIds, parsed.data.title)
     res.status(201).json(playlist)
+  }),
+)
+
+// Takes a source out of its merge; the last but one dissolves the merge (YC-97). Also the import toast's undo.
+playlistRouter.delete(
+  '/playlists/:id/sources/:sourceId',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await detachSource(req.userId as string, req.params.id, req.params.sourceId))
+  }),
+)
+
+// The user's own order for the videos (YC-101): the whole list, every video once.
+playlistRouter.patch(
+  '/playlists/:id/order',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = orderSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Requête invalide')
+    }
+    await reorderPlaylist(req.userId as string, req.params.id, parsed.data.videoIds)
+    res.json(await getPlaylist(req.userId as string, req.params.id))
+  }),
+)
+
+// Back to the order the playlist came with, YouTube's or the merge's (YC-101).
+playlistRouter.delete(
+  '/playlists/:id/order',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await resetPlaylistOrder(req.userId as string, req.params.id)
+    res.json(await getPlaylist(req.userId as string, req.params.id))
   }),
 )
 
