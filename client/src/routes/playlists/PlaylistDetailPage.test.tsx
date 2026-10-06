@@ -116,3 +116,26 @@ describe('PlaylistDetailPage, new design (YC-75)', () => {
     expect(name.querySelector('img')).toBeNull()
   })
 })
+
+describe('PlaylistDetailPage, synchronising a merge (YC-100)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('names each source that could not be synchronised, with why', async () => {
+    renderWith({ youtubeUrl: null })
+    const detail = { id: 'p1', youtubeId: 'merge:x', title: 'fullstack', thumbnailUrl: null, videoCount: 0, description: null, videos: [], youtubeUrl: null }
+    vi.mocked(fetch).mockImplementation(async (url: RequestInfo | URL, init?: RequestInit) =>
+      String(url).endsWith('/refresh') && init?.method === 'POST'
+        ? new Response(JSON.stringify({ ...detail, failedSources: [{ id: 'b', title: 'backend', message: 'Connectez votre compte YouTube pour rafraîchir cette playlist privée' }] }), { status: 200 })
+        : new Response(JSON.stringify(detail), { status: 200 }),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Synchroniser' }))
+    expect(await screen.findByText(/« backend » n’a pas été synchronisée : Connectez votre compte YouTube/)).toBeInTheDocument()
+  })
+
+  it('says nothing more when every source was synchronised', async () => {
+    renderWith({ youtubeUrl: null })
+    fireEvent.click(await screen.findByRole('button', { name: 'Synchroniser' }))
+    await screen.findByRole('button', { name: 'Synchroniser' })
+    expect(screen.queryByText(/n’a pas été synchronisée/)).not.toBeInTheDocument()
+  })
+})
