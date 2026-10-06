@@ -7,7 +7,9 @@ FROM node:20-alpine AS build
 WORKDIR /app
 # openssl requis par les moteurs Prisma sur Alpine (musl).
 RUN apk add --no-cache openssl
-COPY package.json package-lock.json ./
+# VERSIO[N]: the file exists only once deploy.sh has released (YC-106); package.json keeps the
+# COPY valid when it does not.
+COPY package.json package-lock.json VERSIO[N] ./
 COPY client/package.json client/
 COPY server/package.json server/
 RUN npm ci
@@ -28,7 +30,8 @@ ENV PORT=8080
 ENV CLIENT_DIST=/app/client/dist
 # Dependencies from the build (generated Prisma client + prisma CLI needed by
 # `prisma migrate deploy` at start). Workspaces hoist them to /app/node_modules.
-COPY --from=build /app/package.json ./
+# VERSION sits at /app, one level above WORKDIR: /api/health reads it (YC-106).
+COPY --from=build /app/package.json /app/VERSIO[N] ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/server/package.json ./server/
 COPY --from=build /app/server/prisma ./server/prisma
