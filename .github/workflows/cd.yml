@@ -1,7 +1,8 @@
 name: CD
 
-# Production moves with the version only (YC-106): deploy.sh writes VERSION and pushes main;
-# a push to main that leaves VERSION alone deploys nothing. Sevalla's own auto-deploy is off.
+# Production moves with the version only (YC-106): deploy.sh writes VERSION and pushes main.
+# Sevalla deploys itself, filtered by its deploy paths (allow: VERSION); this workflow only
+# publishes the images of that version. A push to main that leaves VERSION alone runs nothing.
 on:
   push:
     branches: [main]
@@ -58,20 +59,3 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/youcus-${{ matrix.service }}:${{ steps.version.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    name: Deploiement Sevalla
-    needs: images
-    runs-on: ubuntu-latest
-    steps:
-      - name: Declencher le deploiement
-        env:
-          SEVALLA_DEPLOY_HOOK: ${{ secrets.SEVALLA_DEPLOY_HOOK }}
-        run: |
-          # The hook is the only way production moves (YC-106): without it, fail loudly.
-          if [ -z "${SEVALLA_DEPLOY_HOOK}" ]; then
-            echo "::error::SEVALLA_DEPLOY_HOOK manquant : rien n'est deploye."
-            echo "Le poser : gh secret set SEVALLA_DEPLOY_HOOK (Settings > Secrets and variables > Actions)."
-            exit 1
-          fi
-          curl -fsSL -X POST "${SEVALLA_DEPLOY_HOOK}"
