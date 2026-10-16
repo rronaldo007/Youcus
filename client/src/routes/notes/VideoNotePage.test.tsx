@@ -77,6 +77,15 @@ describe('VideoNotePage (YC-77)', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
+  /**
+   * The editor is loaded on demand (LazyNoteEditor), and the « Repères » card is filled BY it (onSummary): wait
+   * for the editor before reading what it produces. Under a loaded machine its import takes more than the 1 s a
+   * findBy waits, and the card still says « Aucun repère » (YC-107).
+   */
+  async function editorLoaded() {
+    await screen.findByRole('toolbar', { name: 'Mise en forme' }, { timeout: 5000 })
+  }
+
   /** The YouTube player once it said it is ready, as on the real page. */
   async function readyPlayer() {
     await waitFor(() => expect(PlayerMock).toHaveBeenCalled())
@@ -110,6 +119,7 @@ describe('VideoNotePage (YC-77)', () => {
   it('lists the markers of the note in « Repères »: one playing, a click plays the video from it', async () => {
     renderPage()
     const instance = await readyPlayer()
+    await editorLoaded()
     const card = await screen.findByRole('region', { name: 'Repères' })
     const rows = await within(card).findAllByRole('button')
     expect(rows.map((r) => r.textContent)).toEqual(['04:05Le tableau de dépendances décide● en cours', '08:40Toujours nettoyer'])
@@ -125,6 +135,7 @@ describe('VideoNotePage (YC-77)', () => {
     expect(await screen.findByRole('heading', { name: 'Vidéo indisponible' })).toBeInTheDocument()
     expect(PlayerMock).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: /Reprendre/ })).not.toBeInTheDocument()
+    await editorLoaded()
     const card = await screen.findByRole('region', { name: 'Repères' })
     await waitFor(() => expect(within(card).getAllByRole('button')).toHaveLength(2))
     within(card).getAllByRole('button').forEach((b) => expect(b).toBeDisabled())
@@ -134,7 +145,7 @@ describe('VideoNotePage (YC-77)', () => {
     const createObjectURL = vi.fn(() => 'blob:x')
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
     renderPage()
-    await screen.findByRole('region', { name: 'Repères' })
+    await editorLoaded()
     await waitFor(() => expect(screen.getAllByText(/Le tableau de dépendances décide/).length).toBeGreaterThan(1))
     fireEvent.click(screen.getByRole('button', { name: 'Exporter en .docx' }))
     await waitFor(() => expect(docx).toHaveBeenCalled())
@@ -145,7 +156,8 @@ describe('VideoNotePage (YC-77)', () => {
 
   it('the editor is the full bar and the page: the page draws the header, not the editor', async () => {
     renderPage()
-    const toolbar = await screen.findByRole('toolbar', { name: 'Mise en forme' }, { timeout: 5000 })
+    await editorLoaded()
+    const toolbar = screen.getByRole('toolbar', { name: 'Mise en forme' })
     expect(toolbar).not.toHaveClass('yc-toolbar-compact')
     expect(screen.queryByRole('group', { name: 'Mode des notes' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Notes' })).not.toBeInTheDocument()

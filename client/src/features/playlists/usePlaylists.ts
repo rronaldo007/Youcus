@@ -78,11 +78,14 @@ export function useMergePlaylists() {
   })
 }
 
-/** Rafraîchit une playlist depuis YouTube (ajouts / retraits de vidéos). */
+/** A refresh; for a merge, the sources it could not refresh, each with why (YC-100). */
+export type RefreshResult = Playlist & { failedSources?: { id: string; title: string; message: string }[] }
+
+/** Rafraîchit une playlist depuis YouTube (ajouts / retraits de vidéos) ; une fusion, chacune de ses sources. */
 export function useRefreshPlaylist(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => apiFetch<Playlist>(`/playlists/${id}/refresh`, { method: 'POST' }),
+    mutationFn: () => apiFetch<RefreshResult>(`/playlists/${id}/refresh`, { method: 'POST' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playlists', id] })
       queryClient.invalidateQueries({ queryKey: ['playlists'] })
