@@ -86,6 +86,12 @@ export function PlaylistDetailPage() {
               </span>
             </div>
             {refresh.isError && <InlineMessage tone="error">{(refresh.error as Error).message}</InlineMessage>}
+            {/* A merge synchronises each source; one that failed is named, the others went on (YC-100). */}
+            {refresh.data?.failedSources?.map((s) => (
+              <InlineMessage key={s.id} tone="error">
+                « {s.title} » n’a pas été synchronisée : {s.message}
+              </InlineMessage>
+            ))}
           </div>
         </header>
 

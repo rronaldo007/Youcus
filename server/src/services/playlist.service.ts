@@ -500,18 +500,29 @@ async function describeMerge(mergeId: string): Promise<MergedInto | null> {
   })
 }
 
+/** A refresh, and for a merge the sources it could not refresh (YC-100): each says why, the others went on. */
+export interface RefreshResult extends ImportedPlaylist {
+  failedSources?: { id: string; title: string; message: string }[]
+}
+
 /**
- * Rafraîchit une playlist déjà importée : re-fetch YouTube par son `youtubeId`
- * puis synchronise ses vidéos (ajouts / retraits pris en compte, notes et
- * progressions préservées — voir syncVideos).
+ * Rafraîchit une playlist déjà importée depuis YouTube. Une fusion (YC-100) rafraîchit chacune de ses sources
+ * puis se reconstruit : voir refreshMerge.
  */
-export async function refreshPlaylist(userId: string, id: string): Promise<ImportedPlaylist> {
+export async function refreshPlaylist(userId: string, id: string): Promise<RefreshResult> {
   const existing = await prisma.playlist.findFirst({ where: { id, ownerId: userId } })
   if (!existing) throw new HttpError(404, 'Playlist introuvable')
-  if (isMerge(existing)) {
-    throw new HttpError(400, 'Une playlist fusionnée ne peut pas être rafraîchie')
-  }
+  return isMerge(existing) ? refreshMerge(userId, existing) : refreshSource(userId, existing)
+}
 
+/**
+ * Re-fetch YouTube par son `youtubeId` puis synchronise ses vidéos (ajouts / retraits pris en compte, notes et
+ * progressions préservées — voir syncVideos).
+ */
+async function refreshSource(
+  userId: string,
+  existing: { id: string; youtubeId: string; privacyStatus: string | null },
+): Promise<ImportedPlaylist> {
   // Le rafraîchissement manuel est une demande explicite de fraîcheur :
   // on purge la clé avant de relire, sinon l'utilisateur reverrait le cache.
   await invalidate(playlistKey(existing.youtubeId))
@@ -548,6 +559,71 @@ export async function refreshPlaylist(userId: string, id: string): Promise<Impor
     title: playlist.title,
     thumbnailUrl: playlist.thumbnailUrl,
     videoCount,
+  }
+}
+
+/**
+ * Refreshes a merge (YC-100): each source from YouTube, then the merge's own list. The merge keeps its order;
+ * a video new in a source goes last; a video gone from EVERY source leaves it. A source that fails (private
+ * without a token, deleted on YouTube) is told, keeps its videos, and the others go on. A merge made before
+ * YC-95 has no known source: nothing to refresh it from.
+ */
+async function refreshMerge(userId: string, merge: { id: string; youtubeId: string; title: string; thumbnailUrl: string | null }): Promise<RefreshResult> {
+  const sources = await prisma.playlist.findMany({
+    where: { mergedIntoId: merge.id, ownerId: userId },
+    orderBy: { createdAt: 'asc' },
+  })
+  if (sources.length === 0) {
+    throw new HttpError(400, 'Cette fusion date d’avant le suivi de ses sources : elle ne peut pas être rafraîchie')
+  }
+  const sourceIds = sources.map((s) => s.id)
+  const before = new Set(
+    (await prisma.playlistVideo.findMany({ where: { playlistId: { in: sourceIds } }, select: { videoId: true } })).map((pv) => pv.videoId),
+  )
+
+  const failedSources: { id: string; title: string; message: string }[] = []
+  for (const source of sources) {
+    try {
+      await refreshSource(userId, source)
+    } catch (err) {
+      failedSources.push({
+        id: source.id,
+        title: source.title,
+        message: err instanceof HttpError ? err.message : 'Rafraîchissement impossible pour le moment',
+      })
+    }
+  }
+
+  const videoCount = await prisma.$transaction(async (tx) => {
+    const rows = await tx.playlistVideo.findMany({
+      where: { playlistId: { in: sourceIds } },
+      select: { playlistId: true, videoId: true, position: true },
+    })
+    // The sources' videos now, oldest source first, each in its own order.
+    rows.sort((a, b) => sourceIds.indexOf(a.playlistId) - sourceIds.indexOf(b.playlistId) || a.position - b.position)
+    const after = [...new Set(rows.map((r) => r.videoId))]
+    const inMerge = await tx.playlistVideo.findMany({ where: { playlistId: merge.id }, select: { videoId: true, position: true } })
+    const present = new Set(inMerge.map((pv) => pv.videoId))
+    const now = new Set(after)
+
+    const gone = inMerge.filter((pv) => before.has(pv.videoId) && !now.has(pv.videoId)).map((pv) => pv.videoId)
+    if (gone.length > 0) await tx.playlistVideo.deleteMany({ where: { playlistId: merge.id, videoId: { in: gone } } })
+
+    let position = inMerge.reduce((max, pv) => Math.max(max, pv.position), -1) + 1
+    const added = after
+      .filter((videoId) => !present.has(videoId))
+      .map((videoId) => ({ playlistId: merge.id, videoId, position, sourcePosition: position++ }))
+    if (added.length > 0) await tx.playlistVideo.createMany({ data: added })
+    return inMerge.length - gone.length + added.length
+  })
+
+  return {
+    id: merge.id,
+    youtubeId: merge.youtubeId,
+    title: merge.title,
+    thumbnailUrl: merge.thumbnailUrl,
+    videoCount,
+    ...(failedSources.length > 0 ? { failedSources } : {}),
   }
 }
 

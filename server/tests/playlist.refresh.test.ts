@@ -8,7 +8,7 @@ import { HttpError } from '@/middleware/errorHandler'
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    playlist: { findFirst: vi.fn(), update: vi.fn() },
+    playlist: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
     video: { upsert: vi.fn(), deleteMany: vi.fn() },
     channel: { upsert: vi.fn() },
     chapter: { deleteMany: vi.fn(), createMany: vi.fn() },
@@ -39,7 +39,8 @@ describe('refreshPlaylist', () => {
     await expect(refreshPlaylist('u1', 'p1')).rejects.toMatchObject({ status: 404 })
   })
 
-  it('refuse (400) de rafraîchir une playlist fusionnée', async () => {
+  it('refuse (400) a merge made before YC-95: no known source to refresh it from (YC-100)', async () => {
+    vi.mocked(prisma.playlist.findMany).mockResolvedValue([] as never)
     vi.mocked(prisma.playlist.findFirst).mockResolvedValue({
       id: 'p1',
       ownerId: 'u1',
